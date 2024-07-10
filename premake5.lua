@@ -13,6 +13,8 @@ project "aurora"
 		"**.cpp",
 	}
 	
+	pchheader "src/aurora_pch.h"
+	
 	filter "configurations:debug"
 		defines 
 		{
@@ -26,5 +28,3 @@ project "aurora"
 			"NDEBUG"
 		}
 		optimize "On"
-	
-	
