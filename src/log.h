@@ -1,14 +1,15 @@
 #pragma once
 
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/stdout_color_sinks.h"
-
+#include "aurora_pch.h"
+//#include "spdlog/spdlog.h"
+//#include "spdlog/sinks/stdout_color_sinks.h"
+#include "spdlog/logger.h"
 namespace Aurora {
   class Log
   {
   public:
     static void Init();
-    inline static Aurora::Ref<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }
+    inline static Aurora::Ref<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }    
     inline static Aurora::Ref<spdlog::logger>& GetClientLogger() { return s_ClientLogger; }
   private:
     static Aurora::Ref<spdlog::logger> s_CoreLogger;
@@ -42,6 +43,6 @@ namespace Aurora {
   #define AR_ERROR(...)
   #define AR_WARN(...)
   #define AR_INFO(...)
-  #define AR_TRACE(...) 
+  #define AR_TRACE(...)
 
 #endif

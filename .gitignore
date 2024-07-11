@@ -1,5 +1,6 @@
-bin/
-obj/
+build/
 **.make
 Makefile
-
+.cache/
+compile_commands.json
+.hidden
