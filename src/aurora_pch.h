@@ -28,4 +28,6 @@ namespace Aurora {
 }
 
 
+#include "log.h"
+
 #endif
