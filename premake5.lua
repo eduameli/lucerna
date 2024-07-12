@@ -2,6 +2,15 @@ workspace "aurora"
     configurations { "debug", "release" }
     architecture "x86_64"
 
+newaction {
+  trigger = "build",
+  description = "Build the project",
+  execute = function()
+    local config = _ARGS[1] or "debug"
+    os.execute("premake gmake2 && premake export-compile-commands && make config=".. config .." -j4") 
+  end
+}
+
 project "aurora"
     kind "WindowedApp"
     language "C++"
