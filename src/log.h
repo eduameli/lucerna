@@ -1,9 +1,8 @@
 #pragma once
 
 #include "aurora_pch.h"
-//#include "spdlog/spdlog.h"
-//#include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/logger.h"
+
 namespace Aurora {
   class Log
   {

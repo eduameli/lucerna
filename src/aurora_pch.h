@@ -24,11 +24,6 @@ namespace Aurora {
   using Scope = std::unique_ptr<T>;
   template<typename T>
   using Ref = std::shared_ptr<T>;
-
-    inline void print_hello()
-    {
-        std::cout << "hello how are u " << std::endl;
-    }
 }
 
 #include "log.h"
