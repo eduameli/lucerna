@@ -16,7 +16,7 @@ project "aurora"
     	"SPDLOG_COMPILED_LIB",
     }
     
-    pchheader "/home/eduameli/Desktop/vulkan/attempt 1/aurora/src/aurora_pch.h"
+    pchheader "src/aurora_pch.h"
     
     files 
     {
