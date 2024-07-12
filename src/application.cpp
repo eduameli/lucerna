@@ -2,12 +2,7 @@
 
 int main()
 {
- 
   Aurora::Log::Init();
-  AR_CORE_INFO("Initialized Log!");
-  int a = 5;
-  AR_TRACE("variable: a={0}", a);
-
+  AR_CORE_INFO("Initialised Logging!");
   std::cin.get();
-
 }
