@@ -17,6 +17,7 @@ namespace Aurora {
 }
 
 // logging macros
+// TODO: instead of ifdef should be if DEBUG = 1
 
 #ifdef DEBUG
   #define AR_CORE_FATAL(...)    ::Aurora::Log::GetCoreLogger()->critical(__VA_ARGS__)

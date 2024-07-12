@@ -1,15 +1,8 @@
+--TODO: REFACTOR BUILD SYSTEM, BUILD GLFW SYSTEM INDEPENDENT
+
 workspace "aurora"
     configurations { "debug", "release" }
     architecture "x86_64"
-
---newaction {
---  trigger = "build",
---  description = "Build the project",
---  execute = function()
---    local config = _ARGS[1] or "debug"
---    os.execute("premake gmake2 && premake export-compile-commands && make config=".. config .." -j4") 
---  end
---}
 
 project "aurora"
     kind "WindowedApp"
@@ -34,11 +27,16 @@ project "aurora"
     includedirs 
     {
         "vendor/spdlog/include",
+        "vendor/glfw/include", -- if they are needed here are they also needed when compiling the static lib?
     }
+  
+    libdirs {"build/lib"}
 
     links 
     {
         "spdlog",
+        "glfw",
+        "vulkan",
     }
     
     filter {}
@@ -54,6 +52,9 @@ project "aurora"
     filter "configurations:release"
         defines { "NDEBUG" }
         optimize "On"
+
+
+
 
 project "spdlog"
     location "vendor/spdlog"
@@ -76,7 +77,7 @@ project "spdlog"
 
     files
     {
-        "vendor/spdlog/include/spdlog/**.h",
+        "vendor/spdlog/include/spdlog/**.h", -- maybe this can be removed as its already in included dirs
         "vendor/spdlog/src/**.cpp"
     }
 
@@ -86,3 +87,32 @@ project "spdlog"
     filter "configurations:release"
         optimize "On"
 
+project "glfw"
+  location "vendor/glfw"
+  kind "StaticLib"
+  language "C++"
+  cppdialect "C++17"
+  targetdir ("build/lib/bin/%{cfg.buildcfg}")
+  objdir("build/lib/obj/%{cfg.buildcfg}")
+
+  includedirs
+  {
+    "vendor/glfw/include"
+  }
+	defines {
+		--"_GLFW_WAYLAND",
+		"_GLFW_X11",
+		"_CRT_SECURE_NO_WARNINGS",
+	}
+  files
+  {
+    "vendor/glfw/include/GLFW/**.h",
+    --"vendor/glfw/src/**.c",
+    "vendor/glfw/src/**.c", -- is this needed?
+  }
+
+  filter "configurations:debug"
+    symbols "On"
+  
+  filter "configurations:release"
+    optimize "On"
