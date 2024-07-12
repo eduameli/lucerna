@@ -1,9 +1,6 @@
 [submodule "vendor/spdlog"]
 	path = vendor/spdlog
 	url = https://github.com/gabime/spdlog
-[submodule "vendor/benchmark"]
-	path = vendor/benchmark
-	url = https://github.com/google/benchmark
 [submodule "vendor/glfw"]
 	path = vendor/glfw
 	url = https://github.com/glfw/glfw
