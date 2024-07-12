@@ -28,6 +28,7 @@ project "aurora"
     {
         "vendor/spdlog/include",
         "vendor/glfw/include", -- if they are needed here are they also needed when compiling the static lib?
+        "vendor/KHR",
     }
   
     libdirs {"build/lib"}
@@ -97,12 +98,12 @@ project "glfw"
 
   includedirs
   {
-    "vendor/glfw/include"
+    "vendor/glfw/include",
+    "vendor/KHR/",
   }
 	defines {
 		--"_GLFW_WAYLAND",
 		"_GLFW_X11",
-		"_CRT_SECURE_NO_WARNINGS",
 	}
   files
   {
