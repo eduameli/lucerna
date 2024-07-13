@@ -5,18 +5,18 @@
 
 void glfwErrorCallback(int error, const char* description)
 {
-    AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
+    AR_CORE_ERROR("glfw error ({}): {}", error, description);
 }
 
 int main()
 {
   Aurora::Log::Init();
-  AR_CORE_INFO("Initialised Logging!");
+  AR_CORE_INFO("initialised logging!");
     
   glfwSetErrorCallback(glfwErrorCallback);
   if(!glfwInit())
   {
-    AR_CORE_FATAL("Failed to initialise glfw");
+    AR_CORE_FATAL("failed to initialise glfw");
     return -1;
   }
   
@@ -25,7 +25,7 @@ int main()
     
   if(!window)
   {
-    AR_CORE_FATAL("Failed to create glfw window");
+    AR_CORE_FATAL("failed to create glfw window");
     glfwTerminate();
     return -1;
   }
