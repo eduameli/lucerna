@@ -46,3 +46,16 @@ namespace Aurora {
   #define AR_TRACE(...)
 
 #endif
+
+#if AR_ENABLE_ASSERTS == 1
+#include <signal.h>
+#define AR_ASSERT(condition) \
+    do { \
+        if (!(condition)) { \
+            AR_CORE_ERROR("Assertion failed: ({0}) [{1}, {2}, {3}]", #condition, __FILE__, __FUNCTION__, __LINE__); \
+            raise(SIGTRAP); \
+        } \
+    } while (false)
+#else
+#define AR_ASSERT(condition)
+#endif
