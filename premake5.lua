@@ -7,7 +7,7 @@ workspace "aurora"
 project "aurora"
     kind "WindowedApp"
     language "C++"
-    cppdialect "C++17"
+    cppdialect "c++20"
     targetdir ("build/bin/%{cfg.buildcfg}")
     objdir ("build/obj/%{cfg.buildcfg}")
     
@@ -47,7 +47,7 @@ project "aurora"
     }
   
     filter "configurations:debug"
-        defines { "DEBUG" }
+        defines { "DEBUG", "AR_ENABLE_ASSERTS=1" }
         symbols "On"
 
     filter "configurations:release"
@@ -61,7 +61,7 @@ project "spdlog"
     location "vendor/spdlog"
     kind "StaticLib"
     language "C++"
-    cppdialect "C++17"
+    cppdialect "c++20"
     targetdir ("build/lib/bin/%{cfg.buildcfg}")
     objdir ("build/lib/obj/%{cfg.buildcfg}")
     --staticruntime "On"	
@@ -92,7 +92,7 @@ project "glfw"
   location "vendor/glfw"
   kind "StaticLib"
   language "C++"
-  cppdialect "C++17"
+  cppdialect "c++20"
   targetdir ("build/lib/bin/%{cfg.buildcfg}")
   objdir("build/lib/obj/%{cfg.buildcfg}")
 

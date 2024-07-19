@@ -2,6 +2,7 @@
 
 #include "aurora_pch.h"
 #include "spdlog/logger.h"
+#include "spdlog/fmt/fmt.h"
 
 namespace Aurora {
   class Log
@@ -19,7 +20,10 @@ namespace Aurora {
 // logging macros
 // TODO: instead of ifdef should be if DEBUG = 1
 
+
 #ifdef DEBUG
+#include <signal.h>
+
   #define AR_CORE_FATAL(...)    ::Aurora::Log::GetCoreLogger()->critical(__VA_ARGS__)
   #define AR_CORE_ERROR(...)    ::Aurora::Log::GetCoreLogger()->error(__VA_ARGS__)
   #define AR_CORE_WARN(...)     ::Aurora::Log::GetCoreLogger()->warn(__VA_ARGS__)
@@ -31,6 +35,10 @@ namespace Aurora {
   #define AR_WARN(...)          ::Aurora::Log::GetClientLogger()->warn(__VA_ARGS__)
   #define AR_INFO(...)          ::Aurora::Log::GetClientLogger()->info(__VA_ARGS__)
   #define AR_TRACE(...)         ::Aurora::Log::GetClientLogger()->trace(__VA_ARGS__)
+  
+
+  #define AR_STOP raise(SIGTRAP) 
+
 #else
 
   #define AR_CORE_FATAL(...)
@@ -44,18 +52,22 @@ namespace Aurora {
   #define AR_WARN(...)
   #define AR_INFO(...)
   #define AR_TRACE(...)
+  
+  #define STOP std::exit();  
 
 #endif
 
 #if AR_ENABLE_ASSERTS == 1
 #include <signal.h>
-#define AR_ASSERT(condition) \
+#define AR_ASSERT(condition, ...) \
     do { \
         if (!(condition)) { \
-            AR_CORE_ERROR("Assertion failed: ({0}) [{1}, {2}, {3}]", #condition, __FILE__, __FUNCTION__, __LINE__); \
-            raise(SIGTRAP); \
+            AR_CORE_FATAL("ASSERT FAILED [{}, {}, {}]", __FILE__, __FUNCTION__, __LINE__); \
+            AR_CORE_FATAL("{}", fmt::format(__VA_ARGS__)); \
+            AR_STOP; \
         } \
     } while (false)
+
 #else
 #define AR_ASSERT(condition)
 #endif

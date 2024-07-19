@@ -11,8 +11,7 @@ class Window
     Window(int width, int height, const std::string& name);
     ~Window();
 
-    inline bool ShouldClose() { return glfwWindowShouldClose(m_Window); }
-    inline void PollEvents() { glfwPollEvents(); }
+    inline GLFWwindow* GetWindow() { return m_Window; } 
   public:
 
   private:

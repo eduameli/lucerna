@@ -16,6 +16,9 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <optional>
+
+#include <stdexcept>
+
 // include base macros... logging & assert
 // namespace Ref and Scoped using!
 
