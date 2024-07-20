@@ -1,5 +1,6 @@
 #include "aurora_pch.h"
 #include "window.h"
+#include "device.h"
 #include <vulkan/vulkan.h>
 
 namespace Aurora {
@@ -42,9 +43,9 @@ namespace Aurora {
 
     private:
       Window m_MainWindow;
-      VkInstance m_Instance{};
+      VkInstance m_Instance;
+      Scope<Device> m_Device;
       VkDebugUtilsMessengerEXT m_DebugMessenger{};
-      VkPhysicalDevice physicalDevice{};
       std::vector<const char*> m_RequiredExtensions = {
         // empty for now
       };

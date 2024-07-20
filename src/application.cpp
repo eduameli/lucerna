@@ -162,9 +162,10 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData) {
-
-    //std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-    AR_CORE_ERROR(pCallbackData->pMessage);
+    
+    //if (messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+    //  return VK_FALSE;
+    AR_CORE_ERROR("VALIDATION LAYER: {}", pCallbackData->pMessage);
     return VK_FALSE;
 }
 
@@ -189,11 +190,7 @@ void Application::DestroyDebugUtilsMessengerEXT(
 
 void Application::PickPhysicalDevice()
 {
-  //FIXME: make a device class?
-  uint32_t deviceCount = 0;
-  vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
-  AR_ASSERT(deviceCount != 0, "Failed to find GPUs with Vulkan support!");
-  AR_CORE_INFO(deviceCount);
+  m_Device = std::make_unique<Device>(m_Instance);
 }
 
 }

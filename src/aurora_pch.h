@@ -15,18 +15,25 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <map>
+
 #include <optional>
 
 #include <stdexcept>
 
 // include base macros... logging & assert
 // namespace Ref and Scoped using!
+// maybe make a utils.h and include it here?
 
 namespace Aurora {
   template<typename T>
   using Scope = std::unique_ptr<T>;
   template<typename T>
   using Ref = std::shared_ptr<T>;
+
+  //FIX: taken from Auralius stream? idk if its good or if i can use "using" or smth like that...
+  template<typename O, typename I>
+  [[nodiscard]] O as(I && v) { return static_cast<O>(std::forward<I>(v)); }
 }
 
 #include "log.h"
