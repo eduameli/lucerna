@@ -44,7 +44,7 @@ namespace Aurora {
     private:
       Window m_MainWindow;
       VkInstance m_Instance;
-      Scope<Device> m_Device;
+      Device m_Device;
       VkDebugUtilsMessengerEXT m_DebugMessenger{};
       std::vector<const char*> m_RequiredExtensions = {
         // empty for now

@@ -12,11 +12,16 @@ Application::Application()
 
 Application::~Application()
 {
-  AR_CORE_INFO("Destroying Application");
+  AR_CORE_INFO("Destroying Application!!");
   if(m_UseValidationLayers)
   {
     DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
   }
+  
+  // destroy instance children 
+  vkDestroyDevice(m_Device.GetDevice(), nullptr);
+
+  // destroy instance
   vkDestroyInstance(m_Instance, nullptr);
 }
 
@@ -29,6 +34,7 @@ void Application::InitialiseVulkan()
 {
   CheckInstanceExtensionSupport();
   CheckValidationLayersSupport();
+
   CreateInstance();
   SetupValidationLayerCallback();
   PickPhysicalDevice();
@@ -190,7 +196,8 @@ void Application::DestroyDebugUtilsMessengerEXT(
 
 void Application::PickPhysicalDevice()
 {
-  m_Device = std::make_unique<Device>(m_Instance);
+  //m_Device = std::make_unique<Device>(m_Instance);
+  m_Device.ChooseDevice(m_Instance);
 }
 
 }

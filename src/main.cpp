@@ -11,4 +11,9 @@ int main(int argc, char* argv[])
     app.Run();
   }
   
+  // something like this!
+  //Aurora::Application::cleanup();
+  // vkh (vulkan helper!) 
+
+  
 }

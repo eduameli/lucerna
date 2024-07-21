@@ -16,14 +16,22 @@ Window::Window(int width, int height, const std::string& name)
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
   m_Window = glfwCreateWindow(800, 600, name.c_str(), nullptr, nullptr);
+
 }
 
 Window::~Window()
 {
   glfwDestroyWindow(m_Window);
   glfwTerminate();
+  // FIXME: since application destroys the instance should i create the instance in
+  // main? and then use destructors normally..
 }
 
+void Window::CreateSurface(VkInstance instance)
+{
+  VkResult result = glfwCreateWindowSurface(instance, m_Window, nullptr, &h_Surface);
+  AR_ASSERT(result == VK_SUCCESS, "Failed to create window surface!");
+}
 
 void Window::glfwErrorCallback(int error, const char* description)
 {
