@@ -23,6 +23,7 @@ namespace Aurora {
       void CreateInstance();
       void SetupValidationLayerCallback();
       void PickPhysicalDevice();
+      void CreateSwapchain();
 
       VkResult CreateDebugUtilsMessengerEXT(
         VkInstance instance,

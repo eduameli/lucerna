@@ -194,10 +194,14 @@ void Application::DestroyDebugUtilsMessengerEXT(
   return fn(instance, debugMessenger, pAllocator);
 }
 
+// NOTE: useless function? maybe just create m_Device on the heap
+// and use constructor and destructor normally unique_ptr
 void Application::PickPhysicalDevice()
 {
   //m_Device = std::make_unique<Device>(m_Instance);
   m_Device.ChooseDevice(m_Instance);
 }
+
+
 
 }

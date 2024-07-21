@@ -27,12 +27,6 @@ Window::~Window()
   // main? and then use destructors normally..
 }
 
-void Window::CreateSurface(VkInstance instance)
-{
-  VkResult result = glfwCreateWindowSurface(instance, m_Window, nullptr, &h_Surface);
-  AR_ASSERT(result == VK_SUCCESS, "Failed to create window surface!");
-}
-
 void Window::glfwErrorCallback(int error, const char* description)
 {
   AR_CORE_ERROR("GLFW Error ({}): {}", error, description);

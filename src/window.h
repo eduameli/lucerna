@@ -5,12 +5,13 @@
 
 namespace Aurora {
 
+// NOTE: maybe window should handle the swapchain!
+// for that it needs access to VkInstance?
 class Window
 {
   public:
     Window(int width, int height, const std::string& name);
     ~Window();
-    void CreateSurface(VkInstance instance);
     inline GLFWwindow* GetWindow() { return m_Window; } 
   public:
 
@@ -20,9 +21,6 @@ class Window
     GLFWwindow* m_Window;
     int m_Width;
     int m_Height;
-  
-    VkSurfaceKHR h_Surface;
-
 };
 
 } // namespace Aurora
