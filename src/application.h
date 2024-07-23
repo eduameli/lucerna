@@ -1,3 +1,4 @@
+#pragma once
 #include "aurora_pch.h"
 #include "window.h"
 #include "device.h"
@@ -10,7 +11,7 @@ namespace Aurora {
       Application();
       ~Application();
       void Run();
-      inline bool ShouldClose() { return glfwWindowShouldClose(m_MainWindow.GetWindow()); }
+      inline bool ShouldClose() { return glfwWindowShouldClose(m_MainWindow.GetHandle()); }
       inline void PollEvents() { return glfwPollEvents(); }
     public:
       static constexpr int WIDTH = 640;

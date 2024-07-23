@@ -1,3 +1,4 @@
+#pragma once
 #include "aurora_pch.h"
 
 #define GLFW_INCLUDE_VULKAN
@@ -12,7 +13,8 @@ class Window
   public:
     Window(int width, int height, const std::string& name);
     ~Window();
-    inline GLFWwindow* GetWindow() { return m_Window; } 
+    void CreateWindowSurface(VkInstance instance, VkSurfaceKHR& surface);
+    inline GLFWwindow* GetHandle() { return m_Window; } 
   public:
 
   private:

@@ -2,20 +2,21 @@
 
 #include "aurora_pch.h"
 #include <vulkan/vulkan.h>
+#include "window.h"
 
 namespace Aurora {
 class Device 
 {
   public:
-    Device();
+    Device(Window& window);
     ~Device();
   public:
     struct QueueFamilyIndices
     {
       std::optional<uint32_t> graphicsFamily;
-
+      std::optional<uint32_t> presentFamily;
       bool IsComplete() {
-        return graphicsFamily.has_value();
+        return graphicsFamily.has_value() && presentFamily.has_value();
       }
     };
 
@@ -50,12 +51,15 @@ class Device
       void* pUserData);
   
   private:
+    Window& m_Window;
+
     VkInstance h_Instance{};
     VkDebugUtilsMessengerEXT h_DebugMessenger{};
     VkSurfaceKHR h_Surface{};
     VkPhysicalDevice h_PhysicalDevice{};
     VkDevice h_Device{};
     VkQueue h_GraphicsQueue{};
+    VkQueue h_PresentQueue{};
     
     std::vector<const char*> m_RequiredExtensions = {
       // empty for now (instance extensions)

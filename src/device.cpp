@@ -4,7 +4,8 @@
 
 namespace Aurora {
 
-Device::Device()
+Device::Device(Window& window)
+  : m_Window{window}
 {
   // init vulkan, check validation, check instance extensions, create instance, get phsyical dev -> logical devic
   CheckInstanceExtensionSupport();
@@ -12,7 +13,7 @@ Device::Device()
 
   CreateInstance();
   SetupValidationLayerCallback();
-  CreateSurface();
+  m_Window.CreateWindowSurface(h_Instance, h_Surface);
   CreateLogicalDevice();
 }
 
@@ -20,8 +21,9 @@ Device::~Device()
 {
   vkDeviceWaitIdle(h_Device);
   vkDestroyDevice(h_Device, nullptr);
+  vkDestroySurfaceKHR(h_Instance, h_Surface, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
-}
+} 
 
 void Device::CheckInstanceExtensionSupport()
 {
@@ -127,7 +129,27 @@ void Device::CreateLogicalDevice()
 {
   PickPhysicalDevice();
   auto indices = FindQueueFamilies(h_PhysicalDevice);
+  
+  std::set<uint32_t> uniqueQueueFamilies = 
+  {
+    indices.graphicsFamily.value(), indices.presentFamily.value()
+  };
+  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+  queueCreateInfos.reserve(uniqueQueueFamilies.size());
 
+  float queuePriority = 1.0f;
+  for (uint32_t queueFamily : uniqueQueueFamilies)
+  {
+    AR_CORE_INFO("INDEX: {}", queueFamily);
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = queueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+    queueCreateInfos.push_back(queueCreateInfo);
+  }
+
+  /*
   VkDeviceQueueCreateInfo queueCreateInfo{};
   queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
   queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
@@ -135,12 +157,13 @@ void Device::CreateLogicalDevice()
 
   float queuePriority = 1.0f;
   queueCreateInfo.pQueuePriorities = &queuePriority;
-
+  */
+  AR_CORE_FATAL(queueCreateInfos.size());
   VkPhysicalDeviceFeatures deviceFeatures{};
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  createInfo.pQueueCreateInfos = &queueCreateInfo;
-  createInfo.queueCreateInfoCount = 1;
+  createInfo.pQueueCreateInfos = queueCreateInfos.data();
+  createInfo.queueCreateInfoCount = as<uint32_t>(queueCreateInfos.size());
   createInfo.pEnabledFeatures = &deviceFeatures;
   
   //NOTE: device specific validation layers are deprecated!
@@ -148,6 +171,8 @@ void Device::CreateLogicalDevice()
 
   VkResult result = vkCreateDevice(h_PhysicalDevice, &createInfo, nullptr, &h_Device);
   AR_ASSERT(result == VK_SUCCESS, "Failed to create VkDevice from Physical Device!");
+
+  AR_ASSERT(h_GraphicsQueue == VK_NULL_HANDLE, "TRUE");
   
 }
 
@@ -229,13 +254,22 @@ Device::QueueFamilyIndices Device::FindQueueFamilies(VkPhysicalDevice device)
   std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
   
-  int i = 0;
-  for (const auto& queueFamily : queueFamilies)
+  for (int i = 0; i < queueFamilyCount; i++)
   {
+    auto queueFamily = queueFamilies[i];
     if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
     {
       indices.graphicsFamily = i;
     }
+  
+    //NOTE: could add logic to explicitly prefer a physical device that supports
+    // both drawing and presentation in the same queue for improved performance!
+    VkBool32 presentSupport = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, h_Surface, &presentSupport);
+    if (presentSupport) {
+      indices.presentFamily = i;
+    }
+
     if(indices.IsComplete())
       break;
     

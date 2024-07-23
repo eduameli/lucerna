@@ -4,7 +4,7 @@
 namespace Aurora {
 
 Application::Application()
-  : m_MainWindow{WIDTH, HEIGHT, "Aurora"}
+  : m_MainWindow{WIDTH, HEIGHT, "Aurora"}, m_Device(m_MainWindow)
 {
   //InitialiseVulkan();
 }
