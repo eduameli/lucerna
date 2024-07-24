@@ -12,12 +12,10 @@ namespace Aurora {
       ~Application();
       void Run();
       inline bool ShouldClose() { return glfwWindowShouldClose(m_MainWindow.GetHandle()); }
-      inline void PollEvents() { return glfwPollEvents(); }
     public:
       static constexpr int WIDTH = 640;
       static constexpr int HEIGHT = 480;
     private:
-      
     private:
       Window m_MainWindow;
       Device m_Device;

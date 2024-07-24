@@ -1,6 +1,4 @@
 #pragma once
-
-#include "aurora_pch.h"
 #include <vulkan/vulkan.h>
 #include "window.h"
 
@@ -19,20 +17,31 @@ class Device
         return graphicsFamily.has_value() && presentFamily.has_value();
       }
     };
+    
+    //NOTE: might be a good idea to make a swapchain class?
+    struct SwapChainSupportDetails {
+      VkSurfaceCapabilitiesKHR capabilities;
+      std::vector<VkSurfaceFormatKHR> formats;
+      std::vector<VkPresentModeKHR> presentModes;
+    };
 
   private:
     //void InitialiseVulkan();
     void CheckInstanceExtensionSupport();
     void CheckValidationLayersSupport();
+    bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
     void CreateInstance();
     void SetupValidationLayerCallback();
-    void CreateSurface();
     void PickPhysicalDevice();
     uint32_t RateDeviceSuitability(VkPhysicalDevice device);
+    bool IsDeviceSuitable(VkPhysicalDevice device);
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
     void CreateLogicalDevice();
     void CreateSwapchain();
-
+    SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
+    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& supportedFormats);
+    VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& supportedModes);
+    VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     VkResult CreateDebugUtilsMessengerEXT(
       VkInstance instance,
       const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -61,12 +70,16 @@ class Device
     VkQueue h_GraphicsQueue{};
     VkQueue h_PresentQueue{};
     
-    std::vector<const char*> m_RequiredExtensions = {
+    std::vector<const char*> m_InstanceExtensions = {
       // empty for now (instance extensions)
     };
     const std::vector<const char*> m_ValidationLayers = {
       "VK_LAYER_KHRONOS_validation",
     };
+
+    const std::vector<const char*> m_DeviceExtensions = {
+      VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    }; 
 
     #ifdef DEBUG
       const bool m_UseValidationLayers = true;

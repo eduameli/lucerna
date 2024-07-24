@@ -29,7 +29,6 @@ Window::~Window()
 
 void Window::CreateWindowSurface(VkInstance instance, VkSurfaceKHR& surface)
 {
-  AR_CORE_FATAL("Creating window surface!");
   VkResult result = glfwCreateWindowSurface(instance, m_Window, nullptr, &surface);
   AR_ASSERT(result == VK_SUCCESS, "Failed to create window surface!");
 }

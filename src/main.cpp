@@ -7,7 +7,6 @@ int main(int argc, char* argv[])
   Aurora::Application app;
   while (!app.ShouldClose())
   {
-    app.PollEvents();
     app.Run();
   }
   

@@ -19,8 +19,9 @@
 #include <set>
 
 #include <optional>
+#include <limits>
 
-#include <stdexcept>
+//#include <stdexcept>
 
 // include base macros... logging & assert
 // namespace Ref and Scoped using!
