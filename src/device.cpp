@@ -34,6 +34,8 @@ Device::~Device()
 
 void Device::CheckInstanceExtensionSupport()
 {
+  Timer scoped("Device::CheckInstanceSupport");
+
   uint32_t requiredCount = 0;
   const char** requiredExtensions;
   requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredCount);
@@ -117,8 +119,7 @@ void Device::CreateInstance()
     createInfo.ppEnabledLayerNames = m_ValidationLayers.data();
   }
   
-  VkResult result = vkCreateInstance(&createInfo, nullptr, &h_Instance);
-  AR_ASSERT(result == VK_SUCCESS, "Vulkan Instance could not be created!");
+  VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &h_Instance));
 }
 
 void Device::SetupValidationLayerCallback()
@@ -170,8 +171,7 @@ void Device::CreateLogicalDevice()
   //NOTE: device specific validation layers are deprecated!
   createInfo.enabledLayerCount = 0;
 
-  VkResult result = vkCreateDevice(h_PhysicalDevice, &createInfo, nullptr, &h_Device);
-  AR_ASSERT(result == VK_SUCCESS, "Failed to create Logical Device from Physical Device!"); 
+  VK_CHECK_RESULT(vkCreateDevice(h_PhysicalDevice, &createInfo, nullptr, &h_Device));
 
   vkGetDeviceQueue(h_Device, indices.graphicsFamily.value(), 0, &h_GraphicsQueue);
   vkGetDeviceQueue(h_Device, indices.presentFamily.value(), 0, &h_PresentQueue);
@@ -436,8 +436,7 @@ void Device::CreateSwapchain()
   createInfo.clipped = VK_TRUE;
   createInfo.oldSwapchain = VK_NULL_HANDLE;
   
-  VkResult result = vkCreateSwapchainKHR(h_Device, &createInfo, nullptr, &h_Swapchain);
-  AR_ASSERT(result == VK_SUCCESS, "Failed to create swapchain!");
+  VK_CHECK_RESULT(vkCreateSwapchainKHR(h_Device, &createInfo, nullptr, &h_Swapchain));
 
   vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &imageCount, nullptr);
   m_SwapchainImages.resize(imageCount);
@@ -470,8 +469,7 @@ void Device::CreateImageViews()
     createInfo.subresourceRange.baseArrayLayer = 0;
     createInfo.subresourceRange.layerCount = 1;
 
-    VkResult result = vkCreateImageView(h_Device, &createInfo, nullptr, &m_SwapchainImageViews[i]);
-    AR_ASSERT(result == VK_SUCCESS, "Failed to create view image at swapchain index {}", i);
+    VK_CHECK_RESULT(vkCreateImageView(h_Device, &createInfo, nullptr, &m_SwapchainImageViews[i]));
   }
 }
 

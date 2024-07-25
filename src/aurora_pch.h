@@ -22,6 +22,7 @@
 #include <limits>
 
 //#include <stdexcept>
+#include <chrono>
 
 // include base macros... logging & assert
 // namespace Ref and Scoped using!
@@ -38,6 +39,8 @@ namespace Aurora {
   [[nodiscard]] O as(I && v) { return static_cast<O>(std::forward<I>(v)); }
 }
 
+#include "vk_utils.h"
 #include "log.h"
+#include "core.h"
 
 #endif
