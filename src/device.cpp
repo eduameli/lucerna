@@ -15,11 +15,13 @@ Device::Device(Window& window)
   SetupValidationLayerCallback();
   m_Window.CreateWindowSurface(h_Instance, h_Surface);
   CreateLogicalDevice();
+  CreateSwapchain();
 }
 
 Device::~Device()
 {
   vkDeviceWaitIdle(h_Device);
+  vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
   vkDestroyDevice(h_Device, nullptr);
   vkDestroySurfaceKHR(h_Instance, h_Surface, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
@@ -389,6 +391,48 @@ void Device::CreateSwapchain()
   VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(details.formats);
   VkPresentModeKHR presentMode = ChooseSwapPresentMode(details.presentModes);
   VkExtent2D extent = ChooseSwapExtent(details.capabilities);
+
+  uint32_t imageCount = details.capabilities.minImageCount;
+  if (details.capabilities.maxImageCount > 0 && imageCount > details.capabilities.maxImageCount)
+  {
+    imageCount = details.capabilities.maxImageCount;
+  }
+
+  VkSwapchainCreateInfoKHR createInfo{};
+  createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+  createInfo.surface = h_Surface;
+  createInfo.minImageCount = imageCount;
+  createInfo.imageFormat = surfaceFormat.format;
+  createInfo.imageColorSpace = surfaceFormat.colorSpace;
+  createInfo.imageExtent = extent;
+  createInfo.imageArrayLayers = 1;
+  createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+  QueueFamilyIndices indices = FindQueueFamilies(h_PhysicalDevice);
+  uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+
+  if (indices.graphicsFamily != indices.presentFamily)
+  {
+    createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+    createInfo.queueFamilyIndexCount = 2;
+    createInfo.pQueueFamilyIndices = queueFamilyIndices;
+  }
+  else
+  {
+    createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    createInfo.queueFamilyIndexCount = 0;
+    createInfo.pQueueFamilyIndices = nullptr;
+  }
+
+  createInfo.preTransform = details.capabilities.currentTransform;
+  createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+  
+  createInfo.presentMode = presentMode;
+  createInfo.clipped = VK_TRUE;
+  createInfo.oldSwapchain = VK_NULL_HANDLE;
+  
+  VkResult result = vkCreateSwapchainKHR(h_Device, &createInfo, nullptr, &h_Swapchain);
+  AR_ASSERT(result == VK_SUCCESS, "Failed to create swapchain!");
 }
 
 }

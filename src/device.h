@@ -69,6 +69,7 @@ class Device
     VkDevice h_Device{};
     VkQueue h_GraphicsQueue{};
     VkQueue h_PresentQueue{};
+    VkSwapchainKHR h_Swapchain{};
     
     std::vector<const char*> m_InstanceExtensions = {
       // empty for now (instance extensions)
