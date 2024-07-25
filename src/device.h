@@ -38,6 +38,7 @@ class Device
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
     void CreateLogicalDevice();
     void CreateSwapchain();
+    void CreateImageViews();
     SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& supportedFormats);
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& supportedModes);
@@ -71,6 +72,11 @@ class Device
     VkQueue h_PresentQueue{};
     VkSwapchainKHR h_Swapchain{};
     
+    std::vector<VkImage> m_SwapchainImages;
+    std::vector<VkImageView> m_SwapchainImageViews;
+    VkExtent2D m_SwapchainExtent;
+    VkFormat m_SwapchainImageFormat;
+
     std::vector<const char*> m_InstanceExtensions = {
       // empty for now (instance extensions)
     };

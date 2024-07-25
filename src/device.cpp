@@ -16,11 +16,16 @@ Device::Device(Window& window)
   m_Window.CreateWindowSurface(h_Instance, h_Surface);
   CreateLogicalDevice();
   CreateSwapchain();
+  CreateImageViews();
 }
 
 Device::~Device()
 {
   vkDeviceWaitIdle(h_Device);
+  for (auto imageView : m_SwapchainImageViews)
+  {
+    vkDestroyImageView(h_Device, imageView, nullptr);
+  }
   vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
   vkDestroyDevice(h_Device, nullptr);
   vkDestroySurfaceKHR(h_Instance, h_Surface, nullptr);
@@ -433,6 +438,41 @@ void Device::CreateSwapchain()
   
   VkResult result = vkCreateSwapchainKHR(h_Device, &createInfo, nullptr, &h_Swapchain);
   AR_ASSERT(result == VK_SUCCESS, "Failed to create swapchain!");
+
+  vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &imageCount, nullptr);
+  m_SwapchainImages.resize(imageCount);
+  vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &imageCount, m_SwapchainImages.data());
+
+  m_SwapchainExtent = extent;
+  m_SwapchainImageFormat = surfaceFormat.format;
+}
+
+void Device::CreateImageViews()
+{
+  m_SwapchainImageViews.resize(m_SwapchainImages.size());
+
+  for (size_t i = 0; i < m_SwapchainImages.size(); i++)
+  {
+    VkImageViewCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    createInfo.image = m_SwapchainImages[i];
+    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.format = m_SwapchainImageFormat;
+    
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
+
+    VkResult result = vkCreateImageView(h_Device, &createInfo, nullptr, &m_SwapchainImageViews[i]);
+    AR_ASSERT(result == VK_SUCCESS, "Failed to create view image at swapchain index {}", i);
+  }
 }
 
 }
