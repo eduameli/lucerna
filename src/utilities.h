@@ -42,7 +42,7 @@ namespace Aurora
 
 
   #else
-  #define AR_ASSERT(condition)
+  #define AR_ASSERT(condition, ...)
   #endif
 
   

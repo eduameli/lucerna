@@ -2,7 +2,10 @@
 #include "aurora_pch.h"
 #include "window.h"
 #include "device.h"
+#include "engine.h"
+
 #include <vulkan/vulkan.h>
+ 
 
 namespace Aurora {
   class Application
@@ -19,5 +22,6 @@ namespace Aurora {
     private:
       Window m_MainWindow;
       Device m_Device;
+      Engine m_Engine; 
   };
 }

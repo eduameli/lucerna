@@ -39,8 +39,7 @@ namespace Aurora {
   [[nodiscard]] O as(I && v) { return static_cast<O>(std::forward<I>(v)); }
 }
 
-#include "vk_utils.h"
+#include "utilities.h"
 #include "log.h"
-#include "core.h"
 
 #endif
