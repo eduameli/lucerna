@@ -7,6 +7,9 @@ class Device
   public:
     Device(Window& window);
     ~Device();
+    inline VkPhysicalDevice GetPhysicalDevice() { return h_PhysicalDevice; }
+    inline VkDevice GetLogicalDevice() { return h_Device; }
+    inline VkQueue GetGraphicsQueue() { return h_GraphicsQueue; }
   public:
     struct QueueFamilyIndices
     {
@@ -15,7 +18,7 @@ class Device
       bool IsComplete() {
         return graphicsFamily.has_value() && presentFamily.has_value();
       }
-    };
+    } indices;
     
     //NOTE: might be a good idea to make a swapchain class?
     struct SwapChainSupportDetails {
@@ -23,7 +26,6 @@ class Device
       std::vector<VkSurfaceFormatKHR> formats;
       std::vector<VkPresentModeKHR> presentModes;
     };
-
   private:
     //void InitialiseVulkan();
     void CheckInstanceExtensionSupport();

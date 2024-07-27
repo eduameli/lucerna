@@ -34,7 +34,7 @@ Device::~Device()
 
 void Device::CheckInstanceExtensionSupport()
 {
-  Timer scoped("Device::CheckInstanceSupport");
+  //Timer scoped("Device::CheckInstanceSupport");
 
   uint32_t requiredCount = 0;
   const char** requiredExtensions;
@@ -316,6 +316,7 @@ Device::QueueFamilyIndices Device::FindQueueFamilies(VkPhysicalDevice device)
   }
   
   AR_ASSERT(indices.IsComplete(), "Succesfully found all required Queue Families!");
+  this->indices = indices;
   return indices;
 }
 

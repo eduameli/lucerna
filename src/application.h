@@ -21,7 +21,6 @@ namespace Aurora {
     private:
     private:
       Window m_MainWindow;
-      Device m_Device;
       Engine m_Engine; 
   };
 }

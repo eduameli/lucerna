@@ -7,7 +7,7 @@
 namespace Aurora {
 
 Window::Window(int width, int height, const std::string& name)
-  : m_Width{width}, m_Height{height}, m_Window{nullptr}
+  : m_Width{width}, m_Height{height}
 {
   glfwSetErrorCallback(glfwErrorCallback);
   glfwInit();
