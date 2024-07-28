@@ -10,6 +10,8 @@ namespace Aurora
   {
     VkCommandPool commandPool;
     VkCommandBuffer mainCommandBuffer;
+    VkSemaphore swapchainSemaphore, renderSemaphore;
+    VkFence renderFence;
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
 
@@ -18,6 +20,7 @@ namespace Aurora
     public:
       Engine(Window& window);
       ~Engine();
+      void Draw();
       inline FrameData& GetCurrentFrame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
     public:
       static constexpr int WIDTH = 640;

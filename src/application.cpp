@@ -15,5 +15,6 @@ Application::~Application()
 void Application::Run()
 {
   glfwPollEvents();
+  m_Engine.Draw();
 }
 }
