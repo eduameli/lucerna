@@ -26,6 +26,13 @@ namespace Aurora
       static constexpr int WIDTH = 640;
       static constexpr int HEIGHT = 480;
     private:
+      // vkhelper or vkimage?
+      void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout);
+      // vkhelper init?
+      VkSemaphoreSubmitInfo SemaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore);
+      VkCommandBufferSubmitInfo CommandBufferSubmitInfo(VkCommandBuffer cmd);
+      VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo* signalSemaphoreInfo, VkSemaphoreSubmitInfo* waitSemaphoreInfo);
+    private:
       FrameData m_Frames[FRAME_OVERLAP];
       size_t m_FrameNumber{};
 

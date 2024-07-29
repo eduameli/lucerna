@@ -10,6 +10,7 @@ class Device
     inline VkPhysicalDevice GetPhysicalDevice() { return h_PhysicalDevice; }
     inline VkDevice GetLogicalDevice() { return h_Device; }
     inline VkQueue GetGraphicsQueue() { return h_GraphicsQueue; }
+    inline VkSwapchainKHR& GetSwapchain() { return h_Swapchain; }
   public:
     struct QueueFamilyIndices
     {
@@ -72,8 +73,9 @@ class Device
     VkQueue h_GraphicsQueue{};
     VkQueue h_PresentQueue{};
     VkSwapchainKHR h_Swapchain{};
-    
+  public: 
     std::vector<VkImage> m_SwapchainImages;
+  private:
     std::vector<VkImageView> m_SwapchainImageViews;
     VkExtent2D m_SwapchainExtent;
     VkFormat m_SwapchainImageFormat;
