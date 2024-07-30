@@ -73,10 +73,11 @@ class Device
     VkQueue h_GraphicsQueue{};
     VkQueue h_PresentQueue{};
     VkSwapchainKHR h_Swapchain{};
-  public: 
+  public:
     std::vector<VkImage> m_SwapchainImages;
-  private:
+  public:
     std::vector<VkImageView> m_SwapchainImageViews;
+  private:
     VkExtent2D m_SwapchainExtent;
     VkFormat m_SwapchainImageFormat;
 
@@ -92,7 +93,7 @@ class Device
     }; 
 
     #ifdef DEBUG
-      const bool m_UseValidationLayers = true;
+      const bool m_UseValidationLayers = false;
     #else
       const bool m_UseValidationLayers = false;
     #endif

@@ -49,7 +49,7 @@ Engine::Engine(Window& window)
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device.GetLogicalDevice(), &semaphoreInfo, nullptr, &m_Frames[i].swapchainSemaphore));
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device.GetLogicalDevice(), &semaphoreInfo, nullptr, &m_Frames[i].renderSemaphore));
   }
-
+  AR_CORE_INFO("Finished Engine Constructor...!");
 }
 
 Engine::~Engine()
@@ -73,6 +73,8 @@ void Engine::Draw()
 
   uint32_t swapChainImageIndex;
   VK_CHECK_RESULT(vkAcquireNextImageKHR(h_Device.GetLogicalDevice(), h_Device.GetSwapchain(), 1000000000, GetCurrentFrame().swapchainSemaphore, nullptr, &swapChainImageIndex));
+  
+  AR_ASSERT(h_Device.m_SwapchainImages[swapChainImageIndex] != VK_NULL_HANDLE, "Swapchain image handle is VK_NULL_HANDLE...");
 
   //NOTE: vkhelper class for easy inits
   VkCommandBufferBeginInfo info{};
@@ -83,8 +85,9 @@ void Engine::Draw()
   VkCommandBuffer cmd = GetCurrentFrame().mainCommandBuffer;
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &info));
-
+  
   TransitionImage(cmd, h_Device.m_SwapchainImages[swapChainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
   VkClearColorValue clearValue;
   float flash = std::abs(std::sin(m_FrameNumber / 120.0f));
   clearValue = {{0.0f, 0.0f, flash, 1.0f}};
@@ -124,13 +127,14 @@ void Engine::Draw()
 
 void Engine::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
 {
+
   VkImageMemoryBarrier2 imageBarrier{};
   imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   imageBarrier.pNext = nullptr;
   imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
   imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT;
   imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-  imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+  imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
   imageBarrier.oldLayout = currentLayout;
   imageBarrier.newLayout = newLayout;
   
@@ -145,14 +149,17 @@ void Engine::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout c
 
   imageBarrier.subresourceRange = sub;
   imageBarrier.image = image;
+
   VkDependencyInfo depInfo{};
   depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
   depInfo.pNext = nullptr;
   depInfo.imageMemoryBarrierCount = 1;
   depInfo.pImageMemoryBarriers = &imageBarrier;
+  
 
   vkCmdPipelineBarrier2(cmd, &depInfo);
-
+  
+  //AR_STOP;
 
  }
 
