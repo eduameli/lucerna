@@ -29,6 +29,7 @@ project "aurora"
         "vendor/spdlog/include",
         "vendor/glfw/include", -- if they are needed here are they also needed when compiling the static lib?
         "vendor/KHR",
+        "vendor/vulkan/include",
     }
   
     libdirs {"build/lib"}
