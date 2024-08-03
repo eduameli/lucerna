@@ -8,10 +8,10 @@ namespace Aurora
 
   struct FrameData
   {
-    VkCommandPool commandPool;
-    VkCommandBuffer mainCommandBuffer;
-    VkSemaphore swapchainSemaphore, renderSemaphore;
-    VkFence renderFence;
+    VkCommandPool commandPool{};
+    VkCommandBuffer mainCommandBuffer{};
+    VkSemaphore swapchainSemaphore{}, renderSemaphore{};
+    VkFence renderFence{};
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
 
@@ -34,12 +34,12 @@ namespace Aurora
       VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo* signalSemaphoreInfo, VkSemaphoreSubmitInfo* waitSemaphoreInfo);
     private:
       FrameData m_Frames[FRAME_OVERLAP];
-      size_t m_FrameNumber{};
+      uint32_t m_FrameNumber = 0;
 
       Window& m_Window;
       Device h_Device;
       
-      VkQueue h_GraphicsQueue;
-      uint32_t m_GraphicsQueueIndex;
+      VkQueue h_GraphicsQueue{};
+      uint32_t m_GraphicsQueueIndex{};
   };
 }

@@ -74,15 +74,16 @@ class Device
     VkQueue h_PresentQueue{};
     VkSwapchainKHR h_Swapchain{};
   public:
-    std::vector<VkImage> m_SwapchainImages;
+    std::vector<VkImage> m_SwapchainImages{};
   public:
-    std::vector<VkImageView> m_SwapchainImageViews;
+    std::vector<VkImageView> m_SwapchainImageViews{};
   private:
-    VkExtent2D m_SwapchainExtent;
-    VkFormat m_SwapchainImageFormat;
+    VkExtent2D m_SwapchainExtent{};
+    VkFormat m_SwapchainImageFormat{};
 
     std::vector<const char*> m_InstanceExtensions = {
       // empty for now (instance extensions)
+      "VK_KHR_get_physical_device_properties2",
     };
     const std::vector<const char*> m_ValidationLayers = {
       "VK_LAYER_KHRONOS_validation",
@@ -93,7 +94,7 @@ class Device
     }; 
 
     #ifdef DEBUG
-      const bool m_UseValidationLayers = false;
+      const bool m_UseValidationLayers = true;
     #else
       const bool m_UseValidationLayers = false;
     #endif

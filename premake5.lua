@@ -48,8 +48,9 @@ project "aurora"
     }
   
     filter "configurations:debug"
-        defines { "DEBUG", "AR_ENABLE_ASSERTS=1" }
+        defines { "DEBUG", "AR_ENABLE_ASSERTS=1"}
         symbols "On"
+        optimize "Off"
 
     filter "configurations:release"
         defines { "NDEBUG" }

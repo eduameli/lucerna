@@ -5,7 +5,6 @@ namespace Aurora
 Engine::Engine(Window& window)
   : m_Window{window}, h_Device{m_Window}
 {
-  AR_CORE_INFO("Starting Engine!!");
   //FIX: could have a better "API" like vkbootstrap enum=
   h_GraphicsQueue = h_Device.GetGraphicsQueue();
   m_GraphicsQueueIndex = h_Device.indices.graphicsFamily.value();
@@ -49,7 +48,6 @@ Engine::Engine(Window& window)
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device.GetLogicalDevice(), &semaphoreInfo, nullptr, &m_Frames[i].swapchainSemaphore));
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device.GetLogicalDevice(), &semaphoreInfo, nullptr, &m_Frames[i].renderSemaphore));
   }
-  AR_CORE_INFO("Finished Engine Constructor...!");
 }
 
 Engine::~Engine()
@@ -57,7 +55,6 @@ Engine::~Engine()
   vkDeviceWaitIdle(h_Device.GetLogicalDevice());
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
-    AR_CORE_TRACE("Destroying pool!! T_T");
     vkDestroyCommandPool(h_Device.GetLogicalDevice(), m_Frames[i].commandPool, nullptr);
     vkDestroyFence(h_Device.GetLogicalDevice(), m_Frames[i].renderFence, nullptr);
     vkDestroySemaphore(h_Device.GetLogicalDevice(), m_Frames[i].renderSemaphore, nullptr);
@@ -74,7 +71,6 @@ void Engine::Draw()
   uint32_t swapChainImageIndex;
   VK_CHECK_RESULT(vkAcquireNextImageKHR(h_Device.GetLogicalDevice(), h_Device.GetSwapchain(), 1000000000, GetCurrentFrame().swapchainSemaphore, nullptr, &swapChainImageIndex));
   
-  AR_ASSERT(h_Device.m_SwapchainImages[swapChainImageIndex] != VK_NULL_HANDLE, "Swapchain image handle is VK_NULL_HANDLE...");
 
   //NOTE: vkhelper class for easy inits
   VkCommandBufferBeginInfo info{};
@@ -85,7 +81,7 @@ void Engine::Draw()
   VkCommandBuffer cmd = GetCurrentFrame().mainCommandBuffer;
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &info));
-  
+ 
   TransitionImage(cmd, h_Device.m_SwapchainImages[swapChainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
   VkClearColorValue clearValue;
@@ -156,11 +152,7 @@ void Engine::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout c
   depInfo.imageMemoryBarrierCount = 1;
   depInfo.pImageMemoryBarriers = &imageBarrier;
   
-
   vkCmdPipelineBarrier2(cmd, &depInfo);
-  
-  //AR_STOP;
-
  }
 
 VkSemaphoreSubmitInfo Engine::SemaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore)

@@ -27,6 +27,7 @@ Device::~Device()
     vkDestroyImageView(h_Device, imageView, nullptr);
   }
   vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
+  DestroyDebugUtilsMessengerEXT(h_Instance, h_DebugMessenger, nullptr);
   vkDestroyDevice(h_Device, nullptr);
   vkDestroySurfaceKHR(h_Instance, h_Surface, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
@@ -43,7 +44,7 @@ void Device::CheckInstanceExtensionSupport()
 
   if (m_UseValidationLayers)
   {
-    m_InstanceExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    m_InstanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     requiredCount++;
   }
   
@@ -105,7 +106,7 @@ void Device::CreateInstance()
   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appInfo.pEngineName = "Aurora";
   appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
-  appInfo.apiVersion = VK_API_VERSION_1_0;
+  appInfo.apiVersion = VK_API_VERSION_1_3;
 
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -125,6 +126,50 @@ void Device::CreateInstance()
 void Device::SetupValidationLayerCallback()
 {
   // no for now!
+  if(!m_UseValidationLayers)
+    return;
+
+  VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+  createInfo.pfnUserCallback = debugCallback;
+  VK_CHECK_RESULT(CreateDebugUtilsMessengerEXT(h_Instance, &createInfo, nullptr, &h_DebugMessenger));
+}
+
+VkBool32 Device::debugCallback(
+  VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+  VkDebugUtilsMessageTypeFlagsEXT messageType,
+  const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+  void* pUserData)
+{
+  if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+  {
+    AR_CORE_ERROR("VALIDATION LAYER ERROR: {}", pCallbackData->pMessage);
+  }
+
+  return VK_FALSE;
+}
+
+VkResult Device::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
+{
+  auto fn = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+  if (fn == nullptr)
+  {
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+  }
+
+  return fn(instance, pCreateInfo, pAllocator, pDebugMessenger);
+}
+
+void Device::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+{
+  auto fn = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+  if (fn == nullptr)
+  {
+    return;
+  }
+  fn(instance, debugMessenger, pAllocator);
 }
 
 void Device::CreateLogicalDevice()
@@ -159,11 +204,27 @@ void Device::CreateLogicalDevice()
 
 
   VkPhysicalDeviceFeatures deviceFeatures{};
+  // enable sync2
+  VkPhysicalDeviceVulkan13Features features13{};
+  features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+  features13.synchronization2 = VK_TRUE;
+  features13.dynamicRendering = VK_TRUE;
+
+  VkPhysicalDeviceFeatures2 features2{};
+  features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  features2.pNext = &features13;
+  features2.features = deviceFeatures;
+
+
+
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   createInfo.pQueueCreateInfos = queueCreateInfos.data();
   createInfo.queueCreateInfoCount = as<uint32_t>(queueCreateInfos.size());
-  createInfo.pEnabledFeatures = &deviceFeatures;
+  
+  createInfo.pNext = &features2;
+  createInfo.pEnabledFeatures = nullptr;
+
   
   createInfo.enabledExtensionCount = as<uint32_t>(m_DeviceExtensions.size());
   createInfo.ppEnabledExtensionNames = m_DeviceExtensions.data();
