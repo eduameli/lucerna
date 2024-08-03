@@ -61,11 +61,14 @@ Engine::~Engine()
     vkDestroySemaphore(h_Device.GetLogicalDevice(), m_Frames[i].swapchainSemaphore, nullptr);
 
   }
+  m_DeletionQueue.Flush();
 }
 
 void Engine::Draw()
 {
   VK_CHECK_RESULT(vkWaitForFences(h_Device.GetLogicalDevice(), 1, &GetCurrentFrame().renderFence, true, 1000000000));
+  GetCurrentFrame().deletionQueue.Flush();
+
   VK_CHECK_RESULT(vkResetFences(h_Device.GetLogicalDevice(), 1, &GetCurrentFrame().renderFence));
 
   uint32_t swapChainImageIndex;

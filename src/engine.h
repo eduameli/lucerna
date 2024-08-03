@@ -3,8 +3,31 @@
 #include <vulkan/vulkan.h>
 #include "window.h"
 #include "device.h"
+#include <deque>
 namespace Aurora
 {
+
+  // NOTE: its inefficient to store a function for every object being deleted
+  // a better approach would be to store arrays of vulkan handles of various types
+  // such as VkImage, VkBuffer and so on, and delete those from a loop. 
+  struct DeletionQueue
+  {
+    std::deque<std::function<void()>> deletors;
+    void PushFunction(std::function<void()>&& function)
+    {
+      deletors.push_back(function);
+    }
+    
+    void Flush()
+    {
+      for (auto it = deletors.rbegin(); it != deletors.rend(); it++)
+      {
+        (*it)();
+      }
+      
+      deletors.clear();
+    }
+  };
 
   struct FrameData
   {
@@ -12,6 +35,7 @@ namespace Aurora
     VkCommandBuffer mainCommandBuffer{};
     VkSemaphore swapchainSemaphore{}, renderSemaphore{};
     VkFence renderFence{};
+    DeletionQueue deletionQueue;
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
 
@@ -41,5 +65,7 @@ namespace Aurora
       
       VkQueue h_GraphicsQueue{};
       uint32_t m_GraphicsQueueIndex{};
+
+      DeletionQueue m_DeletionQueue;
   };
 }

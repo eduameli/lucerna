@@ -204,7 +204,6 @@ void Device::CreateLogicalDevice()
 
 
   VkPhysicalDeviceFeatures deviceFeatures{};
-  // enable sync2
   VkPhysicalDeviceVulkan13Features features13{};
   features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
   features13.synchronization2 = VK_TRUE;

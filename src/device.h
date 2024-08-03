@@ -83,7 +83,6 @@ class Device
 
     std::vector<const char*> m_InstanceExtensions = {
       // empty for now (instance extensions)
-      "VK_KHR_get_physical_device_properties2",
     };
     const std::vector<const char*> m_ValidationLayers = {
       "VK_LAYER_KHRONOS_validation",
