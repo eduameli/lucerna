@@ -6,4 +6,5 @@ compile_commands.json
 .hidden
 .clangd
 core
-vendor/
+
+vendor/**/Makefile
