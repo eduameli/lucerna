@@ -1,5 +1,9 @@
 #include "engine.h"
 #include "aurora_pch.h"
+
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+
 namespace Aurora
 {
 Engine::Engine(Window& window)
@@ -28,7 +32,6 @@ Engine::Engine(Window& window)
     cmdInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
     VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device.GetLogicalDevice(), &cmdInfo, &m_Frames[i].mainCommandBuffer));
-
   }
   
   // init sync structures
@@ -48,6 +51,18 @@ Engine::Engine(Window& window)
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device.GetLogicalDevice(), &semaphoreInfo, nullptr, &m_Frames[i].swapchainSemaphore));
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device.GetLogicalDevice(), &semaphoreInfo, nullptr, &m_Frames[i].renderSemaphore));
   }
+
+  VmaAllocatorCreateInfo allocatorInfo{};
+  allocatorInfo.physicalDevice = h_Device.GetPhysicalDevice();
+  allocatorInfo.device = h_Device.GetLogicalDevice();
+  allocatorInfo.instance = h_Device.GetInstance();
+  allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  vmaCreateAllocator(&allocatorInfo, &m_Allocator);
+  m_DeletionQueue.PushFunction([&]() {
+    vmaDestroyAllocator(m_Allocator);
+  });
+
+
 }
 
 Engine::~Engine()

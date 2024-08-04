@@ -11,6 +11,7 @@ class Device
     inline VkDevice GetLogicalDevice() { return h_Device; }
     inline VkQueue GetGraphicsQueue() { return h_GraphicsQueue; }
     inline VkSwapchainKHR& GetSwapchain() { return h_Swapchain; }
+    inline VkInstance GetInstance() { return h_Instance; }
   public:
     struct QueueFamilyIndices
     {

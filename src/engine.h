@@ -1,5 +1,6 @@
 #pragma once
 // NOTE: move device into engine + vkguide stuff!
+#include "aurora_pch.h"
 #include <vulkan/vulkan.h>
 #include "window.h"
 #include "device.h"
@@ -67,5 +68,6 @@ namespace Aurora
       uint32_t m_GraphicsQueueIndex{};
 
       DeletionQueue m_DeletionQueue;
+      VmaAllocator m_Allocator;
   };
 }

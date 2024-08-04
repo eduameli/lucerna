@@ -21,12 +21,9 @@
 #include <optional>
 #include <limits>
 
-//#include <stdexcept>
 #include <chrono>
 
-// include base macros... logging & assert
-// namespace Ref and Scoped using!
-// maybe make a utils.h and include it here?
+#include "vk_types.h"
 
 namespace Aurora {
   template<typename T>

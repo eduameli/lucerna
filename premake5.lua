@@ -30,6 +30,7 @@ project "aurora"
         "vendor/glfw/include", -- if they are needed here are they also needed when compiling the static lib?
         "vendor/KHR",
         "vendor/vulkan/include",
+        "vendor/VulkanMemoryAllocator/include"
     }
   
     libdirs {"build/lib"}
