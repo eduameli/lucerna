@@ -3,7 +3,8 @@
 	url = https://github.com/gabime/spdlog
 [submodule "vendor/glfw"]
 	path = vendor/glfw
-	url = https://github.com/glfw/glfw.git
+  url = https://github.com/glfw/glfw.git
+  ignore = dirty
 [submodule "vendor/vulkan"]
 	path = vendor/vulkan
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git

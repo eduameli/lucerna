@@ -105,7 +105,7 @@ project "glfw"
   }
   
   prebuildcommands {
-    "wayland-scanner client-header /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml xdg-shell-client-protocol.h && wayland-scanner server-header /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml xdg-shell-server-protocol.h"
+    "wayland-scanner client-header /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml include/xdg-shell-client-protocol.h && wayland-scanner server-header /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml include/xdg-shell-server-protocol.h"
   }
   
   defines {
