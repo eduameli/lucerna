@@ -104,12 +104,8 @@ project "glfw"
     "vendor/KHR/",
   }
   
-  prebuildcommands {
-    "wayland-scanner client-header /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml include/xdg-shell-client-protocol.h && wayland-scanner server-header /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml include/xdg-shell-server-protocol.h"
-  }
-  
   defines {
-    "_GLFW_WAYLAND",
+    --"_GLFW_WAYLAND",
     "_GLFW_X11",
   }
   
