@@ -103,14 +103,19 @@ project "glfw"
     "vendor/glfw/include",
     "vendor/KHR/",
   }
-	defines {
-		--"_GLFW_WAYLAND",
-		"_GLFW_X11",
-	}
+  
+  prebuildcommands {
+    "wayland-scanner client-header /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml xdg-shell-client-protocol.h && wayland-scanner server-header /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml xdg-shell-server-protocol.h"
+  }
+  
+  defines {
+    "_GLFW_WAYLAND",
+    "_GLFW_X11",
+  }
+  
   files
   {
     "vendor/glfw/include/GLFW/**.h",
-    --"vendor/glfw/src/**.c",
     "vendor/glfw/src/**.c", -- is this needed?
   }
 
@@ -119,3 +124,21 @@ project "glfw"
   
   filter "configurations:release"
     optimize "On"
+
+project "VulkanMemoryAllocator"
+  location "vendor/VulkanMemoryAllocator"
+  kind "StaticLib"
+  language "C++"
+  cppdialect "c++20"
+  targetdir ("build/lib/bin/%{cfg.buildcfg}")
+  objdir("build/lib/obj/%{cfg.buildcfg}")
+  
+  includedirs
+  {
+    "vendor/VulkanMemoryAllocator/include",
+  }
+  
+  files
+  {
+    "vendor/VulkanMemoryAllocator/include/**.h"
+  }
