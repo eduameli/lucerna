@@ -4,7 +4,7 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
-#include "vk_initializers.h"
+#include "vk_initialisers.h"
 
 namespace Aurora
 {

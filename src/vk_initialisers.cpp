@@ -1,4 +1,4 @@
-#include "vk_initializers.h"
+#include "vk_initialisers.h"
 
 
 VkSemaphoreSubmitInfo vkinit::semaphore_submit_info(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore)
