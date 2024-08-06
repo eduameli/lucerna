@@ -505,6 +505,11 @@ void Device::CreateSwapchain()
 
   m_SwapchainExtent = extent;
   m_SwapchainImageFormat = surfaceFormat.format;
+
+
+  VkExtent3D drawImageExtent{extent.width, extent.height, 1};
+
+
 }
 
 void Device::CreateImageViews()

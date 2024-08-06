@@ -69,5 +69,8 @@ namespace Aurora
 
       DeletionQueue m_DeletionQueue;
       VmaAllocator m_Allocator;
+
+      AllocatedImage m_DrawImage;
+      VkExtent2D m_DrawExtent;
   };
 }

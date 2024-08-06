@@ -90,5 +90,5 @@ namespace Aurora
 		  assert(res == VK_SUCCESS);																		\
 	  }																									\
   }
-  
+
 }

@@ -23,6 +23,7 @@
 
 #include <chrono>
 
+//NOTE: useful vulkan types?
 #include "vk_types.h"
 
 namespace Aurora {
