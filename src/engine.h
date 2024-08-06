@@ -10,7 +10,8 @@ namespace Aurora
 
   // NOTE: its inefficient to store a function for every object being deleted
   // a better approach would be to store arrays of vulkan handles of various types
-  // such as VkImage, VkBuffer and so on, and delete those from a loop. 
+  // such as VkImage, VkBuffer and so on, and delete those from a loop.
+  // NOTE: this could be vk_core or smth
   struct DeletionQueue
   {
     std::deque<std::function<void()>> deletors;
@@ -54,9 +55,6 @@ namespace Aurora
       // vkhelper or vkimage?
       void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout);
       // vkhelper init?
-      VkSemaphoreSubmitInfo SemaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore);
-      VkCommandBufferSubmitInfo CommandBufferSubmitInfo(VkCommandBuffer cmd);
-      VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo* signalSemaphoreInfo, VkSemaphoreSubmitInfo* waitSemaphoreInfo);
     private:
       FrameData m_Frames[FRAME_OVERLAP];
       uint32_t m_FrameNumber = 0;

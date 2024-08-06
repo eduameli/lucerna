@@ -4,6 +4,8 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
+#include "vk_initializers.h"
+
 namespace Aurora
 {
 Engine::Engine(Window& window)
@@ -117,10 +119,11 @@ void Engine::Draw()
   TransitionImage(cmd, h_Device.m_SwapchainImages[swapChainImageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
   VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
-  VkCommandBufferSubmitInfo cmdInfo = CommandBufferSubmitInfo(cmd);
-  VkSemaphoreSubmitInfo waitInfo= SemaphoreSubmitInfo(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, GetCurrentFrame().swapchainSemaphore);
-  VkSemaphoreSubmitInfo signalInfo = SemaphoreSubmitInfo(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, GetCurrentFrame().renderSemaphore);
-  VkSubmitInfo2 submit = SubmitInfo(&cmdInfo, &signalInfo, &waitInfo);
+  VkCommandBufferSubmitInfo cmdInfo = vkinit::commandbuffer_submit_info(cmd);
+  VkSemaphoreSubmitInfo waitInfo= vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, GetCurrentFrame().swapchainSemaphore);
+  VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, GetCurrentFrame().renderSemaphore);
+  VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
+  
   VK_CHECK_RESULT(vkQueueSubmit2(h_Device.GetGraphicsQueue(), 1, &submit, GetCurrentFrame().renderFence))
 
   VkPresentInfoKHR present{};
@@ -172,45 +175,5 @@ void Engine::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout c
   
   vkCmdPipelineBarrier2(cmd, &depInfo);
  }
-
-VkSemaphoreSubmitInfo Engine::SemaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore)
-{
-  VkSemaphoreSubmitInfo info{};
-  info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-  info.pNext = nullptr;
-  info.semaphore = semaphore;
-  info.stageMask = stageMask;
-  info.deviceIndex = 0;
-  info.value = 1;
-  return info;
-}
-
-VkCommandBufferSubmitInfo Engine::CommandBufferSubmitInfo(VkCommandBuffer cmd)
-{
-  VkCommandBufferSubmitInfo info{};
-  info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-  info.pNext = nullptr;
-  info.commandBuffer = cmd;
-  info.deviceMask = 0;
-  return info;
-}
-
-VkSubmitInfo2 Engine::SubmitInfo(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo* signalSemaphoreInfo, VkSemaphoreSubmitInfo* waitSemaphoreInfo)
-{
-  VkSubmitInfo2 info{};
-  info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
-  info.pNext = nullptr;
-
-  info.waitSemaphoreInfoCount = waitSemaphoreInfo == nullptr ? 0 : 1;
-  info.pWaitSemaphoreInfos = waitSemaphoreInfo;
-
-  info.signalSemaphoreInfoCount = signalSemaphoreInfo == nullptr ? 0 : 1;
-  info.pSignalSemaphoreInfos = signalSemaphoreInfo;
-
-  info.commandBufferInfoCount = 1;
-  info.pCommandBufferInfos = cmd;
-
-  return info;
-}
 
 }

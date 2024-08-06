@@ -4,9 +4,7 @@ namespace Aurora {
 
 Application::Application()
   : m_MainWindow{WIDTH, HEIGHT, "Aurora"}, m_Engine{m_MainWindow}
-{
-  //InitialiseVulkan();
-}
+{}
 
 Application::~Application()
 {
@@ -19,4 +17,5 @@ void Application::Run()
   m_Engine.Draw();
 
 }
+
 }
