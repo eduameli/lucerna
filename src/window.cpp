@@ -1,5 +1,5 @@
 #include "window.h"
-
+#include "log.h"
 //FIX: should glfw be init in window class or application?
 // for simplicity, there will only be one window at a time 
 // should it be static?
@@ -7,33 +7,29 @@
 namespace Aurora {
 
 Window::Window(int width, int height, const std::string& name)
-  : m_Width{width}, m_Height{height}
 {
-  glfwSetErrorCallback(glfwErrorCallback);
+  glfwSetErrorCallback(glfw_error_callback);
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-  m_Window = glfwCreateWindow(800, 600, name.c_str(), nullptr, nullptr);
-
+  h_Window = glfwCreateWindow(800, 600, name.c_str(), nullptr, nullptr);
+  std::cout << "created window and init!!" << std::endl;
 }
 
 Window::~Window()
 {
-  glfwDestroyWindow(m_Window);
+  glfwDestroyWindow(h_Window);
   glfwTerminate();
-  // FIXME: since application destroys the instance should i create the instance in
-  // main? and then use destructors normally..
 }
 
-void Window::CreateWindowSurface(VkInstance instance, VkSurfaceKHR& surface)
+void Window::create_window_surface(VkInstance instance, VkSurfaceKHR& surface) const
 {
-  VkResult result = glfwCreateWindowSurface(instance, m_Window, nullptr, &surface);
-  AR_ASSERT(result == VK_SUCCESS, "Failed to create window surface!");
+  VK_CHECK_RESULT(glfwCreateWindowSurface(instance, h_Window, nullptr, &surface));
 }
 
-void Window::glfwErrorCallback(int error, const char* description)
+void Window::glfw_error_callback(int error, const char* description)
 {
   AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
 }

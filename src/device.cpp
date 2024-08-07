@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 
 namespace Aurora {
-
+/*
 Device::Device(Window& window)
   : m_Window{window}
 {
@@ -539,4 +539,5 @@ void Device::CreateImageViews()
   }
 }
 
+*/
 }

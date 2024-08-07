@@ -40,13 +40,14 @@ namespace Aurora
     DeletionQueue deletionQueue;
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
+  
 
   class Engine
   {
     public:
-      Engine(Window& window);
+      Engine();
       ~Engine();
-      void Draw();
+      void draw();
       inline FrameData& GetCurrentFrame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
     public:
       static constexpr int WIDTH = 640;
@@ -59,8 +60,8 @@ namespace Aurora
       FrameData m_Frames[FRAME_OVERLAP];
       uint32_t m_FrameNumber = 0;
 
-      Window& m_Window;
-      Device h_Device;
+      //Window& m_Window;
+      //Device h_Device;
       
       VkQueue h_GraphicsQueue{};
       uint32_t m_GraphicsQueueIndex{};

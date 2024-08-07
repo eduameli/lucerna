@@ -1,26 +1,31 @@
 #pragma once
 #include "aurora_pch.h"
 #include "window.h"
-#include "device.h"
 #include "engine.h"
 
 #include <vulkan/vulkan.h>
  
+//NOTE: this will manage high level abstractions 
+// engine -> rendering
+// user input -> move around
+// imgui maybe=
 
 namespace Aurora {
   class Application
   {
     public:
+      static constexpr int WIDTH = 800;
+      static constexpr int HEIGHT = 600;
+    public:
       Application();
       ~Application();
-      void Run();
-      inline bool ShouldClose() { return glfwWindowShouldClose(m_MainWindow.GetHandle()); }
-    public:
-      static constexpr int WIDTH = 640;
-      static constexpr int HEIGHT = 480;
-    private:
-    private:
-      Window m_MainWindow;
-      Engine m_Engine; 
+      void run();
+      static bool should_exit();
+      static Window& get_main_window();
+      static GLFWwindow* get_window_handle() {return s_MainWindow.get_handle(); };
+    private: 
+      static Window s_MainWindow;
+      Engine m_Engine;
   };
+
 }

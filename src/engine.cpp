@@ -6,8 +6,36 @@
 
 #include "vk_initialisers.h"
 
+#include "application.h"
+
+// forward declaration
+
+// NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
+
 namespace Aurora
 {
+Engine::Engine()
+{
+  //glfwInit();
+  //auto win = Application::get_main_window();
+  //printf("POINTER! %d", Application::get_main_window().should_close());
+  std::cout << "starting engine!" << std::endl;
+  AR_ASSERT(glfwInit() == GLFW_TRUE, "FAILED TO INIT");
+  auto& win = Application::get_main_window();
+  //glfwSetWindowShouldClose(win, GLFW_TRUE);
+  //auto win2 = Application::get_main_window();
+  //printf("ptr %p", win);
+ //std::cout << Application::get_main_window().get_handle() << std::endl;
+}
+
+Engine::~Engine()
+{}
+
+void Engine::draw()
+{}
+
+/*
+ 
 Engine::Engine(Window& window)
   : m_Window{window}, h_Device{m_Window}
 {
@@ -67,6 +95,9 @@ Engine::Engine(Window& window)
 
 }
 
+*/
+
+/*
 Engine::~Engine()
 {
   vkDeviceWaitIdle(h_Device.GetLogicalDevice());
@@ -175,5 +206,5 @@ void Engine::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout c
   
   vkCmdPipelineBarrier2(cmd, &depInfo);
  }
-
+*/
 }

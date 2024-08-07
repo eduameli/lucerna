@@ -11,18 +11,19 @@ namespace Aurora {
 class Window
 {
   public:
+    //static inline GLFWwindow* h_Window;  //NOTE: only one window for every inst of this class? should only be one anyways...
+  public:
     Window(int width, int height, const std::string& name);
     ~Window();
-    void CreateWindowSurface(VkInstance instance, VkSurfaceKHR& surface);
-    inline GLFWwindow* GetHandle() { return m_Window; } 
-  public:
+    inline bool should_close() const { return glfwWindowShouldClose(h_Window); };
+    inline GLFWwindow* get_handle() { return h_Window; };
+    void create_window_surface(VkInstance instance, VkSurfaceKHR& surface) const; 
 
-  private:
-    static void glfwErrorCallback(int error, const char* description);
   private: 
-    GLFWwindow* m_Window;
-    int m_Width;
-    int m_Height;
+    GLFWwindow* h_Window;
+  private:
+    static void glfw_error_callback(int error, const char* description);
 };
+
 
 } // namespace Aurora

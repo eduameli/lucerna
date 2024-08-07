@@ -3,16 +3,15 @@
 int main(int argc, char* argv[])
 {
   Aurora::Log::Init();
-  
+  //AR_CORE_FATAL("STARTING"); 
   Aurora::Application app;
-  while (!app.ShouldClose())
+  std::cout << "should exit?" << std::endl;
+  while(!app.should_exit())
   {
-    app.Run();
+    app.run();
   }
-  
-  // something like this!
-  //Aurora::Application::cleanup();
-  // vkh (vulkan helper!) 
-
-  
+  //while (!app.should_exit())
+  //{
+  //  app.run();
+  //}
 }
