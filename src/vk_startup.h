@@ -21,3 +21,6 @@ namespace vkstartup
   };
 
 } // namespace vkstartup 
+
+
+// move debug utils fn here ? use volk
