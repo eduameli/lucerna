@@ -22,7 +22,6 @@ namespace Aurora {
       void run();
       static bool should_exit();
       static Window& get_main_window();
-      static GLFWwindow* get_window_handle() {return s_MainWindow.get_handle(); };
     private: 
       static Window s_MainWindow;
       Engine m_Engine;
