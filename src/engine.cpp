@@ -19,6 +19,11 @@ Engine::Engine()
 {
   Window& win = Application::get_main_window();
   init_vulkan();
+  /*
+  create_logical_device();
+  create_swapchain();
+  m_Device = vkb::create_device(); 
+  */
 }
 
 Engine::~Engine()

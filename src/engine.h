@@ -62,6 +62,7 @@ namespace Aurora
       VkInstance h_Instance;
       VkDebugUtilsMessengerEXT h_DebugMessenger;
       DeletionQueue m_DeletionQueue;
+      Device m_Device;
     private:
       void init_vulkan();
       void check_instance_ext_support();

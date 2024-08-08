@@ -2,6 +2,16 @@
 #include <vulkan/vulkan.h>
 #include "window.h"
 namespace Aurora {
+
+class Device
+{
+  public:
+  public:
+  private:
+  private:
+};
+
+/*
 class Device 
 {
   public:
@@ -100,5 +110,5 @@ class Device
     #endif
     
 };
-
+*/
 }
