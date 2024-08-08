@@ -8,6 +8,7 @@
 
 #include "application.h"
 
+#include <GLFW/glfw3.h>
 // forward declaration
 
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
@@ -17,13 +18,165 @@ namespace Aurora
 Engine::Engine()
 {
   Window& win = Application::get_main_window();
+  init_vulkan();
 }
 
 Engine::~Engine()
-{}
+{
+  destroy_debug_messenger(h_Instance, h_DebugMessenger, nullptr);
+  vkDestroyInstance(h_Instance, nullptr);
+}
 
 void Engine::draw()
 {}
+
+
+void Engine::init_vulkan()
+{
+  check_instance_ext_support();
+  check_validation_layer_support();
+  create_instance();
+  setup_validation_layer_callback();
+}
+
+
+void Engine::check_instance_ext_support()
+{
+  uint32_t requiredCount = 0;
+  const char** requiredExtensions;
+  requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredCount);
+  m_InstanceExtensions.insert(m_InstanceExtensions.end(), requiredExtensions, requiredExtensions + requiredCount);
+  if (m_UseValidationLayers)
+  {
+    m_InstanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    requiredCount++;
+  }
+
+  uint32_t supportedCount = 0;
+  vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, nullptr);
+  std::vector<VkExtensionProperties> supportedExtensions(supportedCount);
+  vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, supportedExtensions.data());
+  AR_CORE_WARN("Required Instance Extensions: ");
+  for (const char* name : m_InstanceExtensions)
+  {
+    AR_CORE_WARN("\t{}", name);
+    bool extensionFound = false;
+    for (const auto& extension : supportedExtensions)
+    {
+      if (strcmp(name, extension.extensionName) == 0)
+      {
+        extensionFound = true;
+        break;
+      }
+    }
+    AR_ASSERT(extensionFound, "Required {} Extension is not supported!", name);
+  }
+}
+
+void Engine::check_validation_layer_support()
+{
+  if (!m_UseValidationLayers)
+    return;
+
+  uint32_t layerCount = 0;
+  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+  std::vector<VkLayerProperties> supportedLayers(layerCount);
+  vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
+  
+  AR_CORE_WARN("Required Validation Layers: ");
+  for (const char* layerName : m_ValidationLayers)
+  {
+    AR_CORE_WARN("\t{}", layerName);
+    bool layerFound = false;
+    for (const auto& layerProperties : supportedLayers)
+    {
+      if (strcmp(layerName, layerProperties.layerName) == 0)
+      {
+        layerFound = true;
+        break;
+      }
+    }
+    AR_ASSERT(layerFound, "Required {} Validation Layer not supported!", layerName);
+  }
+
+}
+
+void Engine::create_instance()
+{
+  VkApplicationInfo appInfo{};
+  appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+  appInfo.pEngineName = "Aurora";
+  appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+  appInfo.apiVersion = VK_API_VERSION_1_3;
+
+  VkInstanceCreateInfo createInfo{};
+  createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+  createInfo.pApplicationInfo = &appInfo;
+  createInfo.enabledExtensionCount = as<uint32_t>(m_InstanceExtensions.size());
+  createInfo.ppEnabledExtensionNames = m_InstanceExtensions.data();
+
+  if (m_UseValidationLayers)
+  {
+    createInfo.enabledLayerCount = as<uint32_t>(m_ValidationLayers.size());
+    createInfo.ppEnabledLayerNames = m_ValidationLayers.data();
+  }
+  
+  VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &h_Instance));
+}
+
+void Engine::setup_validation_layer_callback()
+{
+  // no for now!
+  if(!m_UseValidationLayers)
+    return;
+
+  VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+  createInfo.
+  pfnUserCallback = validation_callback;
+  VK_CHECK_RESULT(create_debug_messenger(h_Instance, &createInfo, nullptr, &h_DebugMessenger));
+}
+
+
+
+
+VkBool32 Engine::validation_callback(
+  VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+  VkDebugUtilsMessageTypeFlagsEXT messageType,
+  const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+  void* pUserData)
+{
+  if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+  {
+    AR_CORE_ERROR("VALIDATION LAYER ERROR: {}", pCallbackData->pMessage);
+  }
+
+  return VK_FALSE;
+}
+
+VkResult Engine::create_debug_messenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
+{
+  auto fn = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+  if (fn == nullptr)
+  {
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+  }
+
+  return fn(instance, pCreateInfo, pAllocator, pDebugMessenger);
+}
+
+void Engine::destroy_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+{
+  auto fn = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+  if (fn == nullptr)
+  {
+    return;
+  }
+  fn(instance, debugMessenger, pAllocator);
+}
+
 
 /*
  

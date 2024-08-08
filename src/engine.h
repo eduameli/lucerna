@@ -40,14 +40,62 @@ namespace Aurora
     DeletionQueue deletionQueue;
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
-  
+ 
 
+  class Engine
+  {
+    public:
+    public:
+      Engine();
+      ~Engine();
+      void draw();
+    private:
+      #ifdef DEBUG
+      const bool m_UseValidationLayers = true;
+      #else
+      const bool m_UseValidationLayers = false;  
+      #endif
+      std::vector<const char*> m_InstanceExtensions = {};
+      const std::array<const char*, 1> m_ValidationLayers = {
+        "VK_LAYER_KHRONOS_validation",
+      };
+      VkInstance h_Instance;
+      VkDebugUtilsMessengerEXT h_DebugMessenger;
+      DeletionQueue m_DeletionQueue;
+    private:
+      void init_vulkan();
+      void check_instance_ext_support();
+      void check_validation_layer_support();
+      void create_instance();
+      void setup_validation_layer_callback();
+      static VKAPI_ATTR VkBool32 VKAPI_CALL validation_callback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        VkDebugUtilsMessageTypeFlagsEXT messageType,
+        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+        void* pUserData
+      );
+      VkResult create_debug_messenger(
+        VkInstance instance,
+        const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+        const VkAllocationCallbacks* pAllocator,
+        VkDebugUtilsMessengerEXT* pDebugMessenger
+      );
+      void destroy_debug_messenger(
+        VkInstance instance,
+        VkDebugUtilsMessengerEXT debugMessenger,
+        const VkAllocationCallbacks* pAllocator
+      );
+      
+  };
+/*
   class Engine
   {
     public:
       Engine();
       ~Engine();
+      void init_vulkan();
       void draw();
+      
       inline FrameData& GetCurrentFrame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
     public:
       static constexpr int WIDTH = 640;
@@ -72,4 +120,5 @@ namespace Aurora
       AllocatedImage m_DrawImage;
       VkExtent2D m_DrawExtent;
   };
+*/
 }
