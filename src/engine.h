@@ -63,6 +63,7 @@ namespace Aurora
       VkDebugUtilsMessengerEXT h_DebugMessenger;
       DeletionQueue m_DeletionQueue;
       Device m_Device;
+      std::vector<const char*> m_DeviceExtensions = {};
     private:
       void init_vulkan();
       void check_instance_ext_support();

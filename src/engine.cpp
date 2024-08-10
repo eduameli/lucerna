@@ -5,11 +5,10 @@
 #include "vk_mem_alloc.h"
 
 #include "vk_initialisers.h"
-
+#include "vk_startup.h"
 #include "application.h"
 
 #include <GLFW/glfw3.h>
-// forward declaration
 
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
@@ -19,6 +18,15 @@ Engine::Engine()
 {
   Window& win = Application::get_main_window();
   init_vulkan();
+  
+  vks::PhysicalDeviceSelector selector{ h_Instance };
+  VkPhysicalDevice device = selector
+    .set_minimum_version(1, 3)
+    .set_required_features(m_DeviceExtensions)
+    .set_required_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_CPU)
+    .select();
+
+
   /*
   create_logical_device();
   create_swapchain();
