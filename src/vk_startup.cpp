@@ -22,7 +22,7 @@ DeviceBuilder& DeviceBuilder::select_physical_device()
 
   std::vector<VkPhysicalDevice> devices(deviceCount);
   vkEnumeratePhysicalDevices(h_Instance, &deviceCount, devices.data());
-
+  
   int maxScore = 0;
   for (const auto& device : devices)
   {
@@ -44,9 +44,11 @@ DeviceBuilder& DeviceBuilder::set_required_features(const DeviceBuilder::DeviceF
   return *this;
 }
 
-std::tuple<VkDevice, Aurora::QueueFamilies> DeviceBuilder::build()
+std::tuple<VkDevice, VkPhysicalDevice, Aurora::QueueFamilies> DeviceBuilder::build()
 {
   auto indices = find_queue_families(h_PhysicalDevice);
+  m_QueueIndices = indices; 
+
   std::set<uint32_t> uniqueQueueFamilies = 
   {
     indices.graphicsFamily.value(), indices.presentFamily.value()
@@ -83,13 +85,17 @@ std::tuple<VkDevice, Aurora::QueueFamilies> DeviceBuilder::build()
 
   info.enabledLayerCount = 0;
   
-  VkDevice device;
-  VK_CHECK_RESULT(vkCreateDevice(h_PhysicalDevice, &info, nullptr, &device));
+  VK_CHECK_RESULT(vkCreateDevice(h_PhysicalDevice, &info, nullptr, &h_Device));
   
-  Aurora::QueueFamilies queues{};
-  vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &queues.Graphics);
-  vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &queues.Present);
-  return {device, queues};
+  return {h_Device, h_PhysicalDevice, get_queue_families()};
+}
+
+Aurora::QueueFamilies DeviceBuilder::get_queue_families()
+{
+  Aurora::QueueFamilies families{};
+  vkGetDeviceQueue(h_Device, m_QueueIndices.graphicsFamily.value(), 0, &families.Graphics);
+  vkGetDeviceQueue(h_Device, m_QueueIndices.presentFamily.value(), 0, &families.Present);
+  return families;
 }
 
 DeviceBuilder& DeviceBuilder::set_surface(VkSurfaceKHR surface)

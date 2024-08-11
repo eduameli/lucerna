@@ -51,22 +51,24 @@ namespace vks
       DeviceBuilder& set_required_features(const DeviceFeatures& features);
       DeviceBuilder& select_physical_device();
       DeviceBuilder& set_surface(VkSurfaceKHR surface);
-      std::tuple<VkDevice, Aurora::QueueFamilies> build();
+      std::tuple<VkDevice, VkPhysicalDevice, Aurora::QueueFamilies> build();
     private:
       VkInstance h_Instance;
+      VkDevice h_Device{};
       VkPhysicalDevice h_PhysicalDevice{};
       VkSurfaceKHR h_Surface;
       std::optional<uint32_t> m_MajorVersion;
       std::optional<uint32_t> m_MinorVersion;
       std::optional<std::vector<const char*>> m_RequiredExtensions;
       DeviceFeatures m_EnabledFeatures; 
-
+      Aurora::QueueFamilyIndices m_QueueIndices;
       
     private:
       bool check_extension_support(VkPhysicalDevice device);
       bool is_device_suitable(VkPhysicalDevice);
       int rate_device(VkPhysicalDevice device);
       Aurora::QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
+      Aurora::QueueFamilies get_queue_families();
   };
 
 } // namespace vkstartup 

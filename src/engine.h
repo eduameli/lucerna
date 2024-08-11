@@ -80,8 +80,9 @@ namespace Aurora
       VkDebugUtilsMessengerEXT h_DebugMessenger;
       DeletionQueue m_DeletionQueue;
       VkDevice h_Device;
-      VkQueue graphicsQueue;
-      VkQueue presentQueue;
+      VkPhysicalDevice h_PhysicalDevice;
+      VkQueue h_GraphicsQueue;
+      VkQueue h_PresentQueue;
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
       };
