@@ -86,7 +86,7 @@ namespace Aurora
 	  VkResult res = (f);																					\
 	  if (res != VK_SUCCESS)																				\
 	  {																									\
-		  AR_CORE_ERROR("Error: VkResult is [{}] in {} at line {}", errorString(res), __FILE__, __LINE__); \
+		  AR_CORE_ERROR("Error: VkResult is [{}] in {} at line {}", Aurora::errorString(res), __FILE__, __LINE__); \
 		  assert(res == VK_SUCCESS);																		\
 	  }																									\
   }

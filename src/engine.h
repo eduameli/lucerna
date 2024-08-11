@@ -40,7 +40,23 @@ namespace Aurora
     DeletionQueue deletionQueue;
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
- 
+
+  // moved to vk_startup? to have direct access to graphicsQueue and presentQueue 
+  struct QueueFamilyIndices
+  {
+    std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
+    bool is_complete() {
+      return graphicsFamily.has_value() && presentFamily.has_value();
+    }
+  };
+
+  struct QueueFamilies
+  {
+    VkQueue Graphics;
+    VkQueue Present;
+  };
+
 
   class Engine
   {
@@ -60,10 +76,15 @@ namespace Aurora
         "VK_LAYER_KHRONOS_validation",
       };
       VkInstance h_Instance;
+      VkSurfaceKHR h_Surface;
       VkDebugUtilsMessengerEXT h_DebugMessenger;
       DeletionQueue m_DeletionQueue;
-      Device m_Device;
-      std::vector<const char*> m_DeviceExtensions = {};
+      VkDevice h_Device;
+      VkQueue graphicsQueue;
+      VkQueue presentQueue;
+      std::vector<const char*> m_DeviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+      };
     private:
       void init_vulkan();
       void check_instance_ext_support();

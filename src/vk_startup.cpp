@@ -1,28 +1,20 @@
 #include "vk_startup.h"
-
+#include "utilities.h"
 namespace vks
 {
 
-PhysicalDeviceSelector::PhysicalDeviceSelector(VkInstance instance)
-{
+DeviceBuilder::DeviceBuilder(VkInstance instance)
+  : h_Instance{instance}, m_MajorVersion{0}, m_MinorVersion{0}, m_EnabledFeatures{}
+{}
 
-}
-
-PhysicalDeviceSelector& PhysicalDeviceSelector::set_minimum_version(int major, int minor)
-{
-  m_MajorVersion = major;
-  m_MinorVersion = minor;
-  return *this;
-}
-
-PhysicalDeviceSelector& PhysicalDeviceSelector::set_required_extensions(const std::vector<const char*>& extensions)
+DeviceBuilder& DeviceBuilder::set_required_extensions(const std::vector<const char*>& extensions)
 {
   m_RequiredExtensions = extensions;
   return *this;
 }
 
 
-std::tuple<VkPhysicalDevice, PhysicalDeviceSelector::QueueFamilyIndices> PhysicalDeviceSelector::select()
+DeviceBuilder& DeviceBuilder::select_physical_device()
 {
   uint32_t deviceCount;
   vkEnumeratePhysicalDevices(h_Instance, &deviceCount, nullptr);
@@ -31,26 +23,116 @@ std::tuple<VkPhysicalDevice, PhysicalDeviceSelector::QueueFamilyIndices> Physica
   std::vector<VkPhysicalDevice> devices(deviceCount);
   vkEnumeratePhysicalDevices(h_Instance, &deviceCount, devices.data());
 
-  std::multimap<int, VkPhysicalDevice> candidates;
-
-  VkPhysicalDevice selected{};
+  int maxScore = 0;
   for (const auto& device : devices)
   {
-    uint32_t score = rate_device(device);
-    candidates.insert({score, device});
+    int score = rate_device(device);
+    if (score > maxScore)
+    {
+      h_PhysicalDevice = device;
+      maxScore = score;
+    }
   }
 
-  if (candidates.rbegin()->first > 0)
-  {
-    // FIXME: stopped working here, query families and return here! to make api more lean
-    return {candidates.rbegin()->second, {0, 0}};
-  }
-  
-  // not found :(
-  return {};
+  AR_ASSERT(h_PhysicalDevice != VK_NULL_HANDLE, "No suitable device found!");
+  return *this;
 }
 
-bool PhysicalDeviceSelector::check_extension_support(VkPhysicalDevice device)
+DeviceBuilder& DeviceBuilder::set_required_features(const DeviceBuilder::DeviceFeatures& features)
+{
+  m_EnabledFeatures = features;
+  return *this;
+}
+
+std::tuple<VkDevice, Aurora::QueueFamilies> DeviceBuilder::build()
+{
+  auto indices = find_queue_families(h_PhysicalDevice);
+  std::set<uint32_t> uniqueQueueFamilies = 
+  {
+    indices.graphicsFamily.value(), indices.presentFamily.value()
+  };
+  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+  queueCreateInfos.reserve(uniqueQueueFamilies.size());
+
+  float queuePriority = 1.0f;
+  for (uint32_t queueFamily : uniqueQueueFamilies)
+  {
+    VkDeviceQueueCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    info.queueFamilyIndex = queueFamily;
+    info.queueCount = 1;
+    info.pQueuePriorities = &queuePriority;
+    queueCreateInfos.push_back(info);
+  }
+
+  VkPhysicalDeviceFeatures2 features = m_EnabledFeatures.get_features();
+
+  VkDeviceCreateInfo info{};
+  info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+  info.pQueueCreateInfos = queueCreateInfos.data();
+  info.queueCreateInfoCount = (uint32_t) queueCreateInfos.size();
+
+  info.pNext = &features;
+  info.pEnabledFeatures = nullptr;
+  
+
+  AR_ASSERT(m_RequiredExtensions.has_value(), "Required Extensions is empty! Even though you need to create a swapchain!");
+
+  info.enabledExtensionCount = (uint32_t) m_RequiredExtensions.value().size();
+  info.ppEnabledExtensionNames = m_RequiredExtensions.value().data();
+
+  info.enabledLayerCount = 0;
+  
+  VkDevice device;
+  VK_CHECK_RESULT(vkCreateDevice(h_PhysicalDevice, &info, nullptr, &device));
+  
+  Aurora::QueueFamilies queues{};
+  vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &queues.Graphics);
+  vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &queues.Present);
+  return {device, queues};
+}
+
+DeviceBuilder& DeviceBuilder::set_surface(VkSurfaceKHR surface)
+{
+  h_Surface = surface;
+  return *this;
+}
+
+Aurora::QueueFamilyIndices DeviceBuilder::find_queue_families(VkPhysicalDevice device)
+{
+  Aurora::QueueFamilyIndices indices{};
+
+  uint32_t queueFamilyCount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+  std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+  
+  for (int i = 0; i < queueFamilyCount; i++)
+  {
+    auto queueFamily = queueFamilies[i];
+    if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+    {
+      indices.graphicsFamily = i;
+    }
+  
+    //NOTE: could add logic to explicitly prefer a physical device that supports
+    // both drawing and presentation in the same queue for improved performance!
+    VkBool32 presentSupport = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, h_Surface, &presentSupport);
+    if (presentSupport) {
+      indices.presentFamily = i;
+    }
+
+    if(indices.is_complete())
+      break;
+    
+  }
+  
+  AR_ASSERT(indices.is_complete(), "Succesfully found all required Queue Families!");
+  return indices;
+}
+
+bool DeviceBuilder::check_extension_support(VkPhysicalDevice device)
 {
   if (!m_RequiredExtensions.has_value())
     return true;
@@ -66,19 +148,19 @@ bool PhysicalDeviceSelector::check_extension_support(VkPhysicalDevice device)
   {
     requiredExtensions.erase(extension.extensionName);
   }
-
   return requiredExtensions.empty();
 }
 
-bool PhysicalDeviceSelector::is_device_suitable(VkPhysicalDevice device)
+
+bool DeviceBuilder::is_device_suitable(VkPhysicalDevice device)
 {
   return check_extension_support(device);
 }
 
-uint32_t PhysicalDeviceSelector::rate_device(VkPhysicalDevice device)
+int DeviceBuilder::rate_device(VkPhysicalDevice device)
 {
   if (!is_device_suitable(device))
-    return 0;
+    return -1;
 
   VkPhysicalDeviceProperties properties;
   vkGetPhysicalDeviceProperties(device, &properties);
@@ -105,6 +187,7 @@ uint32_t PhysicalDeviceSelector::rate_device(VkPhysicalDevice device)
       break;
   }
   
+  AR_CORE_INFO("{} has score {}", properties.deviceName, score);
   return score;
 }
 
