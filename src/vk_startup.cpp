@@ -44,7 +44,7 @@ DeviceBuilder& DeviceBuilder::set_required_features(const DeviceBuilder::DeviceF
   return *this;
 }
 
-std::tuple<VkDevice, VkPhysicalDevice, Aurora::QueueFamilies> DeviceBuilder::build()
+void DeviceBuilder::build()
 {
   auto indices = find_queue_families(h_PhysicalDevice);
   m_QueueIndices = indices; 
@@ -86,16 +86,35 @@ std::tuple<VkDevice, VkPhysicalDevice, Aurora::QueueFamilies> DeviceBuilder::bui
   info.enabledLayerCount = 0;
   
   VK_CHECK_RESULT(vkCreateDevice(h_PhysicalDevice, &info, nullptr, &h_Device));
-  
-  return {h_Device, h_PhysicalDevice, get_queue_families()};
+  get_queue_families();
 }
 
-Aurora::QueueFamilies DeviceBuilder::get_queue_families()
+VkPhysicalDevice DeviceBuilder::get_physical_device()
 {
-  Aurora::QueueFamilies families{};
-  vkGetDeviceQueue(h_Device, m_QueueIndices.graphicsFamily.value(), 0, &families.Graphics);
-  vkGetDeviceQueue(h_Device, m_QueueIndices.presentFamily.value(), 0, &families.Present);
-  return families;
+  AR_ASSERT(h_PhysicalDevice != VK_NULL_HANDLE, "Physical device is VK_NULL_HANDLE!");
+  return h_PhysicalDevice;
+}
+
+VkDevice DeviceBuilder::get_logical_device()
+{
+  AR_ASSERT(h_Device != VK_NULL_HANDLE, "Logical device is VK_NULL_HANDLE!");
+  return h_Device;
+}
+
+VkQueue DeviceBuilder::get_graphics_queue()
+{
+  return h_GraphicsQueue;
+}
+
+VkQueue DeviceBuilder::get_present_queue()
+{
+  return h_PresentQueue; 
+}
+
+void DeviceBuilder::get_queue_families()
+{
+  vkGetDeviceQueue(h_Device, m_QueueIndices.graphicsFamily.value(), 0, &h_GraphicsQueue);
+  vkGetDeviceQueue(h_Device, m_QueueIndices.presentFamily.value(), 0, &h_PresentQueue);
 }
 
 DeviceBuilder& DeviceBuilder::set_surface(VkSurfaceKHR surface)
@@ -104,9 +123,9 @@ DeviceBuilder& DeviceBuilder::set_surface(VkSurfaceKHR surface)
   return *this;
 }
 
-Aurora::QueueFamilyIndices DeviceBuilder::find_queue_families(VkPhysicalDevice device)
+DeviceBuilder::QueueFamilyIndices DeviceBuilder::find_queue_families(VkPhysicalDevice device)
 {
-  Aurora::QueueFamilyIndices indices{};
+  QueueFamilyIndices indices{};
 
   uint32_t queueFamilyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);

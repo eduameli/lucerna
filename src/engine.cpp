@@ -23,18 +23,16 @@ Engine::Engine()
   glfwCreateWindowSurface(h_Instance, win.get_handle(), nullptr, &h_Surface);
 
   vks::DeviceBuilder builder{ h_Instance };
-  auto [logical, physical, queues]  = builder 
+  builder
     .set_required_extensions(m_DeviceExtensions)
     .set_surface(h_Surface)
     .select_physical_device()
     .build();
 
-  
-  h_Device = logical;
-  h_PhysicalDevice = physical;
-  
-  h_GraphicsQueue = queues.Graphics;
-  h_PresentQueue = queues.Present;
+  h_Device = builder.get_logical_device();
+  h_PhysicalDevice = builder.get_physical_device();
+  h_GraphicsQueue = builder.get_graphics_queue();
+  h_PresentQueue = builder.get_present_queue();
 }
 
 Engine::~Engine()

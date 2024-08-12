@@ -42,7 +42,7 @@ namespace Aurora
   constexpr uint32_t FRAME_OVERLAP = 2;
 
   // moved to vk_startup? to have direct access to graphicsQueue and presentQueue 
-  struct QueueFamilyIndices
+  /*struct QueueFamilyIndices
   {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
@@ -56,7 +56,7 @@ namespace Aurora
     VkQueue Graphics;
     VkQueue Present;
   };
-
+  */
 
   class Engine
   {
