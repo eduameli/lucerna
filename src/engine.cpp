@@ -18,28 +18,16 @@ Engine::Engine()
 {
   Window& win = Application::get_main_window();
   init_vulkan();
- 
-  // create surface 
   glfwCreateWindowSurface(h_Instance, win.get_handle(), nullptr, &h_Surface);
-
-  vks::DeviceBuilder builder{ h_Instance };
-  builder
-    .set_required_extensions(m_DeviceExtensions)
-    .set_surface(h_Surface)
-    .select_physical_device()
-    .build();
-
-  h_Device = builder.get_logical_device();
-  h_PhysicalDevice = builder.get_physical_device();
-  h_GraphicsQueue = builder.get_graphics_queue();
-  h_PresentQueue = builder.get_present_queue();
+  create_device();
+  create_swapchain();
 }
 
 Engine::~Engine()
 {
   destroy_debug_messenger(h_Instance, h_DebugMessenger, nullptr);
+  vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
   vkDestroySurfaceKHR(h_Instance, h_Surface, nullptr);
-
   vkDestroyDevice(h_Device, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
 }
@@ -193,6 +181,36 @@ void Engine::destroy_debug_messenger(VkInstance instance, VkDebugUtilsMessengerE
   fn(instance, debugMessenger, pAllocator);
 }
 
+
+void Engine::create_device()
+{
+  vks::DeviceBuilder builder{ h_Instance };
+  builder
+    .set_required_extensions(m_DeviceExtensions)
+    .set_surface(h_Surface)
+    .select_physical_device()
+    .build();
+
+  h_Device = builder.get_logical_device();
+  h_PhysicalDevice = builder.get_physical_device();
+  h_GraphicsQueue = builder.get_graphics_queue();
+  h_PresentQueue = builder.get_present_queue();
+  m_Indices = builder.get_queue_indices();
+}
+
+void Engine::create_swapchain()
+{
+  QueueFamilyIndices indices;
+  vks::SwapchainBuilder builder{};
+  builder
+    .set_devices(h_PhysicalDevice, h_Device)
+    .set_surface(h_Surface)
+    .set_queue_indices(m_Indices)
+    .build();
+
+
+  h_Swapchain = builder.get_swapchain();
+}
 
 /*
  

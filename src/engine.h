@@ -42,7 +42,7 @@ namespace Aurora
   constexpr uint32_t FRAME_OVERLAP = 2;
 
   // moved to vk_startup? to have direct access to graphicsQueue and presentQueue 
-  /*struct QueueFamilyIndices
+  struct QueueFamilyIndices
   {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
@@ -50,7 +50,7 @@ namespace Aurora
       return graphicsFamily.has_value() && presentFamily.has_value();
     }
   };
-
+ /* 
   struct QueueFamilies
   {
     VkQueue Graphics;
@@ -79,10 +79,14 @@ namespace Aurora
       VkSurfaceKHR h_Surface;
       VkDebugUtilsMessengerEXT h_DebugMessenger;
       DeletionQueue m_DeletionQueue;
+      
       VkDevice h_Device;
       VkPhysicalDevice h_PhysicalDevice;
       VkQueue h_GraphicsQueue;
       VkQueue h_PresentQueue;
+      QueueFamilyIndices m_Indices;
+      VkSwapchainKHR h_Swapchain;
+
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
       };
@@ -109,7 +113,9 @@ namespace Aurora
         VkDebugUtilsMessengerEXT debugMessenger,
         const VkAllocationCallbacks* pAllocator
       );
-      
+      void create_device();
+      void create_swapchain();
+      //void create_image_views();
   };
 /*
   class Engine
