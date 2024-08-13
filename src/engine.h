@@ -86,10 +86,18 @@ namespace Aurora
       VkQueue h_PresentQueue;
       QueueFamilyIndices m_Indices;
       VkSwapchainKHR h_Swapchain;
+      std::vector<VkImage> m_SwapchainImages;
+      std::vector<VkImageView> m_SwapchainImageViews;
 
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
       };
+      FrameData m_Frames[FRAME_OVERLAP];
+      uint32_t m_FrameNumber;
+      
+      // unused??
+      VkExtent2D m_DrawExtent;
+
     private:
       void init_vulkan();
       void check_instance_ext_support();

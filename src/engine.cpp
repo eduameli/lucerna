@@ -16,18 +16,34 @@ namespace Aurora
 {
 Engine::Engine()
 {
-  Window& win = Application::get_main_window();
   init_vulkan();
-  glfwCreateWindowSurface(h_Instance, win.get_handle(), nullptr, &h_Surface);
-  create_device();
-  create_swapchain();
+  // FIXME: m_Indices.graphicsFamily.value() is rlly bad, maybe just add a new variable keep it simple!
+  // common vulkan mistake = trying to write a magical wrapper for everying eg. SwapchainBuilder and DeviceBuilder which couldve just been some functions 
+  // or using a struct for options, will rework api write it down options n compare.
+  VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_Indices.graphicsFamily.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+  for (int i = 0; i < FRAME_OVERLAP; i++)
+  {
+    VK_CHECK_RESULT(vkCreateCommandPool(h_Device, &commandPoolInfo, nullptr, &m_Frames[i].commandPool));
+    VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_Frames[i].commandPool, 1);
+    VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
+  }
 }
 
 Engine::~Engine()
 {
+  vkDeviceWaitIdle(h_Device);
+
   destroy_debug_messenger(h_Instance, h_DebugMessenger, nullptr);
   vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
   vkDestroySurfaceKHR(h_Instance, h_Surface, nullptr);
+  for (auto view : m_SwapchainImageViews)
+  {
+    vkDestroyImageView(h_Device, view, nullptr);
+  }
+  for (int i = 0; i < FRAME_OVERLAP; i++)
+  {
+    vkDestroyCommandPool(h_Device, m_Frames[i].commandPool, nullptr);
+  }
   vkDestroyDevice(h_Device, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
 }
@@ -42,6 +58,9 @@ void Engine::init_vulkan()
   check_validation_layer_support();
   create_instance();
   setup_validation_layer_callback();
+  glfwCreateWindowSurface(h_Instance, Application::get_main_window().get_handle(), nullptr, &h_Surface);
+  create_device();
+  create_swapchain();
 }
 
 
@@ -210,6 +229,11 @@ void Engine::create_swapchain()
 
 
   h_Swapchain = builder.get_swapchain();
+  
+
+  //FIXME: this api is cancer again.. whole builder api is bad..
+  builder.get_swapchain_images(m_SwapchainImages);
+  builder.get_image_views(m_SwapchainImageViews, m_SwapchainImages);
 }
 
 /*

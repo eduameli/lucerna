@@ -108,8 +108,8 @@ namespace vks
       void build();
       void build_from(VkSwapchainKHR old);  // FIXME: not implemented yet
       
-      void get_swapchain_images(std::vector<VkImage> images) const;
-      void create_image_views(std::vector<VkImageView>& views, const std::vector<VkImage>& images) const;
+      void get_swapchain_images(std::vector<VkImage>& images);
+      void get_image_views(std::vector<VkImageView>& views, const std::vector<VkImage>& images);
       VkSwapchainKHR get_swapchain() { return h_Swapchain; }
       
     private:
@@ -119,6 +119,7 @@ namespace vks
       Aurora::QueueFamilyIndices m_Indices;
       GLFWwindow* h_Window;
       VkSwapchainKHR h_Swapchain;
+      VkFormat m_SurfaceFormat;
     private:
       SwapchainSupportDetails query_swapchain_support(VkPhysicalDevice device);
       VkSurfaceFormatKHR choose_surface_format(const std::vector<VkSurfaceFormatKHR>& supportedFormats);

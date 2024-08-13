@@ -289,6 +289,7 @@ void SwapchainBuilder::build()
   m_SwapchainExtent = extent;
   m_SwapchainImageFormat = surfaceFormat.format;
   */
+  m_SurfaceFormat = surfaceFormat.format;
 }
 
 SwapchainBuilder::SwapchainSupportDetails SwapchainBuilder::query_swapchain_support(VkPhysicalDevice device)
@@ -362,4 +363,38 @@ VkExtent2D SwapchainBuilder::choose_extent(const VkSurfaceCapabilitiesKHR& capab
   }
 }
 
+void SwapchainBuilder::get_swapchain_images(std::vector<VkImage>& images)
+{
+  uint32_t count = 0;
+  vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &count, nullptr);
+  images.resize(count);
+  vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &count, images.data());
+}
+
+void SwapchainBuilder::get_image_views(std::vector<VkImageView>& views, const std::vector<VkImage>& images)
+{
+  views.resize(images.size());
+
+  for (size_t i = 0; i < images.size(); i++)
+  {
+    VkImageViewCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    createInfo.image = images[i];
+    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.format = m_SurfaceFormat;
+    
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
+
+    VK_CHECK_RESULT(vkCreateImageView(h_Device, &createInfo, nullptr, &views[i]));
+  }
+}
 } // namespace vkstartup
