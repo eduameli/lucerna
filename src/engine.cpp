@@ -9,7 +9,7 @@
 #include "application.h"
 
 #include <GLFW/glfw3.h>
-
+#include "vk_images.h"
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora
@@ -27,7 +27,18 @@ Engine::Engine()
     VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_Frames[i].commandPool, 1);
     VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
   }
-}
+
+  // this could be init_command_buffers
+  // now init sync structures
+  VkFenceCreateInfo fence = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+  VkSemaphoreCreateInfo semaphore = vkinit::semaphore_create_info();
+  for (int i = 0; i < FRAME_OVERLAP; i++)
+  {
+    VK_CHECK_RESULT(vkCreateFence(h_Device, &fence, nullptr, &m_Frames[i].renderFence));
+    VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].swapchainSemaphore));
+    VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].renderSemaphore));
+  }
+} 
 
 Engine::~Engine()
 {
@@ -49,7 +60,51 @@ Engine::~Engine()
 }
 
 void Engine::draw()
-{}
+{
+  VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &get_current_frame().renderFence, true, 1000000000));
+  VK_CHECK_RESULT(vkResetFences(h_Device, 1, &get_current_frame().renderFence));
+
+  uint32_t swapchainImageIndex;
+  VK_CHECK_RESULT(vkAcquireNextImageKHR(h_Device, h_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
+  VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
+  VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
+  
+  VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+  VkClearColorValue clearValue;
+  float flash = std::abs(std::sin(m_FrameNumber / 120.0f));
+  clearValue = {{0.0f, 0.0f, flash, 1.0f}};
+  VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+  vkCmdClearColorImage(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+
+  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+  VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
+
+  // submit 
+  VkCommandBufferSubmitInfo cmdInfo = vkinit::commandbuffer_submit_info(cmd);
+
+  VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, get_current_frame().swapchainSemaphore);
+  VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_frame().renderSemaphore);
+
+  VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
+  VK_CHECK_RESULT(vkQueueSubmit2(h_GraphicsQueue, 1, &submit, get_current_frame().renderFence));
+  
+  VkPresentInfoKHR info{};
+  info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  info.pNext = nullptr;
+  info.pSwapchains = &h_Swapchain;
+  info.swapchainCount = 1;
+  info.pWaitSemaphores = &get_current_frame().renderSemaphore;
+  info.waitSemaphoreCount = 1;
+
+  info.pImageIndices = &swapchainImageIndex;
+
+  VK_CHECK_RESULT(vkQueuePresentKHR(h_GraphicsQueue, &info));
+  m_FrameNumber++;
+}
 
 
 void Engine::init_vulkan()
@@ -203,9 +258,14 @@ void Engine::destroy_debug_messenger(VkInstance instance, VkDebugUtilsMessengerE
 
 void Engine::create_device()
 {
+  
+  vks::DeviceBuilder::DeviceFeatures features{};
+  features.features13.synchronization2 = true;
+
   vks::DeviceBuilder builder{ h_Instance };
   builder
     .set_required_extensions(m_DeviceExtensions)
+    .set_required_features(features)
     .set_surface(h_Surface)
     .select_physical_device()
     .build();

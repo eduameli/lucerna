@@ -90,7 +90,8 @@ namespace Aurora
       std::vector<VkImageView> m_SwapchainImageViews;
 
       std::vector<const char*> m_DeviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        "VK_KHR_synchronization2",
       };
       FrameData m_Frames[FRAME_OVERLAP];
       uint32_t m_FrameNumber;
@@ -123,6 +124,7 @@ namespace Aurora
       );
       void create_device();
       void create_swapchain();
+      FrameData& get_current_frame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
       //void create_image_views();
   };
 /*

@@ -18,7 +18,7 @@ Application::~Application()
 void Application::run()
 {
   glfwPollEvents();
-  //m_Engine.draw();
+  m_Engine.draw();
 }
 
 bool Application::should_exit()
