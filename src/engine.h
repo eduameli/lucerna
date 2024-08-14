@@ -95,8 +95,12 @@ namespace Aurora
         "VK_KHR_dynamic_rendering",
       };
       FrameData m_Frames[FRAME_OVERLAP];
-      uint32_t m_FrameNumber;
-      VmaAllocator m_Allocator; 
+      uint32_t m_FrameNumber{0};
+      VmaAllocator m_Allocator{};
+
+
+      AllocatedImage m_DrawImage{};
+      VkExtent2D m_DrawExtent{};
 
     private:
       void init_vulkan();

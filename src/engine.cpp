@@ -124,7 +124,7 @@ void Engine::init_vulkan()
   setup_validation_layer_callback();
   glfwCreateWindowSurface(h_Instance, Application::get_main_window().get_handle(), nullptr, &h_Surface);
   create_device();
-  create_swapchain();
+  //create_swapchain();
 
   VmaAllocatorCreateInfo allocatorInfo{};
   allocatorInfo.physicalDevice = h_PhysicalDevice;
@@ -133,6 +133,8 @@ void Engine::init_vulkan()
   allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
   vmaCreateAllocator(&allocatorInfo, &m_Allocator);
   m_DeletionQueue.push_function([&]() {vmaDestroyAllocator(m_Allocator);});
+
+  create_swapchain();
 }
 
 
@@ -218,6 +220,8 @@ void Engine::create_instance()
   }
   
   VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &h_Instance));
+
+  // create VMA 
 }
 
 void Engine::setup_validation_layer_callback()
@@ -281,6 +285,7 @@ void Engine::create_device()
 
   VkPhysicalDeviceVulkan12Features f12{};
   f12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+  f12.bufferDeviceAddress = VK_TRUE;
 
   VkPhysicalDeviceVulkan13Features f13{};
   f13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
@@ -323,11 +328,64 @@ void Engine::create_swapchain()
 
 
   h_Swapchain = builder.get_swapchain();
-  
 
   //FIXME: this api is cancer again.. whole builder api is bad..
   builder.get_swapchain_images(m_SwapchainImages);
   builder.get_image_views(m_SwapchainImageViews, m_SwapchainImages);
+ 
+/*
+  VkExtent2D ext = builder.get_window_extent();
+  VkExtent3D drawExtent = {ext.width, ext.height, 1};
+  m_DrawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+  m_DrawImage.imageExtent = drawExtent;
+
+  VkImageUsageFlags usages{};
+  usages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+  usages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  usages |= VK_IMAGE_USAGE_STORAGE_BIT;
+  usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  
+  VkImageCreateInfo rimg_info = vkinit::image_create_info(m_DrawImage.imageFormat, usages, drawExtent);
+
+  VmaAllocationCreateInfo rimg_allocinfo{};
+  rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  vmaCreateImage(m_Allocator, &rimg_info, &rimg_allocinfo, &m_DrawImage.image, &m_DrawImage.allocation, nullptr);
+*/
+VkExtent3D drawImageExtent = {
+		800,
+		600,
+		1
+	};
+
+	//hardcoding the draw format to 32 bit float
+	m_DrawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+	m_DrawImage.imageExtent = drawImageExtent;
+
+	VkImageUsageFlags drawImageUsages{};
+	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
+	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	VkImageCreateInfo rimg_info = vkinit::image_create_info(m_DrawImage.imageFormat, drawImageUsages, drawImageExtent);
+
+	//for the draw image, we want to allocate it from gpu local memory
+	VmaAllocationCreateInfo rimg_allocinfo = {};
+	rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	//allocate and create the image
+	vmaCreateImage(m_Allocator, &rimg_info, &rimg_allocinfo, &m_DrawImage.image, &m_DrawImage.allocation, nullptr);
+
+  VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(m_DrawImage.imageFormat, m_DrawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
+  VK_CHECK_RESULT(vkCreateImageView(h_Device, &rview_info, nullptr, &m_DrawImage.imageView));
+
+  m_DeletionQueue.push_function([=, this]() { 
+    vkDestroyImageView(h_Device, m_DrawImage.imageView, nullptr);
+    vmaDestroyImage(m_Allocator, m_DrawImage.image, m_DrawImage.allocation); 
+  });
 }
 
 /*

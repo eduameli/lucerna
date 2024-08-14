@@ -85,6 +85,9 @@ namespace vks
       void get_swapchain_images(std::vector<VkImage>& images);
       void get_image_views(std::vector<VkImageView>& views, const std::vector<VkImage>& images);
       VkSwapchainKHR get_swapchain() { return h_Swapchain; }
+      // cancer API need to fix this later..., less classes thing more functions init_swapchain -> call functions from vkstartup::...
+      // dont abstract away too much 
+      VkExtent2D get_window_extent() { return m_WindowExtent; }
       
     private:
       VkPhysicalDevice h_PhysicalDevice;
@@ -94,6 +97,7 @@ namespace vks
       GLFWwindow* h_Window;
       VkSwapchainKHR h_Swapchain;
       VkFormat m_SurfaceFormat;
+      VkExtent2D m_WindowExtent;
     private:
       SwapchainSupportDetails query_swapchain_support(VkPhysicalDevice device);
       VkSurfaceFormatKHR choose_surface_format(const std::vector<VkSurfaceFormatKHR>& supportedFormats);
