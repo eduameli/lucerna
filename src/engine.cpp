@@ -54,7 +54,16 @@ Engine::~Engine()
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
     vkDestroyCommandPool(h_Device, m_Frames[i].commandPool, nullptr);
+
+    vkDestroyFence(h_Device, m_Frames[i].renderFence, nullptr);
+    vkDestroySemaphore(h_Device, m_Frames[i].renderSemaphore, nullptr);
+    vkDestroySemaphore(h_Device, m_Frames[i].swapchainSemaphore, nullptr);
+
+    m_Frames[i].deletionQueue.flush();
   }
+  
+  m_DeletionQueue.flush();
+
   vkDestroyDevice(h_Device, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
 }
@@ -116,6 +125,14 @@ void Engine::init_vulkan()
   glfwCreateWindowSurface(h_Instance, Application::get_main_window().get_handle(), nullptr, &h_Surface);
   create_device();
   create_swapchain();
+
+  VmaAllocatorCreateInfo allocatorInfo{};
+  allocatorInfo.physicalDevice = h_PhysicalDevice;
+  allocatorInfo.device = h_Device;
+  allocatorInfo.instance = h_Instance;
+  allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  vmaCreateAllocator(&allocatorInfo, &m_Allocator);
+  m_DeletionQueue.push_function([&]() {vmaDestroyAllocator(m_Allocator);});
 }
 
 
@@ -258,9 +275,26 @@ void Engine::destroy_debug_messenger(VkInstance instance, VkDebugUtilsMessengerE
 
 void Engine::create_device()
 {
+  VkPhysicalDeviceFeatures f1{};
+  VkPhysicalDeviceVulkan11Features f11{};
+  f11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+
+  VkPhysicalDeviceVulkan12Features f12{};
+  f12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+
+  VkPhysicalDeviceVulkan13Features f13{};
+  f13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+  f13.dynamicRendering = VK_TRUE;
+  f13.synchronization2 = VK_TRUE;
   
-  vks::DeviceBuilder::DeviceFeatures features{};
-  features.features13.synchronization2 = true;
+  f11.pNext = &f12;
+  f12.pNext = &f13;
+
+  VkPhysicalDeviceFeatures2 features{};
+  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  features.pNext = &f11;
+  features.features = f1;
+  
 
   vks::DeviceBuilder builder{ h_Instance };
   builder

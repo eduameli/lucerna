@@ -15,12 +15,12 @@ namespace Aurora
   struct DeletionQueue
   {
     std::deque<std::function<void()>> deletors;
-    void PushFunction(std::function<void()>&& function)
+    void push_function(std::function<void()>&& function)
     {
       deletors.push_back(function);
     }
     
-    void Flush()
+    void flush()
     {
       for (auto it = deletors.rbegin(); it != deletors.rend(); it++)
       {
@@ -92,12 +92,11 @@ namespace Aurora
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         "VK_KHR_synchronization2",
+        "VK_KHR_dynamic_rendering",
       };
       FrameData m_Frames[FRAME_OVERLAP];
       uint32_t m_FrameNumber;
-      
-      // unused??
-      VkExtent2D m_DrawExtent;
+      VmaAllocator m_Allocator; 
 
     private:
       void init_vulkan();

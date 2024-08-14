@@ -38,7 +38,7 @@ DeviceBuilder& DeviceBuilder::select_physical_device()
   return *this;
 }
 
-DeviceBuilder& DeviceBuilder::set_required_features(const DeviceBuilder::DeviceFeatures& features)
+DeviceBuilder& DeviceBuilder::set_required_features(const VkPhysicalDeviceFeatures2& features)
 {
   m_EnabledFeatures = features;
   return *this;
@@ -67,14 +67,25 @@ void DeviceBuilder::build()
     queueCreateInfos.push_back(info);
   }
 
-  VkPhysicalDeviceFeatures2 features = m_EnabledFeatures.get_features();
+  /*VkPhysicalDeviceFeatures2 f2 = m_EnabledFeatures.get_features();
+  VkPhysicalDeviceVulkan13Features f13{};
+  f13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+  f13.dynamicRendering = VK_TRUE;
+  f13.synchronization2 = VK_TRUE;
+  
+  VkPhysicalDeviceFeatures f{};
 
+  VkPhysicalDeviceFeatures2 features{};
+  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  features.pNext = &f13;
+  features.features = f;
+  */
   VkDeviceCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   info.pQueueCreateInfos = queueCreateInfos.data();
   info.queueCreateInfoCount = (uint32_t) queueCreateInfos.size();
 
-  info.pNext = &features;
+  info.pNext = &m_EnabledFeatures;
   info.pEnabledFeatures = nullptr;
   
 
