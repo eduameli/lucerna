@@ -70,6 +70,7 @@ Engine::~Engine()
 
 void Engine::draw()
 {
+  Timer frametime; 
   VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &get_current_frame().renderFence, true, 1000000000));
   VK_CHECK_RESULT(vkResetFences(h_Device, 1, &get_current_frame().renderFence));
 
@@ -78,18 +79,23 @@ void Engine::draw()
   VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
   
+  m_DrawExtent.width = m_DrawImage.imageExtent.width;
+  m_DrawExtent.height = m_DrawImage.imageExtent.height;
+
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+  
+  draw_background(cmd);
+  
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-  VkClearColorValue clearValue;
-  float flash = std::abs(std::sin(m_FrameNumber / 120.0f));
-  clearValue = {{0.0f, 0.0f, flash, 1.0f}};
-  VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
-  vkCmdClearColorImage(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
-
-  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+  vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_SwapchainImages[swapchainImageIndex], m_DrawExtent, m_DrawExtent /* FIXME: this should be swapchain extent?? */);
+  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+  
+  
   VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
   // submit 
@@ -332,30 +338,11 @@ void Engine::create_swapchain()
   //FIXME: this api is cancer again.. whole builder api is bad..
   builder.get_swapchain_images(m_SwapchainImages);
   builder.get_image_views(m_SwapchainImageViews, m_SwapchainImages);
- 
-/*
+
   VkExtent2D ext = builder.get_window_extent();
-  VkExtent3D drawExtent = {ext.width, ext.height, 1};
-  m_DrawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-  m_DrawImage.imageExtent = drawExtent;
-
-  VkImageUsageFlags usages{};
-  usages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-  usages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-  usages |= VK_IMAGE_USAGE_STORAGE_BIT;
-  usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-  
-  VkImageCreateInfo rimg_info = vkinit::image_create_info(m_DrawImage.imageFormat, usages, drawExtent);
-
-  VmaAllocationCreateInfo rimg_allocinfo{};
-  rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-  rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-  vmaCreateImage(m_Allocator, &rimg_info, &rimg_allocinfo, &m_DrawImage.image, &m_DrawImage.allocation, nullptr);
-*/
-VkExtent3D drawImageExtent = {
-		800,
-		600,
+  VkExtent3D drawImageExtent = {
+  	ext.width,
+	  ext.height,
 		1
 	};
 
@@ -386,6 +373,16 @@ VkExtent3D drawImageExtent = {
     vkDestroyImageView(h_Device, m_DrawImage.imageView, nullptr);
     vmaDestroyImage(m_Allocator, m_DrawImage.image, m_DrawImage.allocation); 
   });
+}
+
+void Engine::draw_background(VkCommandBuffer cmd)
+{
+  VkClearColorValue clearValue;
+  float flash = std::abs(std::sin(m_FrameNumber / 120.0f));
+  clearValue = {{0.0f, 0.0f, flash, 1.0f}};
+
+  VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+  vkCmdClearColorImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
 }
 
 /*

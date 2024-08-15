@@ -128,6 +128,7 @@ namespace Aurora
       void create_device();
       void create_swapchain();
       FrameData& get_current_frame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
+      void draw_background(VkCommandBuffer cmd);
       //void create_image_views();
   };
 /*
