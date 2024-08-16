@@ -5,10 +5,10 @@
 
 #include <vulkan/vulkan.h>
  
-//NOTE: this will manage high level abstractions 
+//NOTE: Application handles higher-level systems
 // engine -> rendering
-// user input -> move around
-// imgui maybe=
+// user input -> move around camera
+// imgui demo settings
 
 namespace Aurora {
   class Application

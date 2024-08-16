@@ -5,15 +5,10 @@ namespace Aurora {
 Window Application::s_MainWindow{Application::WIDTH, Application::HEIGHT, "Aurora"};
 
 Application::Application()
-//  : m_MainWindow{WIDTH, HEIGHT, "Aurora"}, m_Engine{m_MainWindow}
-{
-  //m_Window = {WIDTH, HEIGHT, "Aurora"};
-
-}
+{}
 
 Application::~Application()
-{
-}
+{}
 
 void Application::run()
 {

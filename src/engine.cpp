@@ -1,28 +1,26 @@
-#include "engine.h"
 #include "aurora_pch.h"
-
-#define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
-
+#include "application.h"
+#include "engine.h"
 #include "vk_initialisers.h"
 #include "vk_startup.h"
-#include "application.h"
-
-#include <GLFW/glfw3.h>
 #include "vk_images.h"
 #include "vk_descriptors.h"
 #include "vk_pipelines.h"
+
+#include <GLFW/glfw3.h>
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
 
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora
 {
+
 Engine::Engine()
 {
   init_vulkan();
-  // FIXME: m_Indices.graphicsFamily.value() is rlly bad, maybe just add a new variable keep it simple!
-  // common vulkan mistake = trying to write a magical wrapper for everying eg. SwapchainBuilder and DeviceBuilder which couldve just been some functions 
-  // or using a struct for options, will rework api write it down options n compare.
+
+  // init command buffers ()
   VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_Indices.graphicsFamily.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
@@ -31,8 +29,7 @@ Engine::Engine()
     VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
   }
 
-  // this could be init_command_buffers
-  // now init sync structures
+  // init sync structures ()
   VkFenceCreateInfo fence = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
   VkSemaphoreCreateInfo semaphore = vkinit::semaphore_create_info();
   for (int i = 0; i < FRAME_OVERLAP; i++)
@@ -53,10 +50,12 @@ Engine::~Engine()
   destroy_debug_messenger(h_Instance, h_DebugMessenger, nullptr);
   vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
   vkDestroySurfaceKHR(h_Instance, h_Surface, nullptr);
+  
   for (auto view : m_SwapchainImageViews)
   {
     vkDestroyImageView(h_Device, view, nullptr);
   }
+  
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
     vkDestroyCommandPool(h_Device, m_Frames[i].commandPool, nullptr);
@@ -64,12 +63,10 @@ Engine::~Engine()
     vkDestroyFence(h_Device, m_Frames[i].renderFence, nullptr);
     vkDestroySemaphore(h_Device, m_Frames[i].renderSemaphore, nullptr);
     vkDestroySemaphore(h_Device, m_Frames[i].swapchainSemaphore, nullptr);
-
     m_Frames[i].deletionQueue.flush();
   }
   
   m_DeletionQueue.flush();
-
   vkDestroyDevice(h_Device, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
 }
@@ -134,9 +131,12 @@ void Engine::init_vulkan()
   check_validation_layer_support();
   create_instance();
   setup_validation_layer_callback();
+  
+
+  // NOTE: this should go somewhere else maybe
+
   glfwCreateWindowSurface(h_Instance, Application::get_main_window().get_handle(), nullptr, &h_Surface);
   create_device();
-  //create_swapchain();
 
   VmaAllocatorCreateInfo allocatorInfo{};
   allocatorInfo.physicalDevice = h_PhysicalDevice;
