@@ -62,9 +62,12 @@ namespace Aurora
   class Engine
   {
     public:
-      DescriptorAllocator g_DescriptorAllocator;
-      VkDescriptorSet drawImageDescriptors;
-      VkDescriptorSetLayout drawImageDescriptorLayout;
+      DescriptorAllocator g_DescriptorAllocator{};
+      VkDescriptorSet drawImageDescriptors{};
+      VkDescriptorSetLayout drawImageDescriptorLayout{};
+      VkPipeline gradientPipeline{};
+      VkPipelineLayout gradientPipelineLayout{};
+
     public:
       Engine();
       ~Engine();
@@ -134,6 +137,8 @@ namespace Aurora
       void draw_background(VkCommandBuffer cmd);
       //void create_image_views();
       void init_descriptors();
+      void init_pipelines();
+      void init_background_pipelines();
   };
 /*
   class Engine

@@ -11,6 +11,8 @@
 #include <GLFW/glfw3.h>
 #include "vk_images.h"
 #include "vk_descriptors.h"
+#include "vk_pipelines.h"
+
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora
@@ -41,6 +43,7 @@ Engine::Engine()
   }
 
   init_descriptors();
+  init_pipelines();
 } 
 
 Engine::~Engine()
@@ -380,12 +383,20 @@ void Engine::create_swapchain()
 
 void Engine::draw_background(VkCommandBuffer cmd)
 {
+  /* draw with vkCmdClearColor
   VkClearColorValue clearValue;
   float flash = std::abs(std::sin(m_FrameNumber / 120.0f));
   clearValue = {{0.0f, 0.0f, flash, 1.0f}};
 
   VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
   vkCmdClearColorImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+  */
+  
+  // draw with compute shader dispatch
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipeline);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
+  vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
 }
 
 
@@ -405,7 +416,8 @@ void Engine::init_descriptors()
   }
 
   drawImageDescriptors = g_DescriptorAllocator.allocate(h_Device, drawImageDescriptorLayout);
-
+  
+  // links the draw image to the descriptor for the compute shader in the pipeline!
   VkDescriptorImageInfo info{};
   info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
   info.imageView = m_DrawImage.imageView;
@@ -426,6 +438,53 @@ void Engine::init_descriptors()
     g_DescriptorAllocator.destroy_pool(h_Device);
     vkDestroyDescriptorSetLayout(h_Device, drawImageDescriptorLayout, nullptr);
   });
+}
+
+void Engine::init_pipelines()
+{
+  init_background_pipelines();
+}
+
+void Engine::init_background_pipelines()
+{
+  VkPipelineLayoutCreateInfo computeLayout{};
+  computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  computeLayout.pNext = nullptr;
+  computeLayout.pSetLayouts = &drawImageDescriptorLayout;
+  computeLayout.setLayoutCount = 1;
+
+  VK_CHECK_RESULT(vkCreatePipelineLayout(h_Device, &computeLayout, nullptr, &gradientPipelineLayout));
+
+  VkShaderModule computeDrawShader;
+  if (!vkutil::load_shader_module
+    ("shaders/gradient.spv", h_Device, &computeDrawShader))
+  {
+    AR_CORE_ERROR("Error when building compute shader!");
+  }
+
+  VkPipelineShaderStageCreateInfo stageInfo{};
+  stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  stageInfo.pNext = nullptr;
+  stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+  stageInfo.module = computeDrawShader;
+  stageInfo.pName = "main";
+
+  VkComputePipelineCreateInfo computePipelineCreateInfo{};
+  computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+  computePipelineCreateInfo.pNext = nullptr;
+  computePipelineCreateInfo.layout = gradientPipelineLayout;
+  computePipelineCreateInfo.stage = stageInfo;
+
+  VK_CHECK_RESULT(vkCreateComputePipelines(h_Device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradientPipeline));
+
+  vkDestroyShaderModule(h_Device, computeDrawShader, nullptr);
+
+  m_DeletionQueue.push_function([&]() {
+    vkDestroyPipelineLayout(h_Device, gradientPipelineLayout, nullptr);
+    vkDestroyPipeline(h_Device, gradientPipeline, nullptr);
+  });
+
+
 }
 
 /*
