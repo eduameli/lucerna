@@ -10,6 +10,7 @@
 
 #include <GLFW/glfw3.h>
 #include "vk_images.h"
+#include "vk_descriptors.h"
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora
@@ -38,6 +39,8 @@ Engine::Engine()
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].swapchainSemaphore));
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].renderSemaphore));
   }
+
+  init_descriptors();
 } 
 
 Engine::~Engine()
@@ -383,6 +386,46 @@ void Engine::draw_background(VkCommandBuffer cmd)
 
   VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
   vkCmdClearColorImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+}
+
+
+void Engine::init_descriptors()
+{
+  std::vector<DescriptorAllocator::PoolSizeRatio> sizes = 
+  {
+    {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
+  };
+  g_DescriptorAllocator.init_pool(h_Device, 10, sizes);
+
+  // FIXME: DeviceBuilder and SwapchainBuilder be like this instead of how it is now..
+  {
+    DescriptorLayoutBuilder builder;
+    builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    drawImageDescriptorLayout = builder.build(h_Device, VK_SHADER_STAGE_COMPUTE_BIT);
+  }
+
+  drawImageDescriptors = g_DescriptorAllocator.allocate(h_Device, drawImageDescriptorLayout);
+
+  VkDescriptorImageInfo info{};
+  info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+  info.imageView = m_DrawImage.imageView;
+
+  VkWriteDescriptorSet write{};
+  write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  write.pNext = nullptr;
+
+  write.dstBinding = 0;
+  write.dstSet = drawImageDescriptors;
+  write.descriptorCount = 1;
+  write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  write.pImageInfo = &info;
+
+  vkUpdateDescriptorSets(h_Device, 1, &write, 0, nullptr);
+
+  m_DeletionQueue.push_function([&]() {
+    g_DescriptorAllocator.destroy_pool(h_Device);
+    vkDestroyDescriptorSetLayout(h_Device, drawImageDescriptorLayout, nullptr);
+  });
 }
 
 /*

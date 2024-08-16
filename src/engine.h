@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include "window.h"
 #include "device.h"
+#include "vk_descriptors.h"
 #include <deque>
 namespace Aurora
 {
@@ -61,6 +62,9 @@ namespace Aurora
   class Engine
   {
     public:
+      DescriptorAllocator g_DescriptorAllocator;
+      VkDescriptorSet drawImageDescriptors;
+      VkDescriptorSetLayout drawImageDescriptorLayout;
     public:
       Engine();
       ~Engine();
@@ -97,8 +101,7 @@ namespace Aurora
       FrameData m_Frames[FRAME_OVERLAP];
       uint32_t m_FrameNumber{0};
       VmaAllocator m_Allocator{};
-
-
+      
       AllocatedImage m_DrawImage{};
       VkExtent2D m_DrawExtent{};
 
@@ -130,6 +133,7 @@ namespace Aurora
       FrameData& get_current_frame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
       void draw_background(VkCommandBuffer cmd);
       //void create_image_views();
+      void init_descriptors();
   };
 /*
   class Engine
