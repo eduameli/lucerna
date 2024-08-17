@@ -27,40 +27,31 @@ namespace vks
       // FIXME: check if this works, because i want the engine to run on older versions of the api as long as they have
       // the required extensions but if to reference VkPhysicalDeviceVulkan13Features and actually have it in the pNext chain you need the version
       // it sort of defeats the point of all the stuff i did to query support, when i couldve just crashed if it doesnt have it! :(
-  
+
     public:
-      DeviceBuilder(VkInstance instance);
-      DeviceBuilder& set_required_extensions(const std::vector<const char*>& extensions);
-      DeviceBuilder& set_required_features(const VkPhysicalDeviceFeatures2& features);
-      DeviceBuilder& set_required_type(); // not implemented, eg. can required DEDICATED GPU
-      DeviceBuilder& select_physical_device();
-      DeviceBuilder& set_surface(VkSurfaceKHR surface);
-      void build();
-      
-      VkPhysicalDevice get_physical_device();
-      VkDevice get_logical_device();
-      VkQueue get_graphics_queue();
-      VkQueue get_present_queue();
-      Aurora::QueueFamilyIndices get_queue_indices() { return m_QueueIndices; };
+      DeviceBuilder(VkInstance instance, VkSurfaceKHR surface);
+      void set_required_extensions(const std::vector<const char*>& extensions);
+      void set_required_features(VkPhysicalDeviceFeatures2 features);
+      void build(VkPhysicalDevice& physicalDevice, VkDevice& device, Aurora::QueueFamilyIndices& indices);
+      void get_queues(VkQueue& graphics, VkQueue& present); // NOTE: graphics == present? 
     private:
-      VkInstance h_Instance{};
-      VkDevice h_Device{};
-      VkPhysicalDevice h_PhysicalDevice{};
-      VkSurfaceKHR h_Surface{};
-      std::optional<uint32_t> m_MajorVersion;
-      std::optional<uint32_t> m_MinorVersion;
+      VkInstance m_Instance{};
+      VkDevice m_Device{};
+      //VkPhysicalDevice m_PhysicalDevice{};
+      VkSurfaceKHR m_Surface{};
       std::optional<std::vector<const char*>> m_RequiredExtensions;
       Aurora::QueueFamilyIndices m_QueueIndices{};
       VkPhysicalDeviceFeatures2 m_EnabledFeatures{}; 
-      VkQueue h_GraphicsQueue{};
-      VkQueue h_PresentQueue{};
+      //VkQueue m_GraphicsQueue{};
+      //VkQueue m_PresentQueue{};
       
     private:
+      VkPhysicalDevice select_physical_device();
       bool check_extension_support(VkPhysicalDevice device);
       bool is_device_suitable(VkPhysicalDevice);
       int rate_device(VkPhysicalDevice device);
       Aurora::QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
-      void get_queue_families();
+      //void get_queue_families();
   };
 
   

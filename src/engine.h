@@ -1,18 +1,15 @@
 #pragma once
-// NOTE: move device into engine + vkguide stuff!
+
 #include "aurora_pch.h"
 #include <vulkan/vulkan.h>
 #include "window.h"
 #include "device.h"
 #include "vk_descriptors.h"
 #include <deque>
+
 namespace Aurora
 {
 
-  // NOTE: its inefficient to store a function for every object being deleted
-  // a better approach would be to store arrays of vulkan handles of various types
-  // such as VkImage, VkBuffer and so on, and delete those from a loop.
-  // NOTE: this could be vk_core or smth
   struct DeletionQueue
   {
     std::deque<std::function<void()>> deletors;
@@ -27,7 +24,6 @@ namespace Aurora
       {
         (*it)();
       }
-      
       deletors.clear();
     }
   };
@@ -41,23 +37,6 @@ namespace Aurora
     DeletionQueue deletionQueue;
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
-
-  // moved to vk_startup? to have direct access to graphicsQueue and presentQueue 
-  struct QueueFamilyIndices
-  {
-    std::optional<uint32_t> graphicsFamily;
-    std::optional<uint32_t> presentFamily;
-    bool is_complete() {
-      return graphicsFamily.has_value() && presentFamily.has_value();
-    }
-  };
- /* 
-  struct QueueFamilies
-  {
-    VkQueue Graphics;
-    VkQueue Present;
-  };
-  */
 
   class Engine
   {
@@ -98,8 +77,6 @@ namespace Aurora
 
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        "VK_KHR_synchronization2",
-        "VK_KHR_dynamic_rendering",
       };
       FrameData m_Frames[FRAME_OVERLAP];
       uint32_t m_FrameNumber{0};

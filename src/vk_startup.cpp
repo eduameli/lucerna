@@ -3,51 +3,50 @@
 namespace vks
 {
 
-DeviceBuilder::DeviceBuilder(VkInstance instance)
-  : h_Instance{instance}, m_MajorVersion{0}, m_MinorVersion{0}, m_EnabledFeatures{}
+DeviceBuilder::DeviceBuilder(VkInstance instance, VkSurfaceKHR surface)
+  : m_Instance{instance}, m_Surface{surface}
 {}
 
-DeviceBuilder& DeviceBuilder::set_required_extensions(const std::vector<const char*>& extensions)
+void DeviceBuilder::set_required_extensions(const std::vector<const char*>& extensions)
 {
   m_RequiredExtensions = extensions;
-  return *this;
 }
 
+void DeviceBuilder::set_required_features(VkPhysicalDeviceFeatures2 features)
+{
+  m_EnabledFeatures = features;
+}
 
-DeviceBuilder& DeviceBuilder::select_physical_device()
+VkPhysicalDevice DeviceBuilder::select_physical_device()
 {
   uint32_t deviceCount;
-  vkEnumeratePhysicalDevices(h_Instance, &deviceCount, nullptr);
+  vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
   AR_ASSERT(deviceCount != 0, "Failed to find any supported Physical Device!");
 
   std::vector<VkPhysicalDevice> devices(deviceCount);
-  vkEnumeratePhysicalDevices(h_Instance, &deviceCount, devices.data());
+  vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
   
   int maxScore = 0;
+  VkPhysicalDevice selected;
   for (const auto& device : devices)
   {
     int score = rate_device(device);
     if (score > maxScore)
     {
-      h_PhysicalDevice = device;
+      selected = device;
       maxScore = score;
     }
   }
 
-  AR_ASSERT(h_PhysicalDevice != VK_NULL_HANDLE, "No suitable device found!");
-  return *this;
+  AR_ASSERT(selected != VK_NULL_HANDLE, "No suitable device found!");
+  return selected;
 }
 
-DeviceBuilder& DeviceBuilder::set_required_features(const VkPhysicalDeviceFeatures2& features)
+void DeviceBuilder::build(VkPhysicalDevice& physicalDevice, VkDevice& device, Aurora::QueueFamilyIndices& indices)
 {
-  m_EnabledFeatures = features;
-  return *this;
-}
-
-void DeviceBuilder::build()
-{
-  auto indices = find_queue_families(h_PhysicalDevice);
-  m_QueueIndices = indices; 
+  physicalDevice = select_physical_device();
+  indices = find_queue_families(physicalDevice);
+  m_QueueIndices = indices;
 
   std::set<uint32_t> uniqueQueueFamilies = 
   {
@@ -67,19 +66,6 @@ void DeviceBuilder::build()
     queueCreateInfos.push_back(info);
   }
 
-  /*VkPhysicalDeviceFeatures2 f2 = m_EnabledFeatures.get_features();
-  VkPhysicalDeviceVulkan13Features f13{};
-  f13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-  f13.dynamicRendering = VK_TRUE;
-  f13.synchronization2 = VK_TRUE;
-  
-  VkPhysicalDeviceFeatures f{};
-
-  VkPhysicalDeviceFeatures2 features{};
-  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  features.pNext = &f13;
-  features.features = f;
-  */
   VkDeviceCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   info.pQueueCreateInfos = queueCreateInfos.data();
@@ -96,42 +82,10 @@ void DeviceBuilder::build()
 
   info.enabledLayerCount = 0;
   
-  VK_CHECK_RESULT(vkCreateDevice(h_PhysicalDevice, &info, nullptr, &h_Device));
-  get_queue_families();
-}
-
-VkPhysicalDevice DeviceBuilder::get_physical_device()
-{
-  AR_ASSERT(h_PhysicalDevice != VK_NULL_HANDLE, "Physical device is VK_NULL_HANDLE!");
-  return h_PhysicalDevice;
-}
-
-VkDevice DeviceBuilder::get_logical_device()
-{
-  AR_ASSERT(h_Device != VK_NULL_HANDLE, "Logical device is VK_NULL_HANDLE!");
-  return h_Device;
-}
-
-VkQueue DeviceBuilder::get_graphics_queue()
-{
-  return h_GraphicsQueue;
-}
-
-VkQueue DeviceBuilder::get_present_queue()
-{
-  return h_PresentQueue; 
-}
-
-void DeviceBuilder::get_queue_families()
-{
-  vkGetDeviceQueue(h_Device, m_QueueIndices.graphicsFamily.value(), 0, &h_GraphicsQueue);
-  vkGetDeviceQueue(h_Device, m_QueueIndices.presentFamily.value(), 0, &h_PresentQueue);
-}
-
-DeviceBuilder& DeviceBuilder::set_surface(VkSurfaceKHR surface)
-{
-  h_Surface = surface;
-  return *this;
+  AR_CORE_FATAL("RIGHT BEFORE CREATE!!!");
+  VK_CHECK_RESULT(vkCreateDevice(physicalDevice, &info, nullptr, &device));
+  m_Device = device;
+  //get_queue_families();
 }
 
 Aurora::QueueFamilyIndices DeviceBuilder::find_queue_families(VkPhysicalDevice device)
@@ -153,8 +107,9 @@ Aurora::QueueFamilyIndices DeviceBuilder::find_queue_families(VkPhysicalDevice d
   
     //NOTE: could add logic to explicitly prefer a physical device that supports
     // both drawing and presentation in the same queue for improved performance!
+    // or a present only queue for async
     VkBool32 presentSupport = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, h_Surface, &presentSupport);
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
     if (presentSupport) {
       indices.presentFamily = i;
     }
@@ -226,6 +181,14 @@ int DeviceBuilder::rate_device(VkPhysicalDevice device)
   AR_CORE_INFO("{} has score {}", properties.deviceName, score);
   return score;
 }
+
+
+void DeviceBuilder::get_queues(VkQueue& graphics, VkQueue& present)
+{
+  vkGetDeviceQueue(m_Device, m_QueueIndices.graphicsFamily.value(), 0, &graphics);
+  vkGetDeviceQueue(m_Device, m_QueueIndices.presentFamily.value(), 0, &present);
+}
+
 
 SwapchainBuilder& SwapchainBuilder::set_devices(VkPhysicalDevice physicalDevice, VkDevice device)
 {

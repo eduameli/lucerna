@@ -291,41 +291,18 @@ void Engine::destroy_debug_messenger(VkInstance instance, VkDebugUtilsMessengerE
 
 void Engine::create_device()
 {
-  VkPhysicalDeviceFeatures f1{};
-  VkPhysicalDeviceVulkan11Features f11{};
-  f11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+  Features feat{};
+  feat.f12.bufferDeviceAddress = VK_TRUE;
+  feat.f13.dynamicRendering = VK_TRUE;
+  feat.f13.synchronization2 = VK_TRUE;
 
-  VkPhysicalDeviceVulkan12Features f12{};
-  f12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-  f12.bufferDeviceAddress = VK_TRUE;
 
-  VkPhysicalDeviceVulkan13Features f13{};
-  f13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-  f13.dynamicRendering = VK_TRUE;
-  f13.synchronization2 = VK_TRUE;
-  
-  f11.pNext = &f12;
-  f12.pNext = &f13;
+  vks::DeviceBuilder builder{h_Instance, h_Surface};
+  builder.set_required_extensions(m_DeviceExtensions);
+  builder.set_required_features(feat.get());
+  builder.build(h_PhysicalDevice, h_Device, m_Indices);
+  builder.get_queues(h_GraphicsQueue, h_PresentQueue);
 
-  VkPhysicalDeviceFeatures2 features{};
-  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  features.pNext = &f11;
-  features.features = f1;
-  
-
-  vks::DeviceBuilder builder{ h_Instance };
-  builder
-    .set_required_extensions(m_DeviceExtensions)
-    .set_required_features(features)
-    .set_surface(h_Surface)
-    .select_physical_device()
-    .build();
-
-  h_Device = builder.get_logical_device();
-  h_PhysicalDevice = builder.get_physical_device();
-  h_GraphicsQueue = builder.get_graphics_queue();
-  h_PresentQueue = builder.get_present_queue();
-  m_Indices = builder.get_queue_indices();
 }
 
 void Engine::create_swapchain()
