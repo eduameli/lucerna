@@ -296,7 +296,6 @@ void Engine::create_device()
   feat.f13.dynamicRendering = VK_TRUE;
   feat.f13.synchronization2 = VK_TRUE;
 
-
   vks::DeviceBuilder builder{h_Instance, h_Surface};
   builder.set_required_extensions(m_DeviceExtensions);
   builder.set_required_features(feat.get());
