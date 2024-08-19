@@ -53,7 +53,7 @@ Engine::Engine()
 	VK_CHECK_RESULT(vkCreateDescriptorPool(h_Device, &pool_info, nullptr, &imguiPool));
 
   ImGui::CreateContext();
-  ImGui::StyleColorsDark();
+  //ImGui::StyleColorsDark();
   ImGui_ImplGlfw_InitForVulkan(Application::get_main_window().get_handle(), true);
   ImGui_ImplVulkan_InitInfo info{};
   info.Instance = h_Instance;
@@ -75,6 +75,7 @@ Engine::Engine()
   
   info.PipelineRenderingCreateInfo = info2;
   ImGui_ImplVulkan_Init(&info);
+  ImGui_ImplVulkan_CreateFontsTexture();
 } 
 
 Engine::~Engine()
@@ -112,10 +113,8 @@ void Engine::draw()
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
-  ImGui::Begin("Hello Vulkan!");
-  ImGui::Text("This is some text in imgui with vulkan...");
-  ImGui::End();
-  
+  ImGui::ShowDemoWindow();
+  ImGui::Render(); 
   // NOTE: END IMGUI FRAME
 
 
@@ -132,16 +131,13 @@ void Engine::draw()
   m_DrawExtent.width = m_DrawImage.imageExtent.width;
   m_DrawExtent.height = m_DrawImage.imageExtent.height;
   
-  
-  ImGui::Render();
-
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-  
+
+  // draw stuff here into the draw image
   draw_background(cmd);
-  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -149,7 +145,11 @@ void Engine::draw()
   // NOTE: uses blit, could use less flexible but more performant option 
   vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_SwapchainImages[swapchainImageIndex], m_DrawExtent, m_DrawExtent /* FIXME: this should be swapchain extent?? */);
   
-  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+  draw_imgui(cmd, m_SwapchainImageViews[swapchainImageIndex]);
+  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
   VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
   // submit 
@@ -476,6 +476,15 @@ void Engine::init_commands()
     VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_Frames[i].commandPool, 1);
     VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
   }
+}
+
+void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
+{
+  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_SwapchainExtent, &colorAttachment, nullptr);
+  vkCmdBeginRendering(cmd, &renderInfo);
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+  vkCmdEndRendering(cmd);
 }
 
 } // Aurora namespace

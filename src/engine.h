@@ -32,6 +32,7 @@ namespace Aurora
       Engine();
       ~Engine();
       void draw();
+      void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
     private:
       #ifdef DEBUG
       constexpr static bool m_UseValidationLayers = true;
