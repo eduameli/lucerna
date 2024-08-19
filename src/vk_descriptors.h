@@ -23,6 +23,7 @@ struct DescriptorAllocator
     void destroy_pool(VkDevice device);
     void clear_descriptors(VkDevice device);
     VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);
+    inline VkDescriptorPool get_pool() { return m_Pool; }
   private:
     VkDescriptorPool m_Pool;
   private:

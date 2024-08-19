@@ -11,6 +11,11 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
+
+//FIXME: temportary imgui!
+#include "imgui.h"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_vulkan.h"
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora
@@ -24,6 +29,52 @@ Engine::Engine()
   init_sync_structures();
   init_descriptors();
   init_pipelines();
+  
+  VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000;
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+
+	VkDescriptorPool imguiPool;
+	VK_CHECK_RESULT(vkCreateDescriptorPool(h_Device, &pool_info, nullptr, &imguiPool));
+
+  ImGui::CreateContext();
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForVulkan(Application::get_main_window().get_handle(), true);
+  ImGui_ImplVulkan_InitInfo info{};
+  info.Instance = h_Instance;
+  info.PhysicalDevice = h_PhysicalDevice;
+  info.Device = h_Device;
+  //info.QueueFamily = m_Indices.graphicsFamily.value();
+  info.Queue = h_GraphicsQueue;
+  //info.PipelineCache = VK_NULL_HANDLE;
+  info.DescriptorPool = imguiPool;
+  info.MinImageCount = 3;
+  info.ImageCount = 3;
+  info.UseDynamicRendering = true;
+  info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+  
+  VkPipelineRenderingCreateInfo info2{};
+  info2.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+  info2.colorAttachmentCount = 1;
+  info2.pColorAttachmentFormats = &m_SwapchainFormat.format;
+  
+  info.PipelineRenderingCreateInfo = info2;
+  ImGui_ImplVulkan_Init(&info);
 } 
 
 Engine::~Engine()
@@ -57,6 +108,17 @@ Engine::~Engine()
 
 void Engine::draw()
 {
+  // NOTE: IMGUI FRAME
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+  ImGui::Begin("Hello Vulkan!");
+  ImGui::Text("This is some text in imgui with vulkan...");
+  ImGui::End();
+  
+  // NOTE: END IMGUI FRAME
+
+
   VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &get_current_frame().renderFence, true, 1000000000));
   VK_CHECK_RESULT(vkResetFences(h_Device, 1, &get_current_frame().renderFence));
   
@@ -69,6 +131,9 @@ void Engine::draw()
   
   m_DrawExtent.width = m_DrawImage.imageExtent.width;
   m_DrawExtent.height = m_DrawImage.imageExtent.height;
+  
+  
+  ImGui::Render();
 
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
@@ -76,7 +141,8 @@ void Engine::draw()
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
   
   draw_background(cmd);
-  
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   

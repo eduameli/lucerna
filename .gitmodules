@@ -13,3 +13,6 @@
 	path = vendor/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
   ignore = dirty
+[submodule "vendor/imgui"]
+	path = vendor/imgui
+	url = git@github.com:ocornut/imgui.git

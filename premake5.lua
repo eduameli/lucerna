@@ -30,7 +30,8 @@ project "aurora"
         "vendor/glfw/include", -- if they are needed here are they also needed when compiling the static lib?
         "vendor/KHR",
         "vendor/vulkan/include",
-        "vendor/VulkanMemoryAllocator/include"
+        "vendor/VulkanMemoryAllocator/include",
+        "vendor/imgui",
     }
   
     libdirs {"build/lib"}
@@ -40,6 +41,7 @@ project "aurora"
         "spdlog",
         "glfw",
         "vulkan",
+        "imgui",
     }
     
     filter {}
@@ -139,3 +141,42 @@ project "VulkanMemoryAllocator"
   {
     "vendor/VulkanMemoryAllocator/include/**.h"
   }
+
+  filter "configurations:debug"
+    symbols "On"
+  filter "configurations:release"
+    optimize "On"
+
+project "imgui"
+    location "vendor/imgui"
+    kind "StaticLib"
+    language "C++"
+    cppdialect "c++20"
+    targetdir ("build/lib/bin/%{cfg.buildcfg}")
+    objdir ("build/lib/obj/%{cfg.buildcfg}")
+
+    includedirs
+    {
+        "vendor/imgui",
+        "vendor/imgui/backends",
+
+        "vendor/vulkan/include",
+        "vendor/glfw/include",
+        "vendor/KHR/",
+    }
+
+    files
+    {
+        "vendor/imgui/*.cpp",
+        "vendor/imgui/*.h",
+        "vendor/imgui/backends/imgui_impl_glfw.cpp",
+        "vendor/imgui/backends/imgui_impl_glfw.h",
+        "vendor/imgui/backends/imgui_impl_vulkan.cpp",
+        "vendor/imgui/backends/imgui_impl_vulkan.h"
+    }
+
+    filter "configurations:debug"
+        symbols "On"
+
+    filter "configurations:release"
+        optimize "On"
