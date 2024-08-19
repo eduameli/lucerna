@@ -15,4 +15,5 @@
   ignore = dirty
 [submodule "vendor/imgui"]
 	path = vendor/imgui
-	url = git@github.com:ocornut/imgui.git
+  url = git@github.com:ocornut/imgui.git
+  ignore = dirty
