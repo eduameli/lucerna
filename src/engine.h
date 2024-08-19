@@ -68,6 +68,13 @@ namespace Aurora
 
     private:
       void init_vulkan();
+      void init_swapchain();
+      void init_commands();
+      void init_sync_structures();
+      void init_descriptors();
+      void init_pipelines();
+      void init_background_pipelines();
+
       void check_instance_ext_support();
       void check_validation_layer_support();
       void create_instance();
@@ -90,13 +97,9 @@ namespace Aurora
         const VkAllocationCallbacks* pAllocator
       );
       void create_device();
-      void create_swapchain();
       FrameData& get_current_frame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
       void draw_background(VkCommandBuffer cmd);
       //void create_image_views();
-      void init_descriptors();
-      void init_pipelines();
-      void init_background_pipelines();
   };
 /*
   class Engine

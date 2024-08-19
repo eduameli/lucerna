@@ -19,25 +19,9 @@ namespace Aurora
 Engine::Engine()
 {
   init_vulkan();
-
-  VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_Indices.graphicsFamily.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-  for (int i = 0; i < FRAME_OVERLAP; i++)
-  {
-    VK_CHECK_RESULT(vkCreateCommandPool(h_Device, &commandPoolInfo, nullptr, &m_Frames[i].commandPool));
-    VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_Frames[i].commandPool, 1);
-    VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
-  }
-
-  // init sync structures ()
-  VkFenceCreateInfo fence = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
-  VkSemaphoreCreateInfo semaphore = vkinit::semaphore_create_info();
-  for (int i = 0; i < FRAME_OVERLAP; i++)
-  {
-    VK_CHECK_RESULT(vkCreateFence(h_Device, &fence, nullptr, &m_Frames[i].renderFence));
-    VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].swapchainSemaphore));
-    VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].renderSemaphore));
-  }
-
+  init_swapchain();
+  init_commands();
+  init_sync_structures();
   init_descriptors();
   init_pipelines();
 } 
@@ -146,7 +130,6 @@ void Engine::init_vulkan()
   vmaCreateAllocator(&allocatorInfo, &m_Allocator);
   m_DeletionQueue.push_function([&]() {vmaDestroyAllocator(m_Allocator);});
 
-  create_swapchain();
 }
 
 
@@ -306,7 +289,7 @@ void Engine::create_device()
   );
 }
 
-void Engine::create_swapchain()
+void Engine::init_swapchain()
 {
   vks::SwapchainBuilder builder{h_PhysicalDevice, h_Device, h_Surface, m_Indices};
   //builder.set_preferred_present_mode();
@@ -442,6 +425,29 @@ void Engine::init_background_pipelines()
     vkDestroyPipelineLayout(h_Device, gradientPipelineLayout, nullptr);
     vkDestroyPipeline(h_Device, gradientPipeline, nullptr);
   });
+}
+
+void Engine::init_sync_structures()
+{
+  VkFenceCreateInfo fence = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+  VkSemaphoreCreateInfo semaphore = vkinit::semaphore_create_info();
+  for (int i = 0; i < FRAME_OVERLAP; i++)
+  {
+    VK_CHECK_RESULT(vkCreateFence(h_Device, &fence, nullptr, &m_Frames[i].renderFence));
+    VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].swapchainSemaphore));
+    VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].renderSemaphore));
+  }
+}
+
+void Engine::init_commands()
+{
+  VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_Indices.graphicsFamily.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+  for (int i = 0; i < FRAME_OVERLAP; i++)
+  {
+    VK_CHECK_RESULT(vkCreateCommandPool(h_Device, &commandPoolInfo, nullptr, &m_Frames[i].commandPool));
+    VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_Frames[i].commandPool, 1);
+    VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
+  }
 }
 
 } // Aurora namespace
