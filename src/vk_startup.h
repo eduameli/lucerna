@@ -60,7 +60,20 @@ namespace vks
       VkExtent2D choose_extent(const VkSurfaceCapabilitiesKHR& capabilities);
       
   };
+  
+  void setup_validation_layer_callback(VkInstance instance, VkDebugUtilsMessengerEXT& messenger, PFN_vkDebugUtilsMessengerCallbackEXT pfnUserCallback);
 
+  VkResult create_debug_messenger(
+    VkInstance instance,
+    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkDebugUtilsMessengerEXT* pDebugMessenger
+  );
+  void destroy_debug_messenger(
+    VkInstance instance,
+    VkDebugUtilsMessengerEXT debugMessenger,
+    const VkAllocationCallbacks* pAllocator
+  );
 } // namespace vkstartup 
 
 

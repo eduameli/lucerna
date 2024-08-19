@@ -30,7 +30,7 @@ Engine::~Engine()
 {
   vkDeviceWaitIdle(h_Device);
 
-  destroy_debug_messenger(h_Instance, h_DebugMessenger, nullptr);
+  vks::destroy_debug_messenger(h_Instance, h_DebugMessenger, nullptr);
   vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
   vkDestroySurfaceKHR(h_Instance, h_Surface, nullptr);
   
@@ -50,6 +50,7 @@ Engine::~Engine()
   }
   
   m_DeletionQueue.flush();
+
   vkDestroyDevice(h_Device, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
 }
@@ -114,12 +115,12 @@ void Engine::init_vulkan()
   check_instance_ext_support();
   check_validation_layer_support();
   create_instance();
-  setup_validation_layer_callback();
   
-
-  // NOTE: this should go somewhere else maybe
+  if (m_UseValidationLayers == true)
+    vks::setup_validation_layer_callback(h_Instance, h_DebugMessenger, validation_callback);
 
   glfwCreateWindowSurface(h_Instance, Application::get_main_window().get_handle(), nullptr, &h_Surface);
+  
   create_device();
 
   VmaAllocatorCreateInfo allocatorInfo{};
@@ -128,8 +129,8 @@ void Engine::init_vulkan()
   allocatorInfo.instance = h_Instance;
   allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
   vmaCreateAllocator(&allocatorInfo, &m_Allocator);
-  m_DeletionQueue.push_function([&]() {vmaDestroyAllocator(m_Allocator);});
 
+  m_DeletionQueue.push_function([&]() {vmaDestroyAllocator(m_Allocator);});
 }
 
 
@@ -205,34 +206,17 @@ void Engine::create_instance()
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
-  createInfo.enabledExtensionCount = as<uint32_t>(m_InstanceExtensions.size());
+  createInfo.enabledExtensionCount = static_cast<uint32_t>(m_InstanceExtensions.size());
   createInfo.ppEnabledExtensionNames = m_InstanceExtensions.data();
 
   if (m_UseValidationLayers)
   {
-    createInfo.enabledLayerCount = as<uint32_t>(m_ValidationLayers.size());
+    createInfo.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
     createInfo.ppEnabledLayerNames = m_ValidationLayers.data();
   }
   
   VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &h_Instance));
 }
-
-void Engine::setup_validation_layer_callback()
-{
-  if(!m_UseValidationLayers)
-    return;
-
-  VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-  createInfo.
-  pfnUserCallback = validation_callback;
-  VK_CHECK_RESULT(create_debug_messenger(h_Instance, &createInfo, nullptr, &h_DebugMessenger));
-}
-
-
-
 
 VkBool32 Engine::validation_callback(
   VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -247,28 +231,6 @@ VkBool32 Engine::validation_callback(
 
   return VK_FALSE;
 }
-
-VkResult Engine::create_debug_messenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
-{
-  auto fn = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-  if (fn == nullptr)
-  {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-
-  return fn(instance, pCreateInfo, pAllocator, pDebugMessenger);
-}
-
-void Engine::destroy_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
-{
-  auto fn = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-  if (fn == nullptr)
-  {
-    return;
-  }
-  fn(instance, debugMessenger, pAllocator);
-}
-
 
 void Engine::create_device()
 {
