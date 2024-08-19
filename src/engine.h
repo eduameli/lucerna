@@ -2,31 +2,10 @@
 
 #include "aurora_pch.h"
 #include <vulkan/vulkan.h>
-#include "window.h"
-#include "device.h"
 #include "vk_descriptors.h"
-#include <deque>
 
 namespace Aurora
 {
-
-  struct DeletionQueue
-  {
-    std::deque<std::function<void()>> deletors;
-    void push_function(std::function<void()>&& function)
-    {
-      deletors.push_back(function);
-    }
-    
-    void flush()
-    {
-      for (auto it = deletors.rbegin(); it != deletors.rend(); it++)
-      {
-        (*it)();
-      }
-      deletors.clear();
-    }
-  };
 
   struct FrameData
   {
@@ -46,6 +25,8 @@ namespace Aurora
       VkDescriptorSetLayout drawImageDescriptorLayout{};
       VkPipeline gradientPipeline{};
       VkPipelineLayout gradientPipelineLayout{};
+      VkSurfaceFormatKHR m_SwapchainFormat;
+      VkExtent2D m_SwapchainExtent;
 
     public:
       Engine();

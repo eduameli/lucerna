@@ -291,22 +291,27 @@ void Engine::destroy_debug_messenger(VkInstance instance, VkDebugUtilsMessengerE
 
 void Engine::create_device()
 {
-  Features feat{};
-  feat.f12.bufferDeviceAddress = VK_TRUE;
-  feat.f13.dynamicRendering = VK_TRUE;
-  feat.f13.synchronization2 = VK_TRUE;
+  Features features{};
+  features.f12.bufferDeviceAddress = VK_TRUE;
+  features.f13.dynamicRendering = VK_TRUE;
+  features.f13.synchronization2 = VK_TRUE;
 
+  // could have more options like set preferred gpu type, set required format, require geometry shader, etc
   vks::DeviceBuilder builder{h_Instance, h_Surface};
   builder.set_required_extensions(m_DeviceExtensions);
-  builder.set_required_features(feat.get());
-  builder.build(h_PhysicalDevice, h_Device, m_Indices);
-  builder.get_queues(h_GraphicsQueue, h_PresentQueue);
-
+  builder.set_required_features(features.get());
+  
+  builder.build(
+    h_PhysicalDevice, h_Device,
+    m_Indices,
+    h_GraphicsQueue, h_PresentQueue
+  );
 }
 
 void Engine::create_swapchain()
 {
-  QueueFamilyIndices indices;
+  /*
+  //QueueFamilyIndices indices;
   vks::SwapchainBuilder builder{};
   builder
     .set_devices(h_PhysicalDevice, h_Device)
@@ -320,14 +325,31 @@ void Engine::create_swapchain()
   //FIXME: this api is cancer again.. whole builder api is bad..
   builder.get_swapchain_images(m_SwapchainImages);
   builder.get_image_views(m_SwapchainImageViews, m_SwapchainImages);
-
+  m_SwapchainImageViews = vkutil::get_image_views(h_Device, VK_FORMAT_D16_UNORM, m_SwapchainImage)
   VkExtent2D ext = builder.get_window_extent();
   VkExtent3D drawImageExtent = {
   	ext.width,
 	  ext.height,
 		1
 	};
+  */
+  vks::SwapchainBuilder builder{h_PhysicalDevice, h_Device, h_Surface, m_Indices};
+  //builder.set_preferred_present_mode();
+  //builder.set_preferred_format();
+  
+  builder.build(
+    h_Swapchain,
+    m_SwapchainImages, 
+    m_SwapchainFormat, 
+    m_SwapchainExtent
+  );
 
+  m_SwapchainImageViews = vkutil::get_image_views(h_Device, m_SwapchainFormat.format, m_SwapchainImages);
+
+  
+    
+  // create draw image
+  VkExtent3D drawImageExtent = {m_SwapchainExtent.width, m_SwapchainExtent.height, 1}; 
 	//hardcoding the draw format to 32 bit float
 	m_DrawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	m_DrawImage.imageExtent = drawImageExtent;

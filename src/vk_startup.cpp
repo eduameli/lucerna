@@ -1,5 +1,6 @@
 #include "vk_startup.h"
 #include "utilities.h"
+#include "application.h"
 namespace vks
 {
 
@@ -39,14 +40,18 @@ VkPhysicalDevice DeviceBuilder::select_physical_device()
   }
 
   AR_ASSERT(selected != VK_NULL_HANDLE, "No suitable device found!");
+  
+  VkPhysicalDeviceProperties properties{};
+  vkGetPhysicalDeviceProperties(selected, &properties);
+
+  AR_CORE_INFO("Using {}", properties.deviceName);
   return selected;
 }
 
-void DeviceBuilder::build(VkPhysicalDevice& physicalDevice, VkDevice& device, Aurora::QueueFamilyIndices& indices)
+void DeviceBuilder::build(VkPhysicalDevice& physicalDevice, VkDevice& device, Aurora::QueueFamilyIndices& indices, VkQueue& graphics, VkQueue& present)
 {
   physicalDevice = select_physical_device();
   indices = find_queue_families(physicalDevice);
-  m_QueueIndices = indices;
 
   std::set<uint32_t> uniqueQueueFamilies = 
   {
@@ -82,10 +87,9 @@ void DeviceBuilder::build(VkPhysicalDevice& physicalDevice, VkDevice& device, Au
 
   info.enabledLayerCount = 0;
   
-  AR_CORE_FATAL("RIGHT BEFORE CREATE!!!");
   VK_CHECK_RESULT(vkCreateDevice(physicalDevice, &info, nullptr, &device));
-  m_Device = device;
-  //get_queue_families();
+  vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphics);
+  vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &present);
 }
 
 Aurora::QueueFamilyIndices DeviceBuilder::find_queue_families(VkPhysicalDevice device)
@@ -178,43 +182,20 @@ int DeviceBuilder::rate_device(VkPhysicalDevice device)
       break;
   }
   
-  AR_CORE_INFO("{} has score {}", properties.deviceName, score);
   return score;
 }
 
-
-void DeviceBuilder::get_queues(VkQueue& graphics, VkQueue& present)
-{
-  vkGetDeviceQueue(m_Device, m_QueueIndices.graphicsFamily.value(), 0, &graphics);
-  vkGetDeviceQueue(m_Device, m_QueueIndices.presentFamily.value(), 0, &present);
-}
+SwapchainBuilder::SwapchainBuilder(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, Aurora::QueueFamilyIndices indices)
+  : h_PhysicalDevice{physicalDevice}, h_Device{device}, h_Surface{surface}, m_Indices{indices}
+{}
 
 
-SwapchainBuilder& SwapchainBuilder::set_devices(VkPhysicalDevice physicalDevice, VkDevice device)
-{
-  h_PhysicalDevice = physicalDevice;
-  h_Device = device;
-  return *this;
-}
-
-SwapchainBuilder& SwapchainBuilder::set_surface(VkSurfaceKHR surface)
-{
-  h_Surface = surface;
-  return *this;
-}
-
-SwapchainBuilder& SwapchainBuilder::set_queue_indices(Aurora::QueueFamilyIndices indices)
-{
-  m_Indices = indices;
-  return *this;
-}
-
-void SwapchainBuilder::build()
+void SwapchainBuilder::build(VkSwapchainKHR& swapchain, std::vector<VkImage>& images, VkSurfaceFormatKHR& surfaceFormat, VkExtent2D& extent)
 {
   SwapchainSupportDetails details = query_swapchain_support(h_PhysicalDevice);
-  VkSurfaceFormatKHR surfaceFormat = choose_surface_format(details.formats);
   VkPresentModeKHR presentMode = choose_present_mode(details.presentModes);
-  VkExtent2D extent = choose_extent(details.capabilities);
+  surfaceFormat = choose_surface_format(details.formats);
+  extent = choose_extent(details.capabilities);
 
   uint32_t imageCount = details.capabilities.minImageCount;
   if (details.capabilities.maxImageCount > 0 && imageCount > details.capabilities.maxImageCount)
@@ -254,16 +235,13 @@ void SwapchainBuilder::build()
   createInfo.clipped = VK_TRUE;
   createInfo.oldSwapchain = VK_NULL_HANDLE;
   
-  VK_CHECK_RESULT(vkCreateSwapchainKHR(h_Device, &createInfo, nullptr, &h_Swapchain));
-  /*
-  vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &imageCount, nullptr);
-  m_SwapchainImages.resize(imageCount);
-  vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &imageCount, m_SwapchainImages.data());
+  VK_CHECK_RESULT(vkCreateSwapchainKHR(h_Device, &createInfo, nullptr, &swapchain));
+  
+  uint32_t count = 0;
+  vkGetSwapchainImagesKHR(h_Device, swapchain, &count, nullptr);
+  images.resize(count);
+  vkGetSwapchainImagesKHR(h_Device, swapchain, &count, images.data());
 
-  m_SwapchainExtent = extent;
-  m_SwapchainImageFormat = surfaceFormat.format;
-  */
-  m_SurfaceFormat = surfaceFormat.format;
 }
 
 SwapchainBuilder::SwapchainSupportDetails SwapchainBuilder::query_swapchain_support(VkPhysicalDevice device)
@@ -319,13 +297,12 @@ VkExtent2D SwapchainBuilder::choose_extent(const VkSurfaceCapabilitiesKHR& capab
 
   if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
   {
-    m_WindowExtent = capabilities.currentExtent;
     return capabilities.currentExtent;
   }
   else
   {
     int width, height;
-    glfwGetFramebufferSize(h_Window, &width, &height);
+    glfwGetFramebufferSize(Aurora::Application::get_main_window().get_handle(), &width, &height);
     VkExtent2D actualExtent = {
       (uint32_t) (width),
       (uint32_t) (height)
@@ -334,43 +311,9 @@ VkExtent2D SwapchainBuilder::choose_extent(const VkSurfaceCapabilitiesKHR& capab
     actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
     actualExtent.height = std::clamp(actualExtent.width, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
     
-    m_WindowExtent = actualExtent;
     return actualExtent;
   }
 }
 
-void SwapchainBuilder::get_swapchain_images(std::vector<VkImage>& images)
-{
-  uint32_t count = 0;
-  vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &count, nullptr);
-  images.resize(count);
-  vkGetSwapchainImagesKHR(h_Device, h_Swapchain, &count, images.data());
-}
 
-void SwapchainBuilder::get_image_views(std::vector<VkImageView>& views, const std::vector<VkImage>& images)
-{
-  views.resize(images.size());
-
-  for (size_t i = 0; i < images.size(); i++)
-  {
-    VkImageViewCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    createInfo.image = images[i];
-    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    createInfo.format = m_SurfaceFormat;
-    
-    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    
-    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    createInfo.subresourceRange.baseMipLevel = 0;
-    createInfo.subresourceRange.levelCount = 1;
-    createInfo.subresourceRange.baseArrayLayer = 0;
-    createInfo.subresourceRange.layerCount = 1;
-
-    VK_CHECK_RESULT(vkCreateImageView(h_Device, &createInfo, nullptr, &views[i]));
-  }
-}
 } // namespace vkstartup
