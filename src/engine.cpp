@@ -20,7 +20,6 @@ Engine::Engine()
 {
   init_vulkan();
 
-  // init command buffers ()
   VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_Indices.graphicsFamily.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
@@ -73,9 +72,10 @@ Engine::~Engine()
 
 void Engine::draw()
 {
-  Timer frametime; 
   VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &get_current_frame().renderFence, true, 1000000000));
   VK_CHECK_RESULT(vkResetFences(h_Device, 1, &get_current_frame().renderFence));
+  
+  get_current_frame().deletionQueue.flush();
 
   uint32_t swapchainImageIndex;
   VK_CHECK_RESULT(vkAcquireNextImageKHR(h_Device, h_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
@@ -95,7 +95,7 @@ void Engine::draw()
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
-  // NOTE: uses blit which is slower than other options but less restrictive, could change!
+  // NOTE: uses blit, could use less flexible but more performant option 
   vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_SwapchainImages[swapchainImageIndex], m_DrawExtent, m_DrawExtent /* FIXME: this should be swapchain extent?? */);
   
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -232,8 +232,6 @@ void Engine::create_instance()
   }
   
   VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &h_Instance));
-
-  // create VMA 
 }
 
 void Engine::setup_validation_layer_callback()
@@ -310,29 +308,6 @@ void Engine::create_device()
 
 void Engine::create_swapchain()
 {
-  /*
-  //QueueFamilyIndices indices;
-  vks::SwapchainBuilder builder{};
-  builder
-    .set_devices(h_PhysicalDevice, h_Device)
-    .set_surface(h_Surface)
-    .set_queue_indices(m_Indices)
-    .build();
-
-
-  h_Swapchain = builder.get_swapchain();
-
-  //FIXME: this api is cancer again.. whole builder api is bad..
-  builder.get_swapchain_images(m_SwapchainImages);
-  builder.get_image_views(m_SwapchainImageViews, m_SwapchainImages);
-  m_SwapchainImageViews = vkutil::get_image_views(h_Device, VK_FORMAT_D16_UNORM, m_SwapchainImage)
-  VkExtent2D ext = builder.get_window_extent();
-  VkExtent3D drawImageExtent = {
-  	ext.width,
-	  ext.height,
-		1
-	};
-  */
   vks::SwapchainBuilder builder{h_PhysicalDevice, h_Device, h_Surface, m_Indices};
   //builder.set_preferred_present_mode();
   //builder.set_preferred_format();
@@ -346,8 +321,6 @@ void Engine::create_swapchain()
 
   m_SwapchainImageViews = vkutil::get_image_views(h_Device, m_SwapchainFormat.format, m_SwapchainImages);
 
-  
-    
   // create draw image
   VkExtent3D drawImageExtent = {m_SwapchainExtent.width, m_SwapchainExtent.height, 1}; 
 	//hardcoding the draw format to 32 bit float
@@ -381,17 +354,6 @@ void Engine::create_swapchain()
 
 void Engine::draw_background(VkCommandBuffer cmd)
 {
-  /* draw with vkCmdClearColor
-  VkClearColorValue clearValue;
-  float flash = std::abs(std::sin(m_FrameNumber / 120.0f));
-  clearValue = {{0.0f, 0.0f, flash, 1.0f}};
-
-  VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
-  vkCmdClearColorImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
-  */
-  
-  // draw with compute shader dispatch
-
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
   vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
@@ -406,7 +368,6 @@ void Engine::init_descriptors()
   };
   g_DescriptorAllocator.init_pool(h_Device, 10, sizes);
 
-  // FIXME: DeviceBuilder and SwapchainBuilder be like this instead of how it is now..
   {
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -481,181 +442,6 @@ void Engine::init_background_pipelines()
     vkDestroyPipelineLayout(h_Device, gradientPipelineLayout, nullptr);
     vkDestroyPipeline(h_Device, gradientPipeline, nullptr);
   });
-
-
 }
 
-/*
- 
-Engine::Engine(Window& window)
-  : m_Window{window}, h_Device{m_Window}
-{
-  //FIX: could have a better "API" like vkbootstrap enum=
-  h_GraphicsQueue = h_Device.GetGraphicsQueue();
-  m_GraphicsQueueIndex = h_Device.indices.graphicsFamily.value();
-
-  // create command pool / buffers
-  VkCommandPoolCreateInfo createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  createInfo.pNext = nullptr;
-  createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  createInfo.queueFamilyIndex = m_GraphicsQueueIndex;
-
-  for (int i = 0; i < FRAME_OVERLAP; i++)
-  {
-    VK_CHECK_RESULT(vkCreateCommandPool(h_Device.GetLogicalDevice(), &createInfo, nullptr, &m_Frames[i].commandPool));
-    
-    VkCommandBufferAllocateInfo cmdInfo{};
-    cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    cmdInfo.pNext = nullptr;
-    cmdInfo.commandPool = m_Frames[i].commandPool;
-    cmdInfo.commandBufferCount = 1;
-    cmdInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-
-    VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device.GetLogicalDevice(), &cmdInfo, &m_Frames[i].mainCommandBuffer));
-  }
-  
-  // init sync structures
-  VkFenceCreateInfo fenceInfo{};
-  fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  fenceInfo.pNext = nullptr;
-  fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-  VkSemaphoreCreateInfo semaphoreInfo{};
-  semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-  semaphoreInfo.pNext = nullptr;
-  
-  for (int i = 0; i < FRAME_OVERLAP; i++)
-  {
-    VK_CHECK_RESULT(vkCreateFence(h_Device.GetLogicalDevice(), &fenceInfo, nullptr, &m_Frames[i].renderFence));
-    
-    VK_CHECK_RESULT(vkCreateSemaphore(h_Device.GetLogicalDevice(), &semaphoreInfo, nullptr, &m_Frames[i].swapchainSemaphore));
-    VK_CHECK_RESULT(vkCreateSemaphore(h_Device.GetLogicalDevice(), &semaphoreInfo, nullptr, &m_Frames[i].renderSemaphore));
-  }
-
-  VmaAllocatorCreateInfo allocatorInfo{};
-  allocatorInfo.physicalDevice = h_Device.GetPhysicalDevice();
-  allocatorInfo.device = h_Device.GetLogicalDevice();
-  allocatorInfo.instance = h_Device.GetInstance();
-  allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-  vmaCreateAllocator(&allocatorInfo, &m_Allocator);
-  m_DeletionQueue.PushFunction([&]() {
-    vmaDestroyAllocator(m_Allocator);
-  });
-
-
-}
-
-*/
-
-/*
-Engine::~Engine()
-{
-  vkDeviceWaitIdle(h_Device.GetLogicalDevice());
-  for (int i = 0; i < FRAME_OVERLAP; i++)
-  {
-    vkDestroyCommandPool(h_Device.GetLogicalDevice(), m_Frames[i].commandPool, nullptr);
-    vkDestroyFence(h_Device.GetLogicalDevice(), m_Frames[i].renderFence, nullptr);
-    vkDestroySemaphore(h_Device.GetLogicalDevice(), m_Frames[i].renderSemaphore, nullptr);
-    vkDestroySemaphore(h_Device.GetLogicalDevice(), m_Frames[i].swapchainSemaphore, nullptr);
-
-  }
-  m_DeletionQueue.Flush();
-}
-
-void Engine::Draw()
-{
-  VK_CHECK_RESULT(vkWaitForFences(h_Device.GetLogicalDevice(), 1, &GetCurrentFrame().renderFence, true, 1000000000));
-  GetCurrentFrame().deletionQueue.Flush();
-
-  VK_CHECK_RESULT(vkResetFences(h_Device.GetLogicalDevice(), 1, &GetCurrentFrame().renderFence));
-
-  uint32_t swapChainImageIndex;
-  VK_CHECK_RESULT(vkAcquireNextImageKHR(h_Device.GetLogicalDevice(), h_Device.GetSwapchain(), 1000000000, GetCurrentFrame().swapchainSemaphore, nullptr, &swapChainImageIndex));
-  
-
-  //NOTE: vkhelper class for easy inits
-  VkCommandBufferBeginInfo info{};
-  info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  info.pNext = nullptr;
-  info.pInheritanceInfo = nullptr;
-  info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  VkCommandBuffer cmd = GetCurrentFrame().mainCommandBuffer;
-  VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
-  VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &info));
- 
-  TransitionImage(cmd, h_Device.m_SwapchainImages[swapChainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
-  VkClearColorValue clearValue;
-  float flash = std::abs(std::sin(m_FrameNumber / 120.0f));
-  clearValue = {{0.0f, 0.0f, flash, 1.0f}};
-  VkImageSubresourceRange clearRange{};
-  clearRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  clearRange.baseMipLevel = 0;
-  clearRange.levelCount = VK_REMAINING_MIP_LEVELS;
-  clearRange.baseArrayLayer = 0;
-  clearRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-  vkCmdClearColorImage(cmd, h_Device.m_SwapchainImages[swapChainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
-
-  TransitionImage(cmd, h_Device.m_SwapchainImages[swapChainImageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-  VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
-
-  VkCommandBufferSubmitInfo cmdInfo = vkinit::commandbuffer_submit_info(cmd);
-  VkSemaphoreSubmitInfo waitInfo= vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, GetCurrentFrame().swapchainSemaphore);
-  VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, GetCurrentFrame().renderSemaphore);
-  VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
-  
-  VK_CHECK_RESULT(vkQueueSubmit2(h_Device.GetGraphicsQueue(), 1, &submit, GetCurrentFrame().renderFence))
-
-  VkPresentInfoKHR present{};
-  present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  present.pNext = nullptr;
-  present.pSwapchains = 
-  &h_Device.GetSwapchain();
-  present.swapchainCount = 1;
-  present.pWaitSemaphores = &GetCurrentFrame().renderSemaphore;
-  present.waitSemaphoreCount = 1;
-  present.pImageIndices = &swapChainImageIndex;
-  VK_CHECK_RESULT(vkQueuePresentKHR(h_Device.GetGraphicsQueue(), &present));
-
-  m_FrameNumber++;
-
-
-}
-
-void Engine::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
-{
-
-  VkImageMemoryBarrier2 imageBarrier{};
-  imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-  imageBarrier.pNext = nullptr;
-  imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-  imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT;
-  imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-  imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
-  imageBarrier.oldLayout = currentLayout;
-  imageBarrier.newLayout = newLayout;
-  
-  VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-  
-  VkImageSubresourceRange sub{};
-  sub.aspectMask = aspectMask;
-  sub.baseMipLevel = 0;
-  sub.levelCount = VK_REMAINING_MIP_LEVELS;
-  sub.baseArrayLayer = 0;
-  sub.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-  imageBarrier.subresourceRange = sub;
-  imageBarrier.image = image;
-
-  VkDependencyInfo depInfo{};
-  depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-  depInfo.pNext = nullptr;
-  depInfo.imageMemoryBarrierCount = 1;
-  depInfo.pImageMemoryBarriers = &imageBarrier;
-  
-  vkCmdPipelineBarrier2(cmd, &depInfo);
- }
-*/
-}
+} // Aurora namespace
