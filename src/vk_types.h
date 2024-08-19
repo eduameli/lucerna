@@ -1,7 +1,8 @@
 #pragma once
-#include "aurora_pch.h"
+#include <optional>
 #include <vulkan/vulkan.h>
 #include "vk_mem_alloc.h"
+#include <functional>
 #include <deque>
 namespace Aurora
 {
