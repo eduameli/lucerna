@@ -21,6 +21,16 @@
 namespace Aurora
 {
 
+ImVec4 SRGBToLinear(const ImVec4& srgb)
+{
+  ImVec4 linear;
+  linear.x = powf(srgb.x, 2.2f);
+  linear.y = powf(srgb.y, 2.2f);
+  linear.z = powf(srgb.z, 2.2f);
+  linear.w = srgb.w;
+  return linear;
+}
+
 Engine::Engine()
 {
   init_vulkan();
@@ -76,6 +86,18 @@ Engine::Engine()
   info.PipelineRenderingCreateInfo = info2;
   ImGui_ImplVulkan_Init(&info);
   ImGui_ImplVulkan_CreateFontsTexture();
+  
+  m_DeletionQueue.push_function([=, this]() {
+    ImGui_ImplVulkan_Shutdown();
+    vkDestroyDescriptorPool(h_Device, imguiPool, nullptr);
+  });
+
+  // FIXME: temporary imgui color space fix, PR is on the way.
+  ImGuiStyle& style = ImGui::GetStyle();
+  for (int i = 0; i < ImGuiCol_COUNT; i++)
+  {
+    style.Colors[i] = SRGBToLinear(style.Colors[i]);
+  }
 } 
 
 Engine::~Engine()
@@ -480,6 +502,7 @@ void Engine::init_commands()
 
 void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
 {
+  //return;
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_SwapchainExtent, &colorAttachment, nullptr);
   vkCmdBeginRendering(cmd, &renderInfo);
