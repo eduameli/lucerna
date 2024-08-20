@@ -20,6 +20,23 @@ namespace Aurora
   class Engine
   {
     public:
+      // FIXME: make my own math library or use glm
+      struct ComputePushConstants
+      {
+        float data1[4];
+        float data2[4];
+        float data3[4];
+        float data4[4];
+      };
+    
+      struct ComputeEffect
+      {
+        const char* name;
+        VkPipeline pipeline;
+        VkPipelineLayout layout;
+        ComputePushConstants data;
+      };
+
       DescriptorAllocator g_DescriptorAllocator{};
       VkDescriptorSet drawImageDescriptors{};
       VkDescriptorSetLayout drawImageDescriptorLayout{};
@@ -56,7 +73,7 @@ namespace Aurora
       VkSwapchainKHR h_Swapchain;
       std::vector<VkImage> m_SwapchainImages;
       std::vector<VkImageView> m_SwapchainImageViews;
-
+      
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
       };
@@ -66,7 +83,10 @@ namespace Aurora
       
       AllocatedImage m_DrawImage{};
       VkExtent2D m_DrawExtent{};
-
+      
+      std::vector<ComputeEffect> backgroundEffects;
+      int currentBackgroundEffect{0};
+      
     private:
       void init_vulkan();
       void init_swapchain();

@@ -314,6 +314,12 @@ void Engine::draw_background(VkCommandBuffer cmd)
 {
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
+  
+  ComputePushConstants pc;
+  pc.data1[0] = 1.0f; pc.data1[1] = 0.0f; pc.data1[2] = 0.0f; pc.data1[3] = 1.0f;
+  pc.data2[0] = 0.0f; pc.data2[1] = 0.0f; pc.data2[2] = 1.0f; pc.data2[3] = 1.0f;
+  vkCmdPushConstants(cmd, gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &pc);
+
   vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
 }
 
@@ -369,12 +375,20 @@ void Engine::init_background_pipelines()
   computeLayout.pNext = nullptr;
   computeLayout.pSetLayouts = &drawImageDescriptorLayout;
   computeLayout.setLayoutCount = 1;
+  
+  VkPushConstantRange pcs{};
+  pcs.offset = 0;
+  pcs.size = sizeof(ComputePushConstants);
+  pcs.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+  
+  computeLayout.pPushConstantRanges = &pcs;
+  computeLayout.pushConstantRangeCount = 1;
 
   VK_CHECK_RESULT(vkCreatePipelineLayout(h_Device, &computeLayout, nullptr, &gradientPipelineLayout));
 
   VkShaderModule computeDrawShader;
   if (!vkutil::load_shader_module
-    ("shaders/gradient.spv", h_Device, &computeDrawShader))
+    ("shaders/push_gradient.spv", h_Device, &computeDrawShader))
   {
     AR_CORE_ERROR("Error when building compute shader!");
   }
