@@ -63,6 +63,7 @@ Engine::~Engine()
 
 void Engine::draw()
 {
+  
   VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &get_current_frame().renderFence, true, 1000000000));
   VK_CHECK_RESULT(vkResetFences(h_Device, 1, &get_current_frame().renderFence));
   
@@ -312,13 +313,13 @@ void Engine::init_swapchain()
 
 void Engine::draw_background(VkCommandBuffer cmd)
 {
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipeline);
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, backgroundEffects[currentBackgroundEffect].pipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
   
   ComputePushConstants pc;
-  pc.data1[0] = 1.0f; pc.data1[1] = 0.0f; pc.data1[2] = 0.0f; pc.data1[3] = 1.0f;
-  pc.data2[0] = 0.0f; pc.data2[1] = 0.0f; pc.data2[2] = 1.0f; pc.data2[3] = 1.0f;
-  vkCmdPushConstants(cmd, gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &pc);
+  //pc.data1[0] = 1.0f; pc.data1[1] = 0.0f; pc.data1[2] = 0.0f; pc.data1[3] = 1.0f;
+  //pc.data2[0] = 0.0f; pc.data2[1] = 0.0f; pc.data2[2] = 1.0f; pc.data2[3] = 1.0f;
+  vkCmdPushConstants(cmd, gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &backgroundEffects[currentBackgroundEffect].data);
 
   vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
 }
@@ -393,6 +394,14 @@ void Engine::init_background_pipelines()
     AR_CORE_ERROR("Error when building compute shader!");
   }
 
+  VkShaderModule skyShader;
+  if (!vkutil::load_shader_module
+    ("shaders/sky_shader.spv", h_Device, &skyShader))
+  {
+    AR_CORE_ERROR("Error when building sky shader");
+  }
+
+
   VkPipelineShaderStageCreateInfo stageInfo{};
   stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   stageInfo.pNext = nullptr;
@@ -405,14 +414,48 @@ void Engine::init_background_pipelines()
   computePipelineCreateInfo.pNext = nullptr;
   computePipelineCreateInfo.layout = gradientPipelineLayout;
   computePipelineCreateInfo.stage = stageInfo;
+    
+  ComputeEffect gradient;
+  gradient.layout = gradientPipelineLayout;
+  gradient.name = "gradient";
+  gradient.data = {};
 
-  VK_CHECK_RESULT(vkCreateComputePipelines(h_Device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradientPipeline));
+  gradient.data.data1[0] = 1;
+  gradient.data.data1[1] = 0;
+  gradient.data.data1[2] = 0;
+  gradient.data.data1[3] = 1;
+
+  gradient.data.data2[0] = 0;
+  gradient.data.data2[1] = 0;
+  gradient.data.data2[2] = 1;
+  gradient.data.data2[3] = 1;
+
+  ComputeEffect sky;
+  sky.layout = gradientPipelineLayout;
+  sky.name = "sky";
+  sky.data = {};
+
+  sky.data.data1[0] = 0.1;
+  sky.data.data1[1] = 0.2;
+  sky.data.data1[2] = 0.4;
+  sky.data.data1[3] = 0.97;
+
+  VK_CHECK_RESULT(vkCreateComputePipelines(h_Device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+
+  computePipelineCreateInfo.stage.module = skyShader;
+
+  VK_CHECK_RESULT(vkCreateComputePipelines(h_Device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
+
+  backgroundEffects.push_back(gradient);
+  backgroundEffects.push_back(sky);
 
   vkDestroyShaderModule(h_Device, computeDrawShader, nullptr);
+  vkDestroyShaderModule(h_Device, skyShader, nullptr);
 
   m_DeletionQueue.push_function([&]() {
     vkDestroyPipelineLayout(h_Device, gradientPipelineLayout, nullptr);
-    vkDestroyPipeline(h_Device, gradientPipeline, nullptr);
+    vkDestroyPipeline(h_Device, gradient.pipeline, nullptr);
+    vkDestroyPipeline(h_Device, sky.pipeline, nullptr);
   });
 }
 
@@ -509,8 +552,18 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
   
-  ImGui::Begin("aurora");
-  ImGui::Text("hello imgui!");
+  
+  if (ImGui::Begin("background"))
+  {
+    ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+    ImGui::Text("Selected effect: %s", selected.name);
+    ImGui::SliderInt("Effect Index: ", &currentBackgroundEffect, 0, backgroundEffects.size() - 1); 
+    ImGui::ColorEdit4("data1", (float*) &selected.data.data1);
+    ImGui::InputFloat4("data1", (float*) &selected.data.data1);
+    ImGui::InputFloat4("data2", (float*) &selected.data.data2);
+    ImGui::InputFloat4("data3", (float*) &selected.data.data3);
+    ImGui::InputFloat4("data4", (float*) &selected.data.data4);
+  }
   ImGui::End();
 
   ImGui::Render(); 
