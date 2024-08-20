@@ -454,8 +454,10 @@ void Engine::init_background_pipelines()
 
   m_DeletionQueue.push_function([&]() {
     vkDestroyPipelineLayout(h_Device, gradientPipelineLayout, nullptr);
-    vkDestroyPipeline(h_Device, gradient.pipeline, nullptr);
-    vkDestroyPipeline(h_Device, sky.pipeline, nullptr);
+    for (const auto& bgEffect : backgroundEffects)
+    {
+      vkDestroyPipeline(h_Device, bgEffect.pipeline, nullptr);
+    }
   });
 }
 

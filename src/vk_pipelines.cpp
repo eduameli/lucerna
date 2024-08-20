@@ -39,3 +39,67 @@ bool vkutil::load_shader_module(const char *filepath, VkDevice device, VkShaderM
   *outShaderModule = shaderModule;
   return true;
 }
+
+void PipelineBuilder::clear()
+{
+  m_InputAssembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+  m_Rasterizer = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+  m_Multisampling = { .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+  m_DepthStencil = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+  m_RenderInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+  
+  m_ColorBlendAttachment = {};
+  m_PipelineLayout = {};
+
+  m_ShaderStages.clear();
+}
+
+VkPipeline PipelineBuilder::build_pipeline(VkDevice device)
+{
+  VkPipelineViewportStateCreateInfo viewportState{};
+  viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+  viewportState.pNext = nullptr;
+  
+  viewportState.viewportCount = 1;
+  viewportState.scissorCount = 1;
+  
+  // FIXME: dummy color blending, !!!no blending!!!
+  VkPipelineColorBlendStateCreateInfo colorBlending = {};
+  colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+  colorBlending.pNext = nullptr;
+
+  colorBlending.logicOpEnable = VK_FALSE;
+  colorBlending.logicOp = VK_LOGIC_OP_COPY;
+  colorBlending.attachmentCount = 1;
+  colorBlending.pAttachments = &m_ColorBlendAttachment;
+   
+  // (UNUSED), normally used for specifying vertex attribute format
+  VkPipelineVertexInputStateCreateInfo vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+
+  VkGraphicsPipelineCreateInfo pipelineInfo{};
+  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &m_RenderInfo;
+
+  pipelineInfo.stageCount = static_cast<uint32_t>(m_ShaderStages.size());
+  pipelineInfo.pStages = m_ShaderStages.data();
+  pipelineInfo.pVertexInputState = &vertexInputInfo;
+  pipelineInfo.pInputAssemblyState = &m_InputAssembly;
+  pipelineInfo.pViewportState = &viewportState;
+  pipelineInfo.pRasterizationState = &m_Rasterizer;
+  pipelineInfo.pMultisampleState = &m_Multisampling;
+  pipelineInfo.pColorBlendState = &colorBlending;
+  pipelineInfo.pDepthStencilState = &m_DepthStencil;
+  pipelineInfo.layout = m_PipelineLayout;
+
+  VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+  VkPipelineDynamicStateCreateInfo dynamicInfo{};
+  dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  dynamicInfo.dynamicStateCount = 2;
+  dynamicInfo.pDynamicStates = &state[0];
+
+  pipelineInfo.pDynamicState = &dynamicInfo;
+
+  VkPipeline newPipeline;
+  VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &newPipeline));
+  return newPipeline;
+}

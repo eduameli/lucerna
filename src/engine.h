@@ -3,6 +3,7 @@
 #include "aurora_pch.h"
 #include <vulkan/vulkan.h>
 #include "vk_descriptors.h"
+#include "vk_types.h"
 
 namespace Aurora
 {
