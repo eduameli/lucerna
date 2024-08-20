@@ -28,7 +28,7 @@ VkPhysicalDevice DeviceBuilder::select_physical_device()
   vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
   
   int maxScore = 0;
-  VkPhysicalDevice selected;
+  VkPhysicalDevice selected = VK_NULL_HANDLE;
   for (const auto& device : devices)
   {
     int score = rate_device(device);
@@ -39,7 +39,7 @@ VkPhysicalDevice DeviceBuilder::select_physical_device()
     }
   }
 
-  AR_ASSERT(selected != VK_NULL_HANDLE, "No suitable device found!");
+  AR_ASSERT(selected != VK_NULL_HANDLE, "No suitable physical device found!");
   
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(selected, &properties);
@@ -50,6 +50,16 @@ VkPhysicalDevice DeviceBuilder::select_physical_device()
 
 void DeviceBuilder::build(VkPhysicalDevice& physicalDevice, VkDevice& device, Aurora::QueueFamilyIndices& indices, VkQueue& graphics, VkQueue& present)
 {
+  if (m_RequiredExtensions.has_value())
+  {
+    AR_CORE_WARN("Required Device Extensions: ");
+    auto extensions = m_RequiredExtensions.value();
+    for (const auto& name : extensions)
+    {
+      AR_CORE_WARN("\t{}", name);
+    }
+  }
+  
   physicalDevice = select_physical_device();
   indices = find_queue_families(physicalDevice);
 
@@ -133,19 +143,19 @@ bool DeviceBuilder::check_extension_support(VkPhysicalDevice device)
     return true;
   
   auto& extensions = m_RequiredExtensions.value();
-
+  
   uint32_t extensionCount;
   vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
   std::vector<VkExtensionProperties> supportedExtensions(extensionCount);
   vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, supportedExtensions.data());
   std::set<std::string> requiredExtensions(extensions.begin(), extensions.end());
+  
   for (const auto& extension : supportedExtensions)
   {
     requiredExtensions.erase(extension.extensionName);
   }
   return requiredExtensions.empty();
 }
-
 
 bool DeviceBuilder::is_device_suitable(VkPhysicalDevice device)
 {

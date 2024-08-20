@@ -8,9 +8,9 @@
 #include "vk_pipelines.h"
 
 #include <GLFW/glfw3.h>
+
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
-
 
 //FIXME: temportary imgui!
 #include "imgui.h"
@@ -21,16 +21,6 @@
 namespace Aurora
 {
 
-ImVec4 SRGBToLinear(const ImVec4& srgb)
-{
-  ImVec4 linear;
-  linear.x = powf(srgb.x, 2.2f);
-  linear.y = powf(srgb.y, 2.2f);
-  linear.z = powf(srgb.z, 2.2f);
-  linear.w = srgb.w;
-  return linear;
-}
-
 Engine::Engine()
 {
   init_vulkan();
@@ -39,65 +29,7 @@ Engine::Engine()
   init_sync_structures();
   init_descriptors();
   init_pipelines();
-  
-  VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
-
-	VkDescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
-	pool_info.pPoolSizes = pool_sizes;
-
-	VkDescriptorPool imguiPool;
-	VK_CHECK_RESULT(vkCreateDescriptorPool(h_Device, &pool_info, nullptr, &imguiPool));
-
-  ImGui::CreateContext();
-  //ImGui::StyleColorsDark();
-  ImGui_ImplGlfw_InitForVulkan(Application::get_main_window().get_handle(), true);
-  ImGui_ImplVulkan_InitInfo info{};
-  info.Instance = h_Instance;
-  info.PhysicalDevice = h_PhysicalDevice;
-  info.Device = h_Device;
-  //info.QueueFamily = m_Indices.graphicsFamily.value();
-  info.Queue = h_GraphicsQueue;
-  //info.PipelineCache = VK_NULL_HANDLE;
-  info.DescriptorPool = imguiPool;
-  info.MinImageCount = 3;
-  info.ImageCount = 3;
-  info.UseDynamicRendering = true;
-  info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-  
-  VkPipelineRenderingCreateInfo info2{};
-  info2.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-  info2.colorAttachmentCount = 1;
-  info2.pColorAttachmentFormats = &m_SwapchainFormat.format;
-  
-  info.PipelineRenderingCreateInfo = info2;
-  ImGui_ImplVulkan_Init(&info);
-  ImGui_ImplVulkan_CreateFontsTexture();
-  
-  m_DeletionQueue.push_function([=, this]() {
-    ImGui_ImplVulkan_Shutdown();
-    vkDestroyDescriptorPool(h_Device, imguiPool, nullptr);
-  });
-
-  // FIXME: temporary imgui color space fix, PR is on the way.
-  ImGuiStyle& style = ImGui::GetStyle();
-  for (int i = 0; i < ImGuiCol_COUNT; i++)
-  {
-    style.Colors[i] = SRGBToLinear(style.Colors[i]);
-  }
+  init_imgui(); 
 } 
 
 Engine::~Engine()
@@ -131,15 +63,6 @@ Engine::~Engine()
 
 void Engine::draw()
 {
-  // NOTE: IMGUI FRAME
-  ImGui_ImplVulkan_NewFrame();
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
-  ImGui::ShowDemoWindow();
-  ImGui::Render(); 
-  // NOTE: END IMGUI FRAME
-
-
   VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &get_current_frame().renderFence, true, 1000000000));
   VK_CHECK_RESULT(vkResetFences(h_Device, 1, &get_current_frame().renderFence));
   
@@ -200,6 +123,8 @@ void Engine::draw()
 
 void Engine::init_vulkan()
 {
+  uint32_t requiredAPI = VK_API_VERSION_1_3;
+  AR_CORE_WARN("Required Vulkan Instance Version 1.3");
   check_instance_ext_support();
   check_validation_layer_support();
   create_instance();
@@ -500,9 +425,82 @@ void Engine::init_commands()
   }
 }
 
+void Engine::init_imgui()
+{
+  VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000;
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+
+	VkDescriptorPool imguiPool;
+	VK_CHECK_RESULT(vkCreateDescriptorPool(h_Device, &pool_info, nullptr, &imguiPool));
+
+  ImGui::CreateContext();
+  ImGui_ImplGlfw_InitForVulkan(Application::get_main_window().get_handle(), true);
+  ImGui_ImplVulkan_InitInfo info{};
+  info.Instance = h_Instance;
+  info.PhysicalDevice = h_PhysicalDevice;
+  info.Device = h_Device;
+  info.Queue = h_GraphicsQueue;
+  info.PipelineCache = VK_NULL_HANDLE;
+  info.DescriptorPool = imguiPool;
+  info.MinImageCount = 3;
+  info.ImageCount = 3;
+  info.UseDynamicRendering = true;
+  info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+  
+  VkPipelineRenderingCreateInfo info2{};
+  info2.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+  info2.colorAttachmentCount = 1;
+  info2.pColorAttachmentFormats = &m_SwapchainFormat.format;
+  
+  info.PipelineRenderingCreateInfo = info2;
+  ImGui_ImplVulkan_Init(&info);
+  ImGui_ImplVulkan_CreateFontsTexture();
+  
+  m_DeletionQueue.push_function([=, this]() {
+    ImGui_ImplVulkan_Shutdown();
+    vkDestroyDescriptorPool(h_Device, imguiPool, nullptr);
+  });
+
+  // FIXME: temporary imgui color space fix, PR is on the way.
+  ImGuiStyle& style = ImGui::GetStyle();
+  for (int i = 0; i < ImGuiCol_COUNT; i++)
+  {
+    ImVec4& colour = style.Colors[i];
+    colour.x = powf(colour.x, 2.2f);
+    colour.y = powf(colour.y, 2.2f);
+    colour.z = powf(colour.z, 2.2f);
+    colour.w = colour.w;
+  }
+}
+
 void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
 {
-  //return;
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+  
+  ImGui::Begin("aurora");
+  ImGui::Text("hello imgui!");
+  ImGui::End();
+
+  ImGui::Render(); 
+
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_SwapchainExtent, &colorAttachment, nullptr);
   vkCmdBeginRendering(cmd, &renderInfo);

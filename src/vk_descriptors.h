@@ -18,13 +18,11 @@ struct DescriptorAllocator
       VkDescriptorType type;
       float ratio;
     };
+    VkDescriptorPool descriptorPool;
   public:
     void init_pool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio> poolRatios);
     void destroy_pool(VkDevice device);
     void clear_descriptors(VkDevice device);
     VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);
-    inline VkDescriptorPool get_pool() { return m_Pool; }
-  private:
-    VkDescriptorPool m_Pool;
   private:
 };

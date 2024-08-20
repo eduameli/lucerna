@@ -75,6 +75,7 @@ namespace Aurora
       void init_descriptors();
       void init_pipelines();
       void init_background_pipelines();
+      void init_imgui();
 
       void check_instance_ext_support();
       void check_validation_layer_support();
