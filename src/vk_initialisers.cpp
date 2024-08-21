@@ -182,3 +182,15 @@ VkRenderingInfo vkinit::rendering_info(VkExtent2D renderExtent, VkRenderingAttac
   renderInfo.pStencilAttachment = nullptr;
   return renderInfo;
 }
+
+
+VkPipelineShaderStageCreateInfo vkinit::pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char* entry)
+{
+  VkPipelineShaderStageCreateInfo stageInfo{};
+  stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  stageInfo.pNext = nullptr;
+  stageInfo.stage = stage;
+  stageInfo.module = shaderModule;
+  stageInfo.pName = entry;
+  return stageInfo;
+}

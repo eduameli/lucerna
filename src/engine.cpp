@@ -93,6 +93,7 @@ void Engine::draw()
   
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
+  // imgui draws directly to swapchain image instead of to draw img
   draw_imgui(cmd, m_SwapchainImageViews[swapchainImageIndex]);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -401,13 +402,7 @@ void Engine::init_background_pipelines()
     AR_CORE_ERROR("Error when building sky shader");
   }
 
-
-  VkPipelineShaderStageCreateInfo stageInfo{};
-  stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  stageInfo.pNext = nullptr;
-  stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-  stageInfo.module = computeDrawShader;
-  stageInfo.pName = "main";
+  VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, computeDrawShader);
 
   VkComputePipelineCreateInfo computePipelineCreateInfo{};
   computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

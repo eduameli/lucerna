@@ -41,8 +41,10 @@ namespace Aurora
       DescriptorAllocator g_DescriptorAllocator{};
       VkDescriptorSet drawImageDescriptors{};
       VkDescriptorSetLayout drawImageDescriptorLayout{};
-      VkPipeline gradientPipeline{};
+      
+      // descriptor set for shaders and push constants...
       VkPipelineLayout gradientPipelineLayout{};
+
       VkSurfaceFormatKHR m_SwapchainFormat;
       VkExtent2D m_SwapchainExtent;
 

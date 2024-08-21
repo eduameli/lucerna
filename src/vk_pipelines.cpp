@@ -103,3 +103,66 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device)
   VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &newPipeline));
   return newPipeline;
 }
+
+void PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader)
+{
+  m_ShaderStages.clear();
+  m_ShaderStages.push_back(
+    vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, vertexShader));
+  m_ShaderStages.push_back(
+    vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShader));
+}
+
+void PipelineBuilder::set_input_topology(VkPrimitiveTopology topology)
+{
+  m_InputAssembly.topology = topology;
+  // NOTE: used for triangle strips and line strips
+  m_InputAssembly.primitiveRestartEnable = VK_FALSE;
+}
+
+void PipelineBuilder::set_cull_mode(VkCullModeFlags cullMode, VkFrontFace frontFace)
+{
+  m_Rasterizer.cullMode = cullMode;
+  m_Rasterizer.frontFace = frontFace;
+}
+
+void PipelineBuilder::set_multisampling_none()
+{
+  m_Multisampling.sampleShadingEnable = VK_FALSE;
+  m_Multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+  m_Multisampling.minSampleShading = 1.0f;
+  m_Multisampling.pSampleMask = nullptr;
+  m_Multisampling.alphaToOneEnable = VK_FALSE;
+  m_Multisampling.alphaToCoverageEnable = VK_FALSE;
+}
+
+void PipelineBuilder::disable_blending()
+{
+  m_ColorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+  m_ColorBlendAttachment.blendEnable = VK_FALSE;
+}
+
+void PipelineBuilder::set_color_attachment_format(VkFormat format)
+{
+  m_ColorAttachmentFormat = format;
+  m_RenderInfo.colorAttachmentCount = 1;
+  m_RenderInfo.pColorAttachmentFormats = &m_ColorAttachmentFormat;
+}
+
+void PipelineBuilder::set_depth_format(VkFormat format)
+{
+  m_RenderInfo.depthAttachmentFormat = format;
+}
+
+void PipelineBuilder::disable_depthtest()
+{
+  m_DepthStencil.depthTestEnable = VK_FALSE;
+  m_DepthStencil.depthWriteEnable = VK_FALSE;
+  m_DepthStencil.depthCompareOp = VK_COMPARE_OP_NEVER;
+  m_DepthStencil.depthBoundsTestEnable = VK_FALSE;
+  m_DepthStencil.stencilTestEnable = VK_FALSE;
+  m_DepthStencil.front = {};
+  m_DepthStencil.back = {};
+  m_DepthStencil.minDepthBounds = 0.0f;
+  m_DepthStencil.maxDepthBounds = 1.0f;
+}

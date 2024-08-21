@@ -2,6 +2,7 @@
 #include <vulkan/vulkan.h>
 #include "aurora_pch.h"
 #include <GLFW/glfw3.h>
+#include "vk_types.h"
 
 namespace vks
 {
