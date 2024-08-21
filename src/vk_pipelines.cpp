@@ -49,7 +49,7 @@ void PipelineBuilder::clear()
   m_RenderInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
   
   m_ColorBlendAttachment = {};
-  m_PipelineLayout = {};
+  PipelineLayout = {};
 
   m_ShaderStages.clear();
 }
@@ -89,7 +89,7 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device)
   pipelineInfo.pMultisampleState = &m_Multisampling;
   pipelineInfo.pColorBlendState = &colorBlending;
   pipelineInfo.pDepthStencilState = &m_DepthStencil;
-  pipelineInfo.layout = m_PipelineLayout;
+  pipelineInfo.layout = PipelineLayout;
 
   VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
   VkPipelineDynamicStateCreateInfo dynamicInfo{};
@@ -118,6 +118,12 @@ void PipelineBuilder::set_input_topology(VkPrimitiveTopology topology)
   m_InputAssembly.topology = topology;
   // NOTE: used for triangle strips and line strips
   m_InputAssembly.primitiveRestartEnable = VK_FALSE;
+}
+
+void PipelineBuilder::set_polygon_mode(VkPolygonMode mode)
+{
+  m_Rasterizer.polygonMode = mode;
+  m_Rasterizer.lineWidth = 1.0f;
 }
 
 void PipelineBuilder::set_cull_mode(VkCullModeFlags cullMode, VkFrontFace frontFace)

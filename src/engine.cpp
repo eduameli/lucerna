@@ -84,6 +84,7 @@ void Engine::draw()
 
   // draw stuff here into the draw image
   draw_background(cmd);
+  draw_geometry(cmd);
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -368,6 +369,7 @@ void Engine::init_descriptors()
 void Engine::init_pipelines()
 {
   init_background_pipelines();
+  init_triangle_pipeline();
 }
 
 void Engine::init_background_pipelines()
@@ -570,6 +572,83 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
   vkCmdBeginRendering(cmd, &renderInfo);
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
   vkCmdEndRendering(cmd);
+}
+
+void Engine::init_triangle_pipeline()
+{
+  VkShaderModule triangleFragShader;
+  if (!vkutil::load_shader_module("shaders/triangle/triangle_frag.spv", h_Device, &triangleFragShader))
+  {
+    AR_CORE_ERROR("Error when building the triangle fragment shader");
+  }
+  AR_CORE_INFO("Triangle Fragment Shader Succesfully loaded!");
+
+  VkShaderModule triangleVertexShader;
+  if (!vkutil::load_shader_module("shaders/triangle/triangle_vert.spv", h_Device, &triangleVertexShader))
+  {
+    AR_CORE_ERROR("Error when building the triangle vertex shader");
+  }
+  AR_CORE_INFO("Triangle Vertex Shader Succesfully loaded!");
+  
+  VkPipelineLayoutCreateInfo info = vkinit::pipeline_layout_create_info();
+  VK_CHECK_RESULT(vkCreatePipelineLayout(h_Device, &info, nullptr, &trigPipelineLayout));
+  
+  PipelineBuilder builder;
+  builder.PipelineLayout = trigPipelineLayout;
+  
+  builder.set_shaders(triangleVertexShader, triangleFragShader);
+  builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  
+  builder.set_multisampling_none();
+  builder.disable_blending();
+  builder.disable_depthtest();
+  
+  builder.set_color_attachment_format(m_DrawImage.imageFormat);
+  builder.set_depth_format(VK_FORMAT_UNDEFINED);
+
+  trianglePipeline = builder.build_pipeline(h_Device);
+
+  vkDestroyShaderModule(h_Device, triangleFragShader, nullptr);
+  vkDestroyShaderModule(h_Device, triangleVertexShader, nullptr);
+
+  m_DeletionQueue.push_function([&] {
+    vkDestroyPipelineLayout(h_Device, trigPipelineLayout, nullptr);
+    vkDestroyPipeline(h_Device, trianglePipeline, nullptr);
+  });
+}
+
+void Engine::draw_geometry(VkCommandBuffer cmd)
+{
+  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, nullptr);
+  vkCmdBeginRendering(cmd, &renderInfo);
+  
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
+
+  VkViewport viewport{};
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.width = m_DrawExtent.width;
+  viewport.height = m_DrawExtent.height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+
+  vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset.x = 0;
+  scissor.offset.y = 0;
+  scissor.extent.width = m_DrawExtent.width;
+  scissor.extent.height = m_DrawExtent.height;
+
+  vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+  vkCmdDraw(cmd, 3, 1, 0, 0);
+
+  vkCmdEndRendering(cmd);
+  
 }
 
 } // Aurora namespace

@@ -16,6 +16,7 @@ class PipelineBuilder
     VkPipeline build_pipeline(VkDevice device);
     void set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader);
     void set_input_topology(VkPrimitiveTopology topology);
+    void set_polygon_mode(VkPolygonMode mode);
     void set_cull_mode(VkCullModeFlags cullMode, VkFrontFace);
     void set_multisampling_none();
     void disable_blending();
@@ -23,6 +24,7 @@ class PipelineBuilder
     void set_depth_format(VkFormat format);
     void disable_depthtest();
   public:
+    VkPipelineLayout PipelineLayout;
   private:
   private:
     std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
@@ -30,7 +32,6 @@ class PipelineBuilder
     VkPipelineRasterizationStateCreateInfo m_Rasterizer;
     VkPipelineColorBlendAttachmentState m_ColorBlendAttachment;
     VkPipelineMultisampleStateCreateInfo m_Multisampling;
-    VkPipelineLayout m_PipelineLayout;
     VkPipelineDepthStencilStateCreateInfo m_DepthStencil;
     VkPipelineRenderingCreateInfo m_RenderInfo;
     VkFormat m_ColorAttachmentFormat;

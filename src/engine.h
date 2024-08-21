@@ -44,6 +44,9 @@ namespace Aurora
       
       // descriptor set for shaders and push constants...
       VkPipelineLayout gradientPipelineLayout{};
+      VkPipelineLayout trigPipelineLayout{};
+      VkPipeline trianglePipeline{};
+    
 
       VkSurfaceFormatKHR m_SwapchainFormat;
       VkExtent2D m_SwapchainExtent;
@@ -52,7 +55,9 @@ namespace Aurora
       Engine();
       ~Engine();
       void draw();
+      // FIXME: move to private!
       void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
+      void draw_geometry(VkCommandBuffer cmd);
     private:
       #ifdef DEBUG
       constexpr static bool m_UseValidationLayers = true;
@@ -98,6 +103,7 @@ namespace Aurora
       void init_descriptors();
       void init_pipelines();
       void init_background_pipelines();
+      void init_triangle_pipeline();
       void init_imgui();
 
       void check_instance_ext_support();
