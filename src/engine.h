@@ -47,13 +47,21 @@ namespace Aurora
       VkPipelineLayout trigPipelineLayout{};
       VkPipeline trianglePipeline{};
     
-
       VkSurfaceFormatKHR m_SwapchainFormat;
       VkExtent2D m_SwapchainExtent;
+    
+      struct EngineStats
+      {
+        float frametime;
+        uint32_t triangle_count;
+        uint32_t drawcall_count;
+        float mesh_draw_time;
+      } stats;
 
     public:
       Engine();
       ~Engine();
+      void run();
       void draw();
       // FIXME: move to private!
       void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);

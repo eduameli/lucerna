@@ -296,9 +296,11 @@ VkPresentModeKHR SwapchainBuilder::choose_present_mode(const std::vector<VkPrese
     {
       if (mode == VK_PRESENT_MODE_MAILBOX_KHR)
       {
+        AR_CORE_INFO("Using VK_PRESENT_MODE_MAILBOX_KHR");
         return mode;
       }
   }
+  AR_CORE_INFO("Using VK_PRESENT_MODE_FIFO_KHR");
   return VK_PRESENT_MODE_FIFO_KHR;
 }
 

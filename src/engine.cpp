@@ -63,8 +63,9 @@ Engine::~Engine()
 
 void Engine::draw()
 {
-  
   VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &get_current_frame().renderFence, true, 1000000000));
+  // new frame
+
   VK_CHECK_RESULT(vkResetFences(h_Device, 1, &get_current_frame().renderFence));
   
   get_current_frame().deletionQueue.flush();
@@ -562,9 +563,11 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
     ImGui::InputFloat4("data2", (float*) &selected.data.data2);
     ImGui::InputFloat4("data3", (float*) &selected.data.data3);
     ImGui::InputFloat4("data4", (float*) &selected.data.data4);
+  
+    ImGui::Text("frametime %f ms", stats.frametime);
   }
   ImGui::End();
-
+  ImGui::ShowDemoWindow();
   ImGui::Render(); 
 
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
