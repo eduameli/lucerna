@@ -6,19 +6,20 @@
 
 namespace vks
 {
+  //FIXME: check features.
   class DeviceBuilder
   {
     public:
     public:
       DeviceBuilder(VkInstance instance, VkSurfaceKHR surface);
       void set_required_extensions(const std::vector<const char*>& extensions);
-      void set_required_features(VkPhysicalDeviceFeatures2 features);
+      void set_required_features(Aurora::Features features);
       void build(VkPhysicalDevice& physicalDevice, VkDevice& device, Aurora::QueueFamilyIndices& indices, VkQueue& graphics, VkQueue& present);
     private:
       VkInstance m_Instance{};
       VkSurfaceKHR m_Surface{};
       std::optional<std::vector<const char*>> m_RequiredExtensions;
-      VkPhysicalDeviceFeatures2 m_EnabledFeatures{}; 
+      Aurora::Features m_EnabledFeatures;
       
     private:
       VkPhysicalDevice select_physical_device();

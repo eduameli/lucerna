@@ -13,7 +13,7 @@ void DeviceBuilder::set_required_extensions(const std::vector<const char*>& exte
   m_RequiredExtensions = extensions;
 }
 
-void DeviceBuilder::set_required_features(VkPhysicalDeviceFeatures2 features)
+void DeviceBuilder::set_required_features(Aurora::Features features)
 {
   m_EnabledFeatures = features;
 }
@@ -85,8 +85,8 @@ void DeviceBuilder::build(VkPhysicalDevice& physicalDevice, VkDevice& device, Au
   info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   info.pQueueCreateInfos = queueCreateInfos.data();
   info.queueCreateInfoCount = (uint32_t) queueCreateInfos.size();
-
-  info.pNext = &m_EnabledFeatures;
+  
+  info.pNext = &m_EnabledFeatures.get();
   info.pEnabledFeatures = nullptr;
   
 
@@ -159,6 +159,7 @@ bool DeviceBuilder::check_extension_support(VkPhysicalDevice device)
 
 bool DeviceBuilder::is_device_suitable(VkPhysicalDevice device)
 {
+  // FIXME: check feature support! 
   return check_extension_support(device);
 }
 

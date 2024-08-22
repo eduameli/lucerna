@@ -15,6 +15,36 @@ namespace Aurora
     VkFormat imageFormat;
   };
   
+  // NOTE: could contain create_buffer and destroy_buffer inside the struct and be mini & self contained
+  struct AllocatedBuffer
+  {
+    VkBuffer buffer;
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
+  };
+ 
+  struct Vertex
+  {
+    float position[3];
+    float uv_x;
+    float normal[3];
+    float uv_y;
+    float color[4];
+  };
+
+  struct GPUMeshBuffers
+  {
+    AllocatedBuffer indexBuffer;
+    AllocatedBuffer vertexBuffer;
+    VkDeviceAddress vertexBufferAddress;
+  };
+  
+  struct GPUDrawPushConstants
+  {
+    float worldMatrix[16];
+    VkDeviceAddress vertexBuffer;
+  };
+
   struct QueueFamilyIndices
   {
     std::optional<uint32_t> graphicsFamily;
@@ -31,7 +61,8 @@ namespace Aurora
       VkPhysicalDeviceVulkan11Features f11{};
       VkPhysicalDeviceVulkan12Features f12{};
       VkPhysicalDeviceVulkan13Features f13{};
-      VkPhysicalDeviceFeatures2 get()
+
+      VkPhysicalDeviceFeatures2& get()
       {
         f11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
         f12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;

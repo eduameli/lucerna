@@ -102,6 +102,13 @@ namespace Aurora
       
       std::vector<ComputeEffect> backgroundEffects;
       int currentBackgroundEffect{0};
+  
+      //NOTE: one way to improve this would be to run it on a different queue than the graphics queue (transfer?) to overlap
+      // with the main render loop.
+      VkFence m_ImmediateFence;
+      VkCommandBuffer m_ImmediateCommandBuffer;
+      VkCommandPool m_ImmediateCommandPool;
+      void immediate_submit(std::function<void(VkCommandBuffer cmd)> && function);
       
     private:
       void init_vulkan();
@@ -126,7 +133,12 @@ namespace Aurora
       void create_device();
       FrameData& get_current_frame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
       void draw_background(VkCommandBuffer cmd);
-      //void create_image_views();
+      
+      AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+      void destroy_buffer(const AllocatedBuffer& buffer);
+
+      // FIXME: deleting/reusing staging buffers & run on background thread who's sole purpose is executing commands like this
+      GPUMeshBuffers upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
   };
 /*
   class Engine

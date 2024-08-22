@@ -259,7 +259,7 @@ void Engine::create_device()
   // could have more options like set preferred gpu type, set required format, require geometry shader, etc
   vks::DeviceBuilder builder{h_Instance, h_Surface};
   builder.set_required_extensions(m_DeviceExtensions);
-  builder.set_required_features(features.get());
+  builder.set_required_features(features);
   
   builder.build(
     h_PhysicalDevice, h_Device,
@@ -652,6 +652,66 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdEndRendering(cmd);
   
+}
+
+AllocatedBuffer Engine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+{
+  VkBufferCreateInfo bufferInfo{};
+  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  bufferInfo.pNext = nullptr;
+  bufferInfo.size = allocSize;
+  bufferInfo.usage = usage;
+
+  VmaAllocationCreateInfo vmaAllocInfo{};
+  vmaAllocInfo.usage = memoryUsage;
+  vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+  
+  AllocatedBuffer newBuffer{};
+  
+  VK_CHECK_RESULT(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info));
+  return newBuffer;
+}
+
+void Engine::destroy_buffer(const AllocatedBuffer& buffer)
+{
+  vmaDestroyBuffer(m_Allocator, buffer.buffer, buffer.allocation);
+}
+
+GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices)
+{
+  const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+  const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+
+  GPUMeshBuffers newSurface;
+
+  newSurface.vertexBuffer = create_buffer(
+    vertexBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY);
+  
+  VkBufferDeviceAddressInfo deviceAddressInfo{};
+  deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+  deviceAddressInfo.buffer = newSurface.vertexBuffer.buffer;
+  newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(h_Device, &deviceAddressInfo);
+  
+  newSurface.indexBuffer = create_buffer(
+    indexBufferSize,
+    VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY);
+  
+  AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+  void* data = staging.allocation->GetMappedData();
+
+  memcpy(data, vertices.data(), vertexBufferSize);
+  memcpy(static_cast<char*>(data) + vertexBufferSize, indices.data(), indexBufferSize);
+
+  // FIXME: UNFINISHED!
+  //immediate_submit([&](VkCommandBuffer cmd){
+  //
+  //});
+
+  return newSurface;
+
 }
 
 } // Aurora namespace
