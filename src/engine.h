@@ -47,6 +47,10 @@ namespace Aurora
       VkPipelineLayout trigPipelineLayout{};
       VkPipeline trianglePipeline{};
     
+      VkPipelineLayout meshPipelineLayout{};
+      VkPipeline meshPipeline;
+      GPUMeshBuffers rectangle;
+
       VkSurfaceFormatKHR m_SwapchainFormat;
       VkExtent2D m_SwapchainExtent;
     
@@ -119,6 +123,7 @@ namespace Aurora
       void init_pipelines();
       void init_background_pipelines();
       void init_triangle_pipeline();
+      void init_mesh_pipeline();
       void init_imgui();
 
       void check_instance_ext_support();

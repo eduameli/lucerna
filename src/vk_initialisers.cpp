@@ -14,7 +14,7 @@ VkSemaphoreSubmitInfo vkinit::semaphore_submit_info(VkPipelineStageFlags2 stageM
   return info;
 }
 
-VkCommandBufferSubmitInfo vkinit::commandbuffer_submit_info(VkCommandBuffer cmd)
+VkCommandBufferSubmitInfo vkinit::command_buffer_submit_info(VkCommandBuffer cmd)
 {
   VkCommandBufferSubmitInfo info{};
 

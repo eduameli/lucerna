@@ -30,6 +30,36 @@ Engine::Engine()
   init_descriptors();
   init_pipelines();
   init_imgui(); 
+
+
+  // init default mesh upload
+
+  std::array<Vertex, 4> rect_vertices;
+
+  rect_vertices[0].position = {0.5,-0.5, 0};
+	rect_vertices[1].position = {0.5,0.5, 0};
+	rect_vertices[2].position = {-0.5,-0.5, 0};
+	rect_vertices[3].position = {-0.5,0.5, 0};
+
+	rect_vertices[0].color = {0,0, 0,1};
+	rect_vertices[1].color = { 0.5,0.5,0.5 ,1};
+	rect_vertices[2].color = { 1,0, 0,1 };
+	rect_vertices[3].color = { 0,1, 0,1 };
+
+  std::array<uint32_t, 6> rect_indices;
+  rect_indices[0] = 0;
+	rect_indices[1] = 1;
+	rect_indices[2] = 2;
+
+	rect_indices[3] = 2;
+	rect_indices[4] = 1;
+	rect_indices[5] = 3;
+  rectangle = upload_mesh(rect_vertices, rect_indices);
+
+  m_DeletionQueue.push_function([&]() {
+    destroy_buffer(rectangle.indexBuffer);
+    destroy_buffer(rectangle.vertexBuffer);
+  });
 } 
 
 Engine::~Engine()
@@ -69,7 +99,7 @@ void Engine::draw()
   VK_CHECK_RESULT(vkResetFences(h_Device, 1, &get_current_frame().renderFence));
   
   get_current_frame().deletionQueue.flush();
-
+  
   uint32_t swapchainImageIndex;
   VK_CHECK_RESULT(vkAcquireNextImageKHR(h_Device, h_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
   VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
@@ -102,7 +132,7 @@ void Engine::draw()
   VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
   // submit 
-  VkCommandBufferSubmitInfo cmdInfo = vkinit::commandbuffer_submit_info(cmd);
+  VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
 
   VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, get_current_frame().swapchainSemaphore);
   VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_frame().renderSemaphore);
@@ -371,6 +401,7 @@ void Engine::init_pipelines()
 {
   init_background_pipelines();
   init_triangle_pipeline();
+  init_mesh_pipeline();
 }
 
 void Engine::init_background_pipelines()
@@ -469,6 +500,11 @@ void Engine::init_sync_structures()
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].swapchainSemaphore));
     VK_CHECK_RESULT(vkCreateSemaphore(h_Device, &semaphore, nullptr, &m_Frames[i].renderSemaphore));
   }
+
+  VK_CHECK_RESULT(vkCreateFence(h_Device, &fence, nullptr, &m_ImmediateFence));
+  m_DeletionQueue.push_function([=, this] {
+    vkDestroyFence(h_Device, m_ImmediateFence, nullptr);
+  });
 }
 
 void Engine::init_commands()
@@ -480,6 +516,15 @@ void Engine::init_commands()
     VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_Frames[i].commandPool, 1);
     VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
   }
+  
+  // create immediate submit command pool & buffer
+  VK_CHECK_RESULT(vkCreateCommandPool(h_Device, &commandPoolInfo, nullptr, &m_ImmediateCommandPool));
+  VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_ImmediateCommandPool, 1);
+  VK_CHECK_RESULT(vkAllocateCommandBuffers(h_Device, &cmdAllocInfo, &m_ImmediateCommandBuffer));
+  m_DeletionQueue.push_function([=, this]() {
+    vkDestroyCommandPool(h_Device, m_ImmediateCommandPool, nullptr);
+  });
+
 }
 
 void Engine::init_imgui()
@@ -650,6 +695,19 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdDraw(cmd, 3, 1, 0, 0);
 
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
+  GPUDrawPushConstants pcs;
+  pcs.worldMatrix = {
+    1.0f, 0.0f, 0.0f, 0.0f,  // First column
+    0.0f, 1.0f, 0.0f, 0.0f,  // Second column
+    0.0f, 0.0f, 1.0f, 0.0f,  // Third column
+    0.0f, 0.0f, 0.0f, 1.0f   // Fourth column
+  };
+  pcs.vertexBuffer = rectangle.vertexBufferAddress;
+  vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+  vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
   vkCmdEndRendering(cmd);
   
 }
@@ -698,20 +756,107 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
     indexBufferSize,
     VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY);
-  
-  AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+ 
+  //FIXME: compare perf cpu to gpu instead of gpu only!
+  AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   void* data = staging.allocation->GetMappedData();
 
   memcpy(data, vertices.data(), vertexBufferSize);
   memcpy(static_cast<char*>(data) + vertexBufferSize, indices.data(), indexBufferSize);
 
   // FIXME: UNFINISHED!
-  //immediate_submit([&](VkCommandBuffer cmd){
-  //
-  //});
+  immediate_submit([&](VkCommandBuffer cmd){
+    VkBufferCopy vertexCopy{};
+    vertexCopy.dstOffset = 0;
+    vertexCopy.srcOffset = 0;
+    vertexCopy.size = vertexBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
+    
+    VkBufferCopy indexCopy{};
+    indexCopy.dstOffset = 0;
+    indexCopy.srcOffset = 0;
+    indexCopy.size = indexBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
+  });
+
+  destroy_buffer(staging);
 
   return newSurface;
+}
 
+void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
+{
+  VK_CHECK_RESULT(vkResetFences(h_Device, 1, &m_ImmediateFence));
+  VK_CHECK_RESULT(vkResetCommandBuffer(m_ImmediateCommandBuffer, 0));
+
+  VkCommandBuffer cmd = m_ImmediateCommandBuffer;
+  VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  
+  VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+  function(cmd);
+
+  VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
+
+  VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
+  VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);
+  VK_CHECK_RESULT(vkQueueSubmit2(h_GraphicsQueue, 1, &submit, m_ImmediateFence));
+  VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &m_ImmediateFence, true, 9999999999));
+} 
+
+void Engine::init_mesh_pipeline()
+{
+  VkShaderModule meshFragShader;
+  if (!vkutil::load_shader_module("shaders/mesh/mesh.frag.spv", h_Device, &meshFragShader))
+  {
+    AR_CORE_ERROR("Error when building mesh fragment shader succesfuly");
+  }
+  AR_CORE_INFO("Built Mesh fragment shader succesfully!!");
+
+  VkShaderModule meshVertShader;
+  if (!vkutil::load_shader_module("shaders/mesh/mesh.vert.spv", h_Device, &meshVertShader))
+  {
+    AR_CORE_ERROR("Error when building mesh vertex shader...");
+  }
+  AR_CORE_INFO("Build mesh vertex shader successfulyl111!!");
+
+  VkPushConstantRange bufferRange{};
+  bufferRange.offset = 0;
+  bufferRange.size = sizeof(GPUDrawPushConstants);
+  bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  
+  VkPipelineLayoutCreateInfo pipelineInfo = vkinit::pipeline_layout_create_info();
+  pipelineInfo.pPushConstantRanges = &bufferRange;
+  pipelineInfo.pushConstantRangeCount = 1;
+  
+  VK_CHECK_RESULT(vkCreatePipelineLayout(h_Device, &pipelineInfo, nullptr, &meshPipelineLayout));
+
+  //FIXME: if it does something more than set a value (set multiple, init many values) it has a func
+  // pipeline layout could also have a function so everything has a func
+  // should i make DeviceBuilder and SwapchainBuilder like this too?
+  // creation depends on vkdevice u could create the same thing with diff devices but options change the thing so should be in the build func?
+  // how do i do multiple return then...
+
+  PipelineBuilder builder;
+  builder.PipelineLayout = meshPipelineLayout;
+  builder.set_shaders(meshVertShader, meshFragShader);
+  builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  builder.set_multisampling_none();
+  builder.disable_blending();
+  builder.disable_depthtest();
+  builder.set_color_attachment_format(m_DrawImage.imageFormat);
+  builder.set_depth_format(VK_FORMAT_UNDEFINED);
+  meshPipeline = builder.build_pipeline(h_Device);
+
+  vkDestroyShaderModule(h_Device, meshFragShader, nullptr);
+  vkDestroyShaderModule(h_Device, meshVertShader, nullptr);
+
+  m_DeletionQueue.push_function([&]() {
+    vkDestroyPipelineLayout(h_Device, meshPipelineLayout, nullptr);
+    vkDestroyPipeline(h_Device, meshPipeline, nullptr);
+  });
 }
 
 } // Aurora namespace

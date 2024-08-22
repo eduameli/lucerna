@@ -25,11 +25,11 @@ namespace Aurora
  
   struct Vertex
   {
-    float position[3];
+    std::array<float, 3> position;
     float uv_x;
     float normal[3];
     float uv_y;
-    float color[4];
+    std::array<float, 4> color;
   };
 
   struct GPUMeshBuffers
@@ -41,7 +41,7 @@ namespace Aurora
   
   struct GPUDrawPushConstants
   {
-    float worldMatrix[16];
+  std::array<float, 16> worldMatrix;
     VkDeviceAddress vertexBuffer;
   };
 
