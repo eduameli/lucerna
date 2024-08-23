@@ -141,7 +141,8 @@ project "VulkanMemoryAllocator"
   
   files
   {
-    "vendor/VulkanMemoryAllocator/include/**.h"
+    "vendor/VulkanMemoryAllocator/include/**.h", -- what is this
+    "vendor/VulkanMemoryAllocator/src/",
   }
 
   filter "configurations:debug"
@@ -183,6 +184,7 @@ project "imgui"
     filter "configurations:release"
         optimize "On"
 
+-- NOT WORKING
 project "glm"
   location "vendor/glm"
   kind "StaticLib"
@@ -190,6 +192,14 @@ project "glm"
   cppdialect "c++20"
   targetdir("build/lib/bin/%{cfg.buildcfg}")
   objdir ("build/lib/obj/%{cfg.buildcfg}")
+  
+  files
+  {
+  	"vendor/glm/**",
+
+  }
+  
+  
   includedirs
   {
     "vendor/glm/glm"
