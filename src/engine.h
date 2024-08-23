@@ -49,7 +49,7 @@ namespace Aurora
     
       VkPipelineLayout meshPipelineLayout{};
       VkPipeline meshPipeline;
-      GPUMeshBuffers rectangle;
+      GPUMeshBuffers rectangle{};
 
       VkSurfaceFormatKHR m_SwapchainFormat;
       VkExtent2D m_SwapchainExtent;

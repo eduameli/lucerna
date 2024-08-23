@@ -16,6 +16,17 @@
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/vec3.hpp> // glm::vec3
+#include <glm/vec4.hpp> // glm::vec4
+#include <glm/mat4x4.hpp> // glm::mat4
+#include <glm/ext/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale
+#include <glm/ext/matrix_clip_space.hpp> // glm::perspective
+#include <glm/ext/scalar_constants.hpp> // glm::pi
+
+
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora
@@ -23,6 +34,10 @@ namespace Aurora
 
 Engine::Engine()
 {
+
+  glm::vec3 pos = {0, 1, 0};
+  AR_CORE_TRACE("{} {} {}", pos.x, pos.y, pos.z);
+
   init_vulkan();
   init_swapchain();
   init_commands();
@@ -35,8 +50,7 @@ Engine::Engine()
   // init default mesh upload
 
   std::array<Vertex, 4> rect_vertices;
-
-  rect_vertices[0].position = {0.5,-0.5, 0};
+	rect_vertices[0].position = {0.5,-0.5, 0};
 	rect_vertices[1].position = {0.5,0.5, 0};
 	rect_vertices[2].position = {-0.5,-0.5, 0};
 	rect_vertices[3].position = {-0.5,0.5, 0};
@@ -45,7 +59,6 @@ Engine::Engine()
 	rect_vertices[1].color = { 0.5,0.5,0.5 ,1};
 	rect_vertices[2].color = { 1,0, 0,1 };
 	rect_vertices[3].color = { 0,1, 0,1 };
-
   std::array<uint32_t, 6> rect_indices;
   rect_indices[0] = 0;
 	rect_indices[1] = 1;
@@ -698,16 +711,17 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
   GPUDrawPushConstants pcs;
-  pcs.worldMatrix = {
-    1.0f, 0.0f, 0.0f, 0.0f,  // First column
-    0.0f, 1.0f, 0.0f, 0.0f,  // Second column
-    0.0f, 0.0f, 1.0f, 0.0f,  // Third column
-    0.0f, 0.0f, 0.0f, 1.0f   // Fourth column
-  };
+
+  std::array<float, 16> matrix = {1.0f};
+  
+  //memcpy(pcs.worldMatrix, matrix.data(), matrix.size() * sizeof(float));
   pcs.vertexBuffer = rectangle.vertexBufferAddress;
+  
   vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
   vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  AR_CORE_INFO("Right before drawing!"); 
   vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+  
   vkCmdEndRendering(cmd);
   
 }
@@ -852,6 +866,8 @@ void Engine::init_mesh_pipeline()
 
   vkDestroyShaderModule(h_Device, meshFragShader, nullptr);
   vkDestroyShaderModule(h_Device, meshVertShader, nullptr);
+  
+  AR_CORE_INFO("Created Mesh Pipeline!!!!");
 
   m_DeletionQueue.push_function([&]() {
     vkDestroyPipelineLayout(h_Device, meshPipelineLayout, nullptr);

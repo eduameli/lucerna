@@ -4,6 +4,16 @@
 #include "vk_mem_alloc.h"
 #include <functional>
 #include <deque>
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/vec3.hpp> // glm::vec3
+#include <glm/vec4.hpp> // glm::vec4
+#include <glm/mat4x4.hpp> // glm::mat4
+#include <glm/ext/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale
+#include <glm/ext/matrix_clip_space.hpp> // glm::perspective
+#include <glm/ext/scalar_constants.hpp> // glm::pi
+
 namespace Aurora
 {
   struct AllocatedImage
@@ -25,23 +35,23 @@ namespace Aurora
  
   struct Vertex
   {
-    std::array<float, 3> position;
+    glm::vec3 position;
     float uv_x;
-    float normal[3];
+    glm::vec3 normal;
     float uv_y;
-    std::array<float, 4> color;
+    glm::vec4 color;
   };
 
   struct GPUMeshBuffers
   {
-    AllocatedBuffer indexBuffer;
-    AllocatedBuffer vertexBuffer;
-    VkDeviceAddress vertexBufferAddress;
+    AllocatedBuffer indexBuffer{};
+    AllocatedBuffer vertexBuffer{};
+    VkDeviceAddress vertexBufferAddress{};
   };
   
   struct GPUDrawPushConstants
   {
-  std::array<float, 16> worldMatrix;
+  glm::mat4x4 worldMatrix;
     VkDeviceAddress vertexBuffer;
   };
 

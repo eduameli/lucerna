@@ -32,6 +32,7 @@ project "aurora"
         "vendor/vulkan/include",
         "vendor/VulkanMemoryAllocator/include",
         "vendor/imgui",
+        "vendor/glm",
     }
   
     libdirs {"build/lib"}
@@ -42,6 +43,7 @@ project "aurora"
         "glfw",
         "vulkan",
         "imgui",
+        "glm"
     }
     
     filter {}
@@ -180,3 +182,20 @@ project "imgui"
 
     filter "configurations:release"
         optimize "On"
+
+project "glm"
+  location "vendor/glm"
+  kind "StaticLib"
+  language "C++"
+  cppdialect "c++20"
+  targetdir("build/lib/bin/%{cfg.buildcfg}")
+  objdir ("build/lib/obj/%{cfg.buildcfg}")
+  includedirs
+  {
+    "vendor/glm/glm"
+  }
+
+  filter "configurations:debug"
+    symbols "On"
+  filter "configurations:release"
+    optimize "On"
