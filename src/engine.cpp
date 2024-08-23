@@ -721,7 +721,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   
   vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
   vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  AR_CORE_INFO("Right before drawing!"); 
   vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
   
   vkCmdEndRendering(cmd);

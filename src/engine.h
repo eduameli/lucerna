@@ -77,8 +77,9 @@ namespace Aurora
       constexpr static bool m_UseValidationLayers = false;  
       #endif
       std::vector<const char*> m_InstanceExtensions = {};
-      const std::array<const char*, 1> m_ValidationLayers = {
+      const std::array<const char*, 2> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",
+        "VK_LAYER_LUNARG_monitor",
       };
       VkInstance h_Instance;
       VkSurfaceKHR h_Surface;
