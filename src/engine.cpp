@@ -67,6 +67,7 @@ Engine::Engine()
 	rect_indices[3] = 2;
 	rect_indices[4] = 1;
 	rect_indices[5] = 3;
+
   rectangle = upload_mesh(rect_vertices, rect_indices);
 
   m_DeletionQueue.push_function([&]() {
@@ -244,6 +245,7 @@ void Engine::check_validation_layer_support()
     bool layerFound = false;
     for (const auto& layerProperties : supportedLayers)
     {
+      AR_CORE_INFO("Supported Layer {}", layerProperties.layerName);
       if (strcmp(layerName, layerProperties.layerName) == 0)
       {
         layerFound = true;
@@ -710,9 +712,9 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
-  GPUDrawPushConstants pcs;
+  GPUDrawPushConstants pcs{};
 
-  std::array<float, 16> matrix = {1.0f};
+  pcs.worldMatrix = {1.0f};
   
   //memcpy(pcs.worldMatrix, matrix.data(), matrix.size() * sizeof(float));
   pcs.vertexBuffer = rectangle.vertexBufferAddress;
@@ -770,13 +772,15 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
     indexBufferSize,
     VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY);
- 
+  
+
   //FIXME: compare perf cpu to gpu instead of gpu only!
+  AR_CORE_INFO("VERTEX SIZE {} ({}), INDEX SIZE ({})", vertices.size(), vertexBufferSize, indices.size(), indexBufferSize);
   AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   void* data = staging.allocation->GetMappedData();
 
   memcpy(data, vertices.data(), vertexBufferSize);
-  memcpy(static_cast<char*>(data) + vertexBufferSize, indices.data(), indexBufferSize);
+  memcpy((char*) data + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
 
   // FIXME: UNFINISHED!
   immediate_submit([&](VkCommandBuffer cmd){
@@ -784,15 +788,16 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
     vertexCopy.dstOffset = 0;
     vertexCopy.srcOffset = 0;
     vertexCopy.size = vertexBufferSize;
+
     vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
     
     VkBufferCopy indexCopy{};
     indexCopy.dstOffset = 0;
-    indexCopy.srcOffset = 0;
+    indexCopy.srcOffset = vertexBufferSize;
     indexCopy.size = indexBufferSize;
+
     vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
   });
-
   destroy_buffer(staging);
 
   return newSurface;
@@ -815,7 +820,17 @@ void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& functio
   VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
   VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);
   VK_CHECK_RESULT(vkQueueSubmit2(h_GraphicsQueue, 1, &submit, m_ImmediateFence));
+
+  auto time = std::chrono::system_clock::now();
+  auto milliseconds_since_epoch = std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count();
+  AR_CORE_FATAL("TIME BEFORE IMMEDIATE SUBMIT: {} milliseconds", milliseconds_since_epoch);
+  
   VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &m_ImmediateFence, true, 9999999999));
+
+
+  auto time_end= std::chrono::system_clock::now();
+  auto milliseconds_since_epoch2 = std::chrono::duration_cast<std::chrono::milliseconds>(time_end.time_since_epoch()).count();
+  AR_CORE_FATAL("TIME BEFORE IMMEDIATE SUBMIT: {} milliseconds", milliseconds_since_epoch2);
 } 
 
 void Engine::init_mesh_pipeline()

@@ -28,9 +28,9 @@ namespace Aurora
   // NOTE: could contain create_buffer and destroy_buffer inside the struct and be mini & self contained
   struct AllocatedBuffer
   {
-    VkBuffer buffer;
-    VmaAllocation allocation;
-    VmaAllocationInfo info;
+    VkBuffer buffer{};
+    VmaAllocation allocation{};
+    VmaAllocationInfo info{};
   };
  
   struct Vertex
@@ -51,7 +51,7 @@ namespace Aurora
   
   struct GPUDrawPushConstants
   {
-  glm::mat4x4 worldMatrix;
+    glm::mat4 worldMatrix;
     VkDeviceAddress vertexBuffer;
   };
 
