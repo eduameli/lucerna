@@ -35,9 +35,6 @@ namespace Aurora
 Engine::Engine()
 {
 
-  glm::vec3 pos = {0, 1, 0};
-  AR_CORE_TRACE("{} {} {}", pos.x, pos.y, pos.z);
-
   init_vulkan();
   init_swapchain();
   init_commands();
@@ -245,7 +242,6 @@ void Engine::check_validation_layer_support()
     bool layerFound = false;
     for (const auto& layerProperties : supportedLayers)
     {
-      AR_CORE_INFO("Supported Layer {}", layerProperties.layerName);
       if (strcmp(layerName, layerProperties.layerName) == 0)
       {
         layerFound = true;
@@ -627,7 +623,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
     ImGui::Text("frametime %f ms", stats.frametime);
   }
   ImGui::End();
-  ImGui::ShowDemoWindow();
   ImGui::Render(); 
 
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -773,8 +768,7 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
     VMA_MEMORY_USAGE_GPU_ONLY);
   
 
-  //FIXME: compare perf cpu to gpu instead of gpu only!
-  AR_CORE_INFO("VERTEX SIZE {} ({}), INDEX SIZE ({})", vertices.size(), vertexBufferSize, indices.size(), indexBufferSize);
+  //FIXME: compare perf cpu to gpu instead of gpu only! (small gpu/cpu shared mem)
   AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   void* data = staging.allocation->GetMappedData();
 
@@ -820,16 +814,8 @@ void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& functio
   VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);
   VK_CHECK_RESULT(vkQueueSubmit2(h_GraphicsQueue, 1, &submit, m_ImmediateFence));
 
-  auto time = std::chrono::system_clock::now();
-  auto milliseconds_since_epoch = std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count();
-  AR_CORE_FATAL("TIME BEFORE IMMEDIATE SUBMIT: {} milliseconds", milliseconds_since_epoch);
-  
   VK_CHECK_RESULT(vkWaitForFences(h_Device, 1, &m_ImmediateFence, true, 9999999999));
 
-
-  auto time_end= std::chrono::system_clock::now();
-  auto milliseconds_since_epoch2 = std::chrono::duration_cast<std::chrono::milliseconds>(time_end.time_since_epoch()).count();
-  AR_CORE_FATAL("TIME BEFORE IMMEDIATE SUBMIT: {} milliseconds", milliseconds_since_epoch2);
 } 
 
 void Engine::init_mesh_pipeline()
@@ -881,8 +867,6 @@ void Engine::init_mesh_pipeline()
   vkDestroyShaderModule(h_Device, meshFragShader, nullptr);
   vkDestroyShaderModule(h_Device, meshVertShader, nullptr);
   
-  AR_CORE_INFO("Created Mesh Pipeline!!!!");
-
   m_DeletionQueue.push_function([&]() {
     vkDestroyPipelineLayout(h_Device, meshPipelineLayout, nullptr);
     vkDestroyPipeline(h_Device, meshPipeline, nullptr);

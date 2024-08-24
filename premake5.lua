@@ -32,10 +32,10 @@ project "aurora"
         "vendor/vulkan/include",
         "vendor/VulkanMemoryAllocator/include",
         "vendor/imgui",
-        "vendor/glm",
+        "vendor/glm/",
     }
   
-    libdirs {"build/lib"}
+    libdirs {"build/lib/bin/%{cfg.buildcfg}"}
 
     links 
     {
@@ -43,7 +43,7 @@ project "aurora"
         "glfw",
         "vulkan",
         "imgui",
-        "glm"
+        --"glm"
     }
     
     filter {}
@@ -125,7 +125,7 @@ project "glfw"
   
   filter "configurations:release"
     optimize "On"
-
+--[[
 project "VulkanMemoryAllocator"
   location "vendor/VulkanMemoryAllocator"
   kind "StaticLib"
@@ -149,6 +149,7 @@ project "VulkanMemoryAllocator"
     symbols "On"
   filter "configurations:release"
     optimize "On"
+]]--
 
 project "imgui"
     location "vendor/imgui"
@@ -185,6 +186,7 @@ project "imgui"
         optimize "On"
 
 -- NOT WORKING
+--[[
 project "glm"
   location "vendor/glm"
   kind "StaticLib"
@@ -195,17 +197,24 @@ project "glm"
   
   files
   {
-  	"vendor/glm/**",
-
+  	"vendor/glm/glm/**.hpp",
+  	"vendor/glm/glm/**.inl",
+  	"vendor/glm/glm/**.cpp",
+  	"vendor/glm/glm/**.h",
   }
   
+  defines
+  {
+  	"GLM_BUILD_LIBRARY"
+  }
   
   includedirs
   {
-    "vendor/glm/glm"
+    "vendor/glm/"
   }
 
   filter "configurations:debug"
     symbols "On"
   filter "configurations:release"
     optimize "On"
+]]--
