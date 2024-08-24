@@ -70,6 +70,7 @@ namespace Aurora
       // FIXME: move to private!
       void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
       void draw_geometry(VkCommandBuffer cmd);
+      
     private:
       #ifdef DEBUG
       constexpr static bool m_UseValidationLayers = true;
@@ -142,7 +143,8 @@ namespace Aurora
       
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
-
+  
+    public:
       // FIXME: deleting/reusing staging buffers & run on background thread who's sole purpose is executing commands like this
       GPUMeshBuffers upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
   };

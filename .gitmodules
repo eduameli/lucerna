@@ -29,3 +29,7 @@
 #ignore make files.. maybe i put the make files into .build dir??
 #that gets ignored in all of them,, or they might have some building 
 #ignored dir for cmake and i can use that!
+[submodule "vendor/simdjson"]
+	path = vendor/simdjson
+  url = https://github.com/simdjson/simdjson.git
+  ignore = dirty

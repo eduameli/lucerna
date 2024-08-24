@@ -46,7 +46,6 @@ project "aurora"
         "vulkan",
         "imgui",
         "fastgltf",
-        --"glm"
     }
     
     filter {}
@@ -173,17 +172,18 @@ project "fastgltf"
     includedirs
     {
         "vendor/fastgltf/include",
+        "vendor/simdjson/singleheader/" -- Updated path to the correct include directory
     }
 
-    files
-    {
-        "vendor/fastgltf/src/**.cpp",
-        "vendor/fastgltf/src/**.h"
-    }
+
+   files {
+      "vendor/simdjson/singleheader/**.cpp",  -- Include simdjson source files for compilation
+      "vendor/fastgltf/src/**",
+   }
+ 
     
     filter "configurations:Debug"
         symbols "On"
 
     filter "configurations:Release"
         optimize "On"
-

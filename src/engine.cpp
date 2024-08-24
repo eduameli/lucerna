@@ -66,7 +66,7 @@ Engine::Engine()
 	rect_indices[5] = 3;
 
   rectangle = upload_mesh(rect_vertices, rect_indices);
-
+  
   m_DeletionQueue.push_function([&]() {
     destroy_buffer(rectangle.indexBuffer);
     destroy_buffer(rectangle.vertexBuffer);

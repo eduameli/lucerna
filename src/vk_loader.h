@@ -21,6 +21,10 @@ struct MeshAsset
   GPUMeshBuffers meshBuffers;
 };
 
+//FIXME: also use optional for loading ShaderModule when making pipelines!
+std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(Engine* engine, std::filesystem::path filepath);
+
+
 } // namespace aurora
 
 
