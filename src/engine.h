@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include "vk_descriptors.h"
 #include "vk_types.h"
+#include "vk_loader.h"
 
 namespace Aurora
 {
@@ -61,6 +62,8 @@ namespace Aurora
         uint32_t drawcall_count;
         float mesh_draw_time;
       } stats;
+    
+      std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
     public:
       Engine();
@@ -78,9 +81,8 @@ namespace Aurora
       constexpr static bool m_UseValidationLayers = false;  
       #endif
       std::vector<const char*> m_InstanceExtensions = {};
-      const std::array<const char*, 2> m_ValidationLayers = {
+      const std::array<const char*, 1> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",
-        "VK_LAYER_LUNARG_monitor",
       };
       VkInstance h_Instance;
       VkSurfaceKHR h_Surface;
@@ -104,6 +106,7 @@ namespace Aurora
       VmaAllocator m_Allocator{};
       
       AllocatedImage m_DrawImage{};
+      AllocatedImage m_DepthImage{};
       VkExtent2D m_DrawExtent{};
       
       std::vector<ComputeEffect> backgroundEffects;

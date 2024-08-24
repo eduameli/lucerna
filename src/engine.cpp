@@ -66,7 +66,11 @@ Engine::Engine()
 	rect_indices[5] = 3;
 
   rectangle = upload_mesh(rect_vertices, rect_indices);
-  
+ 
+  // upload other meshes...
+  testMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
+
+
   m_DeletionQueue.push_function([&]() {
     destroy_buffer(rectangle.indexBuffer);
     destroy_buffer(rectangle.vertexBuffer);
@@ -95,7 +99,13 @@ Engine::~Engine()
     vkDestroySemaphore(h_Device, m_Frames[i].swapchainSemaphore, nullptr);
     m_Frames[i].deletionQueue.flush();
   }
-  
+ 
+  for (auto& mesh : testMeshes)
+  {
+    destroy_buffer(mesh->meshBuffers.indexBuffer);
+    destroy_buffer(mesh->meshBuffers.vertexBuffer);
+  }
+
   m_DeletionQueue.flush();
 
   vkDestroyDevice(h_Device, nullptr);
@@ -126,7 +136,12 @@ void Engine::draw()
 
   // draw stuff here into the draw image
   draw_background(cmd);
+
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   draw_geometry(cmd);
+  
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -348,10 +363,27 @@ void Engine::init_swapchain()
 
   VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(m_DrawImage.imageFormat, m_DrawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
   VK_CHECK_RESULT(vkCreateImageView(h_Device, &rview_info, nullptr, &m_DrawImage.imageView));
+  
+  // NOTE: depth image creation!!!
+  m_DepthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
+  m_DepthImage.imageExtent = drawImageExtent;
+
+  VkImageUsageFlags depthImageUsages{};
+  depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  
+  VkImageCreateInfo dimg_info = vkinit::image_create_info(m_DepthImage.imageFormat, depthImageUsages, drawImageExtent);
+  vmaCreateImage(m_Allocator, &dimg_info, &rimg_allocinfo, &m_DepthImage.image, &m_DepthImage.allocation, nullptr);
+  VkImageViewCreateInfo dviewinfo = vkinit::imageview_create_info(m_DepthImage.imageFormat, m_DepthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+  VK_CHECK_RESULT(vkCreateImageView(h_Device, &dviewinfo, nullptr, &m_DepthImage.imageView));
+
 
   m_DeletionQueue.push_function([=, this]() { 
     vkDestroyImageView(h_Device, m_DrawImage.imageView, nullptr);
-    vmaDestroyImage(m_Allocator, m_DrawImage.image, m_DrawImage.allocation); 
+    vmaDestroyImage(m_Allocator, m_DrawImage.image, m_DrawImage.allocation);
+
+    vkDestroyImageView(h_Device, m_DepthImage.imageView, nullptr);
+    vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
   });
 }
 
@@ -661,10 +693,10 @@ void Engine::init_triangle_pipeline()
   
   builder.set_multisampling_none();
   builder.disable_blending();
-  builder.disable_depthtest();
-  
+  //builder.disable_depthtest();
+  builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL); 
   builder.set_color_attachment_format(m_DrawImage.imageFormat);
-  builder.set_depth_format(VK_FORMAT_UNDEFINED);
+  builder.set_depth_format(m_DepthImage.imageFormat);
 
   trianglePipeline = builder.build_pipeline(h_Device);
 
@@ -679,8 +711,11 @@ void Engine::init_triangle_pipeline()
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
-  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, nullptr);
+  //VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
+  VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
@@ -718,6 +753,19 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
   vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
   
+  glm::mat4 view = glm::mat4{1.0f};
+  view = glm::translate(view, glm::vec3{0, 0, -5});
+  glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_DrawExtent.width / (float) m_DrawExtent.height, 10000.0f, 0.1f);
+  projection[1][1] *= -1;
+  pcs.worldMatrix = projection * view;
+
+
+  pcs.vertexBuffer = testMeshes[2]->meshBuffers.vertexBufferAddress;
+  vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+  vkCmdBindIndexBuffer(cmd, testMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdDrawIndexed(cmd, testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
+
+
   vkCmdEndRendering(cmd);
   
 }
@@ -859,9 +907,9 @@ void Engine::init_mesh_pipeline()
   builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   builder.set_multisampling_none();
   builder.disable_blending();
-  builder.disable_depthtest();
+  builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   builder.set_color_attachment_format(m_DrawImage.imageFormat);
-  builder.set_depth_format(VK_FORMAT_UNDEFINED);
+  builder.set_depth_format(m_DepthImage.imageFormat);
   meshPipeline = builder.build_pipeline(h_Device);
 
   vkDestroyShaderModule(h_Device, meshFragShader, nullptr);
