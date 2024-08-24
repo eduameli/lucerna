@@ -21,8 +21,6 @@ struct MeshAsset
   GPUMeshBuffers meshBuffers;
 };
 
-
-
 } // namespace aurora
 
 

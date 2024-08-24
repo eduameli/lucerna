@@ -33,6 +33,8 @@ project "aurora"
         "vendor/VulkanMemoryAllocator/include",
         "vendor/imgui",
         "vendor/glm/",
+        "vendor/stb_image/",
+        "vendor/fastgltf/include",
     }
   
     libdirs {"build/lib/bin/%{cfg.buildcfg}"}
@@ -43,6 +45,7 @@ project "aurora"
         "glfw",
         "vulkan",
         "imgui",
+        "fastgltf",
         --"glm"
     }
     
@@ -125,31 +128,6 @@ project "glfw"
   
   filter "configurations:release"
     optimize "On"
---[[
-project "VulkanMemoryAllocator"
-  location "vendor/VulkanMemoryAllocator"
-  kind "StaticLib"
-  language "C++"
-  cppdialect "c++20"
-  targetdir ("build/lib/bin/%{cfg.buildcfg}")
-  objdir("build/lib/obj/%{cfg.buildcfg}")
-  
-  includedirs
-  {
-    "vendor/VulkanMemoryAllocator/include",
-  }
-  
-  files
-  {
-    "vendor/VulkanMemoryAllocator/include/**.h", -- what is this
-    "vendor/VulkanMemoryAllocator/src/",
-  }
-
-  filter "configurations:debug"
-    symbols "On"
-  filter "configurations:release"
-    optimize "On"
-]]--
 
 project "imgui"
     location "vendor/imgui"
@@ -185,36 +163,27 @@ project "imgui"
     filter "configurations:release"
         optimize "On"
 
--- NOT WORKING
---[[
-project "glm"
-  location "vendor/glm"
-  kind "StaticLib"
-  language "C++"
-  cppdialect "c++20"
-  targetdir("build/lib/bin/%{cfg.buildcfg}")
-  objdir ("build/lib/obj/%{cfg.buildcfg}")
-  
-  files
-  {
-  	"vendor/glm/glm/**.hpp",
-  	"vendor/glm/glm/**.inl",
-  	"vendor/glm/glm/**.cpp",
-  	"vendor/glm/glm/**.h",
-  }
-  
-  defines
-  {
-  	"GLM_BUILD_LIBRARY"
-  }
-  
-  includedirs
-  {
-    "vendor/glm/"
-  }
+project "fastgltf"
+    location "vendor/fastgltf"
+    kind "StaticLib"
+    language "C++"
+    targetdir ("build/lib/bin/%{cfg.buildcfg}")
+    objdir ("build/lib/obj/%{cfg.buildcfg}")
+    
+    includedirs
+    {
+        "vendor/fastgltf/include",
+    }
 
-  filter "configurations:debug"
-    symbols "On"
-  filter "configurations:release"
-    optimize "On"
-]]--
+    files
+    {
+        "vendor/fastgltf/src/**.cpp",
+        "vendor/fastgltf/src/**.h"
+    }
+    
+    filter "configurations:Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        optimize "On"
+
