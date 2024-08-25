@@ -69,8 +69,9 @@ namespace Aurora
     
       std::vector<std::shared_ptr<MeshAsset>> testMeshes;
     public:
-      Engine();
-      ~Engine();
+      void init();
+      void shutdown();
+
       void run();
       void draw();
       // FIXME: move to private!

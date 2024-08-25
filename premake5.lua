@@ -3,7 +3,8 @@
 workspace "aurora"
     configurations { "debug", "release" }
     architecture "x86_64"
-
+    linkoptions {"-fuse-ld=mold"}
+    
 project "aurora"
     kind "WindowedApp"
     language "C++"

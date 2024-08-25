@@ -10,6 +10,7 @@
 // user input -> move around camera
 // imgui demo settings
 
+// CLI for different settings -load settings file etc? VULKAN / OPENGL, working dir etc.. VERBOSE LEVEL
 namespace Aurora {
   class Application
   {

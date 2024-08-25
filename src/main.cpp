@@ -4,7 +4,6 @@
 int main(int argc, char* argv[])
 {
   using namespace Aurora;
-
   Logger::init();
 
   Aurora::Application app;

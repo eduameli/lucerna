@@ -39,7 +39,7 @@ Engine& Engine::get()
   return *self;
 }
 
-Engine::Engine()
+void Engine::init()
 {
   
   AR_ASSERT(self == nullptr, "Failed setting self to this");
@@ -87,7 +87,7 @@ Engine::Engine()
   });
 } 
 
-Engine::~Engine()
+void Engine::shutdown()
 {
   vkDeviceWaitIdle(h_Device);
   
@@ -122,6 +122,31 @@ Engine::~Engine()
 
   vkDestroyDevice(h_Device, nullptr);
   vkDestroyInstance(h_Instance, nullptr);
+}
+
+void Engine::run()
+{
+  while (!glfwWindowShouldClose(Application::get_main_window().get_handle()))
+  {
+    auto start = std::chrono::system_clock::now();
+    glfwPollEvents();
+
+    if (Engine::get().stop_rendering)
+    {
+      std::cout << "SLeeping!!" << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      continue;
+    }
+    
+    if(Engine::get().resize_requested)
+      Engine::get().resize_swapchain();
+
+    draw();
+    
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    stats.frametime = elapsed.count() / 1000.0f; 
+  }
 }
 
 void Engine::draw()

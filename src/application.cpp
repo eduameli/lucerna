@@ -9,35 +9,20 @@ namespace Aurora {
 Window Application::s_MainWindow{Application::WIDTH, Application::HEIGHT, "aurora"};
 
 Application::Application()
-{}
+{
+}
 
 Application::~Application()
-{}
+{
+}
 
-//FIXME : NO MAIN.CPP, just main in application and Engine.RUN
 void Application::run()
 {
-  // other thread?
-  while (!should_exit())
-  {
-    auto start = std::chrono::system_clock::now();
-    glfwPollEvents();
-
-    if (Engine::get().stop_rendering)
-    {
-      std::cout << "SLeeping!!" << std::endl;
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      continue;
-    }
-    
-    if(Engine::get().resize_requested)
-      Engine::get().resize_swapchain();
-
-    m_Engine.draw();
-    auto end = std::chrono::system_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    m_Engine.stats.frametime = elapsed.count() / 1000.0f; 
-  }
+  // NOTE: configure engine 
+  //m_Engine.init() / m_Engine.init(Config& config);
+  m_Engine.init();
+  m_Engine.run();
+  m_Engine.shutdown();
 }
 
 bool Application::should_exit()
