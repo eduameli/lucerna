@@ -697,16 +697,14 @@ void Engine::init_triangle_pipeline()
   VkShaderModule triangleFragShader;
   if (!vkutil::load_shader_module("shaders/triangle/triangle_frag.spv", h_Device, &triangleFragShader))
   {
-    AR_CORE_ERROR("Error when building the triangle fragment shader");
+    AR_CORE_ERROR("Error when building triangle fragment shader!");
   }
-  AR_CORE_INFO("Triangle Fragment Shader Succesfully loaded!");
 
   VkShaderModule triangleVertexShader;
   if (!vkutil::load_shader_module("shaders/triangle/triangle_vert.spv", h_Device, &triangleVertexShader))
   {
-    AR_CORE_ERROR("Error when building the triangle vertex shader");
+    AR_CORE_ERROR("Error when building triangle vertex shader!");
   }
-  AR_CORE_INFO("Triangle Vertex Shader Succesfully loaded!");
   
   VkPipelineLayoutCreateInfo info = vkinit::pipeline_layout_create_info();
   VK_CHECK_RESULT(vkCreatePipelineLayout(h_Device, &info, nullptr, &trigPipelineLayout));
@@ -899,16 +897,14 @@ void Engine::init_mesh_pipeline()
   VkShaderModule meshFragShader;
   if (!vkutil::load_shader_module("shaders/mesh/mesh.frag.spv", h_Device, &meshFragShader))
   {
-    AR_CORE_ERROR("Error when building mesh fragment shader succesfuly");
+    AR_CORE_ERROR("Error when building mesh fragment shader!");
   }
-  AR_CORE_INFO("Built Mesh fragment shader succesfully!!");
 
   VkShaderModule meshVertShader;
   if (!vkutil::load_shader_module("shaders/mesh/mesh.vert.spv", h_Device, &meshVertShader))
   {
     AR_CORE_ERROR("Error when building mesh vertex shader...");
   }
-  AR_CORE_INFO("Build mesh vertex shader successfulyl111!!");
 
   VkPushConstantRange bufferRange{};
   bufferRange.offset = 0;
