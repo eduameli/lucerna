@@ -14,6 +14,7 @@ Application::Application()
 Application::~Application()
 {}
 
+//FIXME : NO MAIN.CPP, just main in application and Engine.RUN
 void Application::run()
 {
   // other thread?
