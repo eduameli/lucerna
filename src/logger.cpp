@@ -1,13 +1,13 @@
 #include "aurora_pch.h"
-#include "log.h"
+#include "logger.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
 namespace Aurora {
-  Ref<spdlog::logger> Log::s_CoreLogger;
-  Ref<spdlog::logger> Log::s_ClientLogger;
-  void Log::Init()
+  Ref<spdlog::logger> Logger::s_CoreLogger;
+  Ref<spdlog::logger> Logger::s_ClientLogger;
+  void Logger::init()
   {
     spdlog::set_pattern("%^[%T] [%n] %v%$");
     spdlog::set_pattern("%^[%T] [%l] %v%$");

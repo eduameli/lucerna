@@ -38,6 +38,6 @@ namespace Aurora {
 }
 
 #include "utilities.h"
-#include "log.h"
+#include "logger.h"
 
 #endif

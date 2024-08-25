@@ -1,5 +1,5 @@
 #include "window.h"
-#include "log.h"
+#include "logger.h"
 //FIX: should glfw be init in window class or application?
 // for simplicity, there will only be one window at a time 
 // should it be static?
