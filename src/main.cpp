@@ -3,9 +3,7 @@
 int main(int argc, char* argv[])
 {
   Aurora::Log::Init();
+
   Aurora::Application app;
-  while(!app.should_exit())
-  {
-    app.run();
-  }
+  app.run();
 }

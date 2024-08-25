@@ -32,8 +32,18 @@
 namespace Aurora
 {
 
+Engine* self = nullptr;
+
+Engine& Engine::get()
+{
+  return *self;
+}
+
 Engine::Engine()
 {
+  
+  AR_ASSERT(self == nullptr, "Failed setting self to this");
+  self = this;
 
   init_vulkan();
   init_swapchain();
@@ -80,6 +90,8 @@ Engine::Engine()
 Engine::~Engine()
 {
   vkDeviceWaitIdle(h_Device);
+  
+  self = nullptr;
 
   vks::destroy_debug_messenger(h_Instance, h_DebugMessenger, nullptr);
   vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
@@ -122,7 +134,18 @@ void Engine::draw()
   get_current_frame().deletionQueue.flush();
   
   uint32_t swapchainImageIndex;
-  VK_CHECK_RESULT(vkAcquireNextImageKHR(h_Device, h_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
+  
+  //VK_CHECK_RESULT(vkAcquireNextImageKHR(h_Device, h_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
+  VkResult e = vkAcquireNextImageKHR(h_Device, h_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
+  if (e == VK_ERROR_OUT_OF_DATE_KHR)
+  {
+    resize_requested = true;
+    return;
+  }
+  
+  if (resize_requested)
+    resize_swapchain();
+
   VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
   
@@ -176,7 +199,12 @@ void Engine::draw()
 
   info.pImageIndices = &swapchainImageIndex;
 
-  VK_CHECK_RESULT(vkQueuePresentKHR(h_GraphicsQueue, &info));
+  //VK_CHECK_RESULT(vkQueuePresentKHR(h_GraphicsQueue, &info));
+  VkResult presentResult = vkQueuePresentKHR(h_GraphicsQueue, &info);
+  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
+  {
+    resize_requested = true;
+  }
   m_FrameNumber++;
 }
 
@@ -906,7 +934,7 @@ void Engine::init_mesh_pipeline()
   builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
   builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   builder.set_multisampling_none();
-  builder.disable_blending();
+  builder.enable_blending_additive();
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   builder.set_color_attachment_format(m_DrawImage.imageFormat);
   builder.set_depth_format(m_DepthImage.imageFormat);
@@ -919,6 +947,27 @@ void Engine::init_mesh_pipeline()
     vkDestroyPipelineLayout(h_Device, meshPipelineLayout, nullptr);
     vkDestroyPipeline(h_Device, meshPipeline, nullptr);
   });
+}
+
+void Engine::resize_swapchain()
+{
+  vkDeviceWaitIdle(h_Device);
+  
+  vkDestroySwapchainKHR(h_Device, h_Swapchain, nullptr);
+  for (auto view : m_SwapchainImageViews)
+  {
+    vkDestroyImageView(h_Device, view, nullptr); 
+  }
+
+  int w, h;
+  glfwGetWindowSize(Application::get_main_window().get_handle(), &w, &h);
+  // FIXME: should be window extent??
+  m_DrawExtent.width = w;
+  m_DrawExtent.height = h;
+  
+  init_swapchain();
+  resize_requested = false;
+
 }
 
 } // Aurora namespace

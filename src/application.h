@@ -20,7 +20,7 @@ namespace Aurora {
       Application();
       ~Application();
       void run();
-      static bool should_exit();
+      static bool should_exit(); //FIX: private?
       static Window& get_main_window();
     private: 
       static Window s_MainWindow;

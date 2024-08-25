@@ -54,7 +54,11 @@ namespace Aurora
 
       VkSurfaceFormatKHR m_SwapchainFormat;
       VkExtent2D m_SwapchainExtent;
-    
+      
+      bool stop_rendering = false;
+      bool resize_requested = false;
+      void resize_swapchain();
+
       struct EngineStats
       {
         float frametime;
@@ -64,7 +68,6 @@ namespace Aurora
       } stats;
     
       std::vector<std::shared_ptr<MeshAsset>> testMeshes;
-
     public:
       Engine();
       ~Engine();
@@ -73,7 +76,7 @@ namespace Aurora
       // FIXME: move to private!
       void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
       void draw_geometry(VkCommandBuffer cmd);
-      
+      static Engine& get();
     private:
       #ifdef DEBUG
       constexpr static bool m_UseValidationLayers = true;
