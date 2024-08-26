@@ -1,29 +1,26 @@
 #pragma once
 #include "aurora_pch.h"
-
-#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 namespace Aurora {
+  class Window
+  {
+    public:
+      struct Config
+      {
+        int width, height;
+        std::string name;
+      };
 
-// NOTE: maybe window should handle the swapchain!
-// for that it needs access to VkInstance?
-class Window
-{
-  public:
-    //static inline GLFWwindow* h_Window;  //NOTE: only one window for every inst of this class? should only be one anyways...
-  public:
-    Window(int width, int height, const std::string& name);
-    ~Window();
-    inline bool should_close() const { return glfwWindowShouldClose(h_Window); };
-    inline GLFWwindow* get_handle() { return h_Window; };
-    void create_window_surface(VkInstance instance, VkSurfaceKHR& surface) const; 
-
-  private: 
-    GLFWwindow* h_Window;
-  private:
-    static void glfw_error_callback(int error, const char* description);
-};
-
-
+      void init(Config& config);
+      void shutdown();
+      inline GLFWwindow* get_handle() { return m_Window; }
+    public:
+    private:
+      static void glfw_error_callback(int error, const char* description);
+      static void iconify_callback(GLFWwindow* window, int iconify);
+      static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+    private:
+      GLFWwindow* m_Window{};
+  };
 } // namespace Aurora

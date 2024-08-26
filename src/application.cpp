@@ -1,38 +1,30 @@
-#include "aurora_pch.h"
 #include "application.h"
-
-#include <thread>
-#include <chrono>
 
 namespace Aurora {
 
-Window Application::s_MainWindow{Application::WIDTH, Application::HEIGHT, "aurora"};
+  //Window Application::s_Window;
+  Application* Application::self = nullptr;
 
-Application::Application()
-{
-}
+  Application::Application()
+  {
+    self = this;
+    // read config files and save
+    Window::Config config{1024, 680, "aurora"};
+    m_Window.init(config);
+  }
 
-Application::~Application()
-{
-}
+  Application::~Application()
+  {
+    // finish logging into a file
+    m_Window.shutdown();
+  }
 
-void Application::run()
-{
-  // NOTE: configure engine 
-  //m_Engine.init() / m_Engine.init(Config& config);
-  m_Engine.init();
-  m_Engine.run();
-  m_Engine.shutdown();
-}
+  void Application::run()
+  {
+    // NOTE: configure engine m_Engine.init() / m_Engine.init(Config& config);
+    m_Engine.init();
+    m_Engine.run();
+    m_Engine.shutdown();
+  }
 
-bool Application::should_exit()
-{
-  return s_MainWindow.should_close();
-}
-
-Window& Application::get_main_window()
-{
-  return s_MainWindow;
-}
-
-}
+} // namespace aurora

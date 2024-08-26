@@ -7,47 +7,41 @@
 
 namespace Aurora {
 
+  void Window::init(Config& config)
+  {
+    glfwSetErrorCallback(glfw_error_callback);
+    glfwInit();
 
-void iconify_callback(GLFWwindow* window, int iconify)
-{
-  Engine::get().stop_rendering = iconify == 0 ? false : true;
-  AR_CORE_INFO("Window {}", iconify == 0 ? "MAXIMISED" : "MINIMISED");
-}
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
-{
-  AR_CORE_INFO("Window resized to {}x{}", width, height);
-  Engine::get().resize_requested = true;
-}
+    m_Window = glfwCreateWindow(config.width, config.height, config.name.c_str(), nullptr, nullptr);
+    glfwSetWindowIconifyCallback(m_Window , iconify_callback);
+    glfwSetFramebufferSizeCallback(m_Window, framebuffer_resize_callback);
+  }
 
-Window::Window(int width, int height, const std::string& name)
-{
-  glfwSetErrorCallback(glfw_error_callback);
-  glfwInit();
+  void Window::iconify_callback(GLFWwindow* window, int iconify)
+  {
+    Engine::get().stop_rendering = iconify == 0 ? false : true;
+    AR_CORE_INFO("Window {}", iconify == 0 ? "MAXIMISED" : "MINIMISED");
+  }
 
-  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-  h_Window = glfwCreateWindow(width, height, name.c_str(), nullptr, nullptr);
-  glfwSetWindowIconifyCallback(h_Window , iconify_callback);
-  glfwSetFramebufferSizeCallback(h_Window, framebuffer_resize_callback);
-}
-
-Window::~Window()
-{
-  glfwDestroyWindow(h_Window);
-  glfwTerminate();
-}
-
-void Window::create_window_surface(VkInstance instance, VkSurfaceKHR& surface) const
-{
-  VK_CHECK_RESULT(glfwCreateWindowSurface(instance, h_Window, nullptr, &surface));
-}
-
-void Window::glfw_error_callback(int error, const char* description)
-{
-  AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
-}
+  void Window::framebuffer_resize_callback(GLFWwindow* window, int width, int height)
+  {
+    AR_CORE_INFO("Window resized to {}x{}", width, height);
+    Engine::get().resize_requested = true;
+  }
 
 
-}
+
+  void Window::shutdown()
+  {
+    glfwDestroyWindow(m_Window);
+    glfwTerminate();
+  }
+
+  void Window::glfw_error_callback(int error, const char* description)
+  {
+    AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
+  }
+
+} // namespace aurora
