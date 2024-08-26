@@ -54,10 +54,11 @@ void Engine::init()
   init_descriptors();
   init_pipelines();
   init_imgui(); 
-
+  
+  testMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
 
   // init default mesh upload
-
+  /*
   std::array<Vertex, 4> rect_vertices;
 	rect_vertices[0].position = {0.5,-0.5, 0};
 	rect_vertices[1].position = {0.5,0.5, 0};
@@ -87,6 +88,7 @@ void Engine::init()
     destroy_buffer(rectangle.indexBuffer);
     destroy_buffer(rectangle.vertexBuffer);
   });
+  */
 } 
 
 void Engine::shutdown()
@@ -455,12 +457,12 @@ void Engine::init_swapchain()
 void Engine::draw_background(VkCommandBuffer cmd)
 {
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, backgroundEffects[currentBackgroundEffect].pipeline);
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, backgroundEffects[currentBackgroundEffect].layout, 0, 1, &drawImageDescriptors, 0, nullptr);
   
   ComputePushConstants pc;
   //pc.data1[0] = 1.0f; pc.data1[1] = 0.0f; pc.data1[2] = 0.0f; pc.data1[3] = 1.0f;
   //pc.data2[0] = 0.0f; pc.data2[1] = 0.0f; pc.data2[2] = 1.0f; pc.data2[3] = 1.0f;
-  vkCmdPushConstants(cmd, gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &backgroundEffects[currentBackgroundEffect].data);
+  vkCmdPushConstants(cmd, backgroundEffects[currentBackgroundEffect].layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &backgroundEffects[currentBackgroundEffect].data);
 
   vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
 }
@@ -508,7 +510,7 @@ void Engine::init_descriptors()
 void Engine::init_pipelines()
 {
   init_background_pipelines();
-  init_triangle_pipeline();
+  //init_triangle_pipeline();
   init_mesh_pipeline();
 }
 
@@ -527,8 +529,10 @@ void Engine::init_background_pipelines()
   
   computeLayout.pPushConstantRanges = &pcs;
   computeLayout.pushConstantRangeCount = 1;
+  
+  VkPipelineLayout layout{};
 
-  VK_CHECK_RESULT(vkCreatePipelineLayout(h_Device, &computeLayout, nullptr, &gradientPipelineLayout));
+  VK_CHECK_RESULT(vkCreatePipelineLayout(h_Device, &computeLayout, nullptr, &layout));
 
   VkShaderModule computeDrawShader;
   if (!vkutil::load_shader_module
@@ -549,11 +553,11 @@ void Engine::init_background_pipelines()
   VkComputePipelineCreateInfo computePipelineCreateInfo{};
   computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
   computePipelineCreateInfo.pNext = nullptr;
-  computePipelineCreateInfo.layout = gradientPipelineLayout;
+  computePipelineCreateInfo.layout = layout;
   computePipelineCreateInfo.stage = stageInfo;
     
   ComputeEffect gradient;
-  gradient.layout = gradientPipelineLayout;
+  gradient.layout = layout;
   gradient.name = "gradient";
   gradient.data = {};
 
@@ -568,7 +572,7 @@ void Engine::init_background_pipelines()
   gradient.data.data2[3] = 1;
 
   ComputeEffect sky;
-  sky.layout = gradientPipelineLayout;
+  sky.layout = layout;
   sky.name = "sky";
   sky.data = {};
 
@@ -589,8 +593,8 @@ void Engine::init_background_pipelines()
   vkDestroyShaderModule(h_Device, computeDrawShader, nullptr);
   vkDestroyShaderModule(h_Device, skyShader, nullptr);
 
-  m_DeletionQueue.push_function([&]() {
-    vkDestroyPipelineLayout(h_Device, gradientPipelineLayout, nullptr);
+  m_DeletionQueue.push_function([&, layout]() {
+    vkDestroyPipelineLayout(h_Device, layout, nullptr);
     for (const auto& bgEffect : backgroundEffects)
     {
       vkDestroyPipeline(h_Device, bgEffect.pipeline, nullptr);
@@ -728,7 +732,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
   vkCmdEndRendering(cmd);
 }
-
+/*
 void Engine::init_triangle_pipeline()
 {
   VkShaderModule triangleFragShader;
@@ -771,6 +775,7 @@ void Engine::init_triangle_pipeline()
     vkDestroyPipeline(h_Device, trianglePipeline, nullptr);
   });
 }
+*/
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
@@ -781,8 +786,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
-
+  //vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
   VkViewport viewport{};
   viewport.x = 0;
   viewport.y = 0;
@@ -801,21 +806,22 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-  vkCmdDraw(cmd, 3, 1, 0, 0);
+  //vkCmdDraw(cmd, 3, 1, 0, 0);
 
-
+  /*
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
+  */
   GPUDrawPushConstants pcs{};
 
   pcs.worldMatrix = {1.0f};
   
   //memcpy(pcs.worldMatrix, matrix.data(), matrix.size() * sizeof(float));
-  pcs.vertexBuffer = rectangle.vertexBufferAddress;
+  //pcs.vertexBuffer = rectangle.vertexBufferAddress;
   
-  vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
-  vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
-  
+  //vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+  //vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  //vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+  //*/ 
   glm::mat4 view = glm::mat4{1.0f};
   view = glm::translate(view, glm::vec3{0, 0, -5});
   glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_DrawExtent.width / (float) m_DrawExtent.height, 10000.0f, 0.1f);

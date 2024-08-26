@@ -42,13 +42,12 @@ namespace Aurora {
       VkDescriptorSetLayout drawImageDescriptorLayout{};
       
       // descriptor set for shaders and push constants...
-      VkPipelineLayout gradientPipelineLayout{};
-      VkPipelineLayout trigPipelineLayout{};
-      VkPipeline trianglePipeline{};
+      //VkPipelineLayout trigPipelineLayout{};
+      //VkPipeline trianglePipeline{};
     
       VkPipelineLayout meshPipelineLayout{};
       VkPipeline meshPipeline;
-      GPUMeshBuffers rectangle{};
+      //GPUMeshBuffers rectangle{};
 
       VkSurfaceFormatKHR m_SwapchainFormat;
       VkExtent2D m_SwapchainExtent;
