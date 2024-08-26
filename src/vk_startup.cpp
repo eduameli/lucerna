@@ -22,7 +22,7 @@ VkPhysicalDevice DeviceBuilder::select_physical_device()
 {
   uint32_t deviceCount;
   vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
-  AR_ASSERT(deviceCount != 0, "Failed to find any supported Physical Device!");
+  AR_ASSERT(deviceCount != 0);
 
   std::vector<VkPhysicalDevice> devices(deviceCount);
   vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
@@ -38,8 +38,12 @@ VkPhysicalDevice DeviceBuilder::select_physical_device()
       maxScore = score;
     }
   }
-
-  AR_ASSERT(selected != VK_NULL_HANDLE, "No suitable physical device found!");
+  
+  if (selected == VK_NULL_HANDLE)
+  {
+    AR_CORE_FATAL("Failed to find a suitable physical device");
+    AR_STOP;
+  }
   
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(selected, &properties);
@@ -90,7 +94,7 @@ void DeviceBuilder::build(VkPhysicalDevice& physicalDevice, VkDevice& device, Au
   info.pEnabledFeatures = nullptr;
   
 
-  AR_ASSERT(m_RequiredExtensions.has_value(), "Required Extensions is empty! Even though you need to create a swapchain!");
+  AR_ASSERT(m_RequiredExtensions.has_value());
 
   info.enabledExtensionCount = (uint32_t) m_RequiredExtensions.value().size();
   info.ppEnabledExtensionNames = m_RequiredExtensions.value().data();
@@ -133,7 +137,7 @@ Aurora::QueueFamilyIndices DeviceBuilder::find_queue_families(VkPhysicalDevice d
     
   }
   
-  AR_ASSERT(indices.is_complete(), "Succesfully found all required Queue Families!");
+  AR_ASSERT(indices.is_complete());
   return indices;
 }
 

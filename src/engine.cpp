@@ -42,7 +42,7 @@ Engine& Engine::get()
 void Engine::init()
 {
   
-  AR_ASSERT(self == nullptr, "Failed setting self to this");
+  AR_ASSERT(self == nullptr);
   self = this;
 
   init_vulkan();
@@ -289,7 +289,12 @@ void Engine::check_instance_ext_support()
         break;
       }
     }
-    AR_ASSERT(extensionFound, "Required {} Extension is not supported!", name);
+
+    if (!extensionFound)
+    {
+      AR_CORE_FATAL("Required {} Extension is not supported!", name);
+      AR_STOP;
+    }
   }
 }
 
@@ -316,7 +321,12 @@ void Engine::check_validation_layer_support()
         break;
       }
     }
-    AR_ASSERT(layerFound, "Required {} Validation Layer not supported!", layerName);
+
+    if (!layerFound)
+    {
+      AR_CORE_FATAL("Required {} layer is not supported!");
+      AR_STOP;
+    }
   }
 
 }

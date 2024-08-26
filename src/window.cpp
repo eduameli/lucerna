@@ -13,7 +13,7 @@ namespace Aurora {
     if (!glfwInit())
       AR_CORE_ERROR("Failed to initialise glfw");
     
-    AR_ASSERT(!s_Instance, "Initialising Window::s_Instance when its not nullptr!");
+    AR_ASSERT(s_Instance == nullptr);
     
     s_Instance = new Window();
     auto& win = s_Instance->m_Window;
@@ -35,13 +35,13 @@ namespace Aurora {
   
   Window& Window::get()
   {
-    AR_ASSERT(s_Instance, "Window::s_Instance has not been initialised");
+    AR_ASSERT(s_Instance != nullptr);
     return *s_Instance;
   }
   
   GLFWwindow* Window::get_handle()
   {
-    AR_ASSERT(s_Instance, "Window::s_Instance has not been initialised");
+    AR_ASSERT(s_Instance != nullptr);
     return s_Instance->m_Window;
   }
   
