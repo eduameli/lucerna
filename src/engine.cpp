@@ -56,39 +56,6 @@ void Engine::init()
   init_imgui(); 
   
   testMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
-
-  // init default mesh upload
-  /*
-  std::array<Vertex, 4> rect_vertices;
-	rect_vertices[0].position = {0.5,-0.5, 0};
-	rect_vertices[1].position = {0.5,0.5, 0};
-	rect_vertices[2].position = {-0.5,-0.5, 0};
-	rect_vertices[3].position = {-0.5,0.5, 0};
-
-	rect_vertices[0].color = {0,0, 0,1};
-	rect_vertices[1].color = { 0.5,0.5,0.5 ,1};
-	rect_vertices[2].color = { 1,0, 0,1 };
-	rect_vertices[3].color = { 0,1, 0,1 };
-  std::array<uint32_t, 6> rect_indices;
-  rect_indices[0] = 0;
-	rect_indices[1] = 1;
-	rect_indices[2] = 2;
-
-	rect_indices[3] = 2;
-	rect_indices[4] = 1;
-	rect_indices[5] = 3;
-
-  rectangle = upload_mesh(rect_vertices, rect_indices);
- 
-  // upload other meshes...
-  testMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
-
-
-  m_DeletionQueue.push_function([&]() {
-    destroy_buffer(rectangle.indexBuffer);
-    destroy_buffer(rectangle.vertexBuffer);
-  });
-  */
 } 
 
 void Engine::shutdown()
@@ -732,50 +699,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
   vkCmdEndRendering(cmd);
 }
-/*
-void Engine::init_triangle_pipeline()
-{
-  VkShaderModule triangleFragShader;
-  if (!vkutil::load_shader_module("shaders/triangle/triangle_frag.spv", h_Device, &triangleFragShader))
-  {
-    AR_CORE_ERROR("Error when building triangle fragment shader!");
-  }
-
-  VkShaderModule triangleVertexShader;
-  if (!vkutil::load_shader_module("shaders/triangle/triangle_vert.spv", h_Device, &triangleVertexShader))
-  {
-    AR_CORE_ERROR("Error when building triangle vertex shader!");
-  }
-  
-  VkPipelineLayoutCreateInfo info = vkinit::pipeline_layout_create_info();
-  VK_CHECK_RESULT(vkCreatePipelineLayout(h_Device, &info, nullptr, &trigPipelineLayout));
-  
-  PipelineBuilder builder;
-  builder.PipelineLayout = trigPipelineLayout;
-  
-  builder.set_shaders(triangleVertexShader, triangleFragShader);
-  builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-  builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-  
-  builder.set_multisampling_none();
-  builder.disable_blending();
-  //builder.disable_depthtest();
-  builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL); 
-  builder.set_color_attachment_format(m_DrawImage.imageFormat);
-  builder.set_depth_format(m_DepthImage.imageFormat);
-
-  trianglePipeline = builder.build_pipeline(h_Device);
-
-  vkDestroyShaderModule(h_Device, triangleFragShader, nullptr);
-  vkDestroyShaderModule(h_Device, triangleVertexShader, nullptr);
-
-  m_DeletionQueue.push_function([&] {
-    vkDestroyPipelineLayout(h_Device, trigPipelineLayout, nullptr);
-    vkDestroyPipeline(h_Device, trianglePipeline, nullptr);
-  });
-}
-*/
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
@@ -806,22 +729,10 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-  //vkCmdDraw(cmd, 3, 1, 0, 0);
-
-  /*
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
-  */
   GPUDrawPushConstants pcs{};
 
   pcs.worldMatrix = {1.0f};
   
-  //memcpy(pcs.worldMatrix, matrix.data(), matrix.size() * sizeof(float));
-  //pcs.vertexBuffer = rectangle.vertexBufferAddress;
-  
-  //vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
-  //vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  //vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
-  //*/ 
   glm::mat4 view = glm::mat4{1.0f};
   view = glm::translate(view, glm::vec3{0, 0, -5});
   glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_DrawExtent.width / (float) m_DrawExtent.height, 10000.0f, 0.1f);
@@ -1009,4 +920,4 @@ void Engine::resize_swapchain()
 
 }
 
-} // Aurora namespace
+} // namespace aurora
