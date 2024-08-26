@@ -7,7 +7,7 @@
 
 namespace Aurora {
   
-  static Window* s_Instance; 
+  static Window* s_Instance;
 
   void Window::init(std::string_view name, int width, int height)
   {

@@ -1,6 +1,7 @@
 #include "application.h"
 
 namespace Aurora {
+
   Application::Application()
   {
     // read and set preferred configuration

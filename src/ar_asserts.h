@@ -1,4 +1,5 @@
 #pragma once
+
 #include "logger.h" 
 #include <vulkan/vulkan.h>
 
@@ -8,7 +9,7 @@
     do { \
         if (!(condition)) { \
           AR_CORE_FATAL("ASSERT FAILED [{}, {}, {}] ({})", __FILE__, __FUNCTION__, __LINE__, #condition); \
-          raise(SIGTRAP); \
+          AR_STOP; \
         } \
     } while (false)
 

@@ -1,6 +1,7 @@
+#include "engine.h"
+
 #include "aurora_pch.h"
 #include "application.h"
-#include "engine.h"
 #include "vk_initialisers.h"
 #include "vk_startup.h"
 #include "vk_images.h"
@@ -31,8 +32,7 @@
 
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
-namespace Aurora
-{
+namespace Aurora {
 
 Engine* self = nullptr;
 
