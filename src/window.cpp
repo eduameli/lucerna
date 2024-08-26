@@ -1,22 +1,53 @@
 #include "window.h"
-#include "logger.h"
-//FIX: should glfw be init in window class or application?
-// for simplicity, there will only be one window at a time 
-// should it be static?
+
 #include "engine.h"
+#include <GLFW/glfw3.h>
 
 namespace Aurora {
+  
+  static Window* s_Instance; 
 
-  void Window::init(Config& config)
+  void Window::init(std::string_view name, int width, int height)
   {
     glfwSetErrorCallback(glfw_error_callback);
-    glfwInit();
+    if (!glfwInit())
+      AR_CORE_ERROR("Failed to initialise glfw");
+    
+    AR_ASSERT(!s_Instance, "Initialising Window::s_Instance when its not nullptr!");
+    
+    s_Instance = new Window();
+    auto& win = s_Instance->m_Window;
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    win = glfwCreateWindow(width, height, name.data(), nullptr, nullptr);
+    glfwSetWindowIconifyCallback(win, iconify_callback);
+    glfwSetFramebufferSizeCallback(win, framebuffer_resize_callback);
+  }
+  
+  void Window::shutdown()
+  {
+    glfwDestroyWindow(s_Instance->m_Window);
+    glfwTerminate();
 
-    m_Window = glfwCreateWindow(config.width, config.height, config.name.c_str(), nullptr, nullptr);
-    glfwSetWindowIconifyCallback(m_Window , iconify_callback);
-    glfwSetFramebufferSizeCallback(m_Window, framebuffer_resize_callback);
+    delete s_Instance;
+    s_Instance = nullptr;
+  }
+  
+  Window& Window::get()
+  {
+    AR_ASSERT(s_Instance, "Window::s_Instance has not been initialised");
+    return *s_Instance;
+  }
+  
+  GLFWwindow* Window::get_handle()
+  {
+    AR_ASSERT(s_Instance, "Window::s_Instance has not been initialised");
+    return s_Instance->m_Window;
+  }
+  
+  void Window::glfw_error_callback(int error, const char* description)
+  {
+    AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
   }
 
   void Window::iconify_callback(GLFWwindow* window, int iconify)
@@ -30,18 +61,5 @@ namespace Aurora {
     AR_CORE_INFO("Window resized to {}x{}", width, height);
     Engine::get().resize_requested = true;
   }
-
-
-
-  void Window::shutdown()
-  {
-    glfwDestroyWindow(m_Window);
-    glfwTerminate();
-  }
-
-  void Window::glfw_error_callback(int error, const char* description)
-  {
-    AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
-  }
-
+ 
 } // namespace aurora

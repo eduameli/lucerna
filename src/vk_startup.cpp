@@ -315,7 +315,7 @@ VkExtent2D SwapchainBuilder::choose_extent(const VkSurfaceCapabilitiesKHR& capab
   else
   {
     int width, height;
-    glfwGetFramebufferSize(Aurora::Application::get_main_window().get_handle(), &width, &height);
+    glfwGetFramebufferSize(Aurora::Window::get_handle(), &width, &height);
     VkExtent2D actualExtent = {
       (uint32_t) (width),
       (uint32_t) (height)

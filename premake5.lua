@@ -4,7 +4,8 @@ workspace "aurora"
     configurations { "debug", "release" }
     architecture "x86_64"
     linkoptions {"-fuse-ld=mold"}
-    
+    -- toolset "clang"
+    -- buildoptions { "-Wno-nullability-completeness" }
 project "aurora"
     kind "WindowedApp"
     language "C++"

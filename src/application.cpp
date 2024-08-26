@@ -2,21 +2,17 @@
 
 namespace Aurora {
 
-  //Window Application::s_Window;
-  Application* Application::self = nullptr;
 
   Application::Application()
   {
-    self = this;
-    // read config files and save
-    Window::Config config{1024, 680, "aurora"};
-    m_Window.init(config);
+    // read and set preferred configuration
+    Window::init("aurora", 1024, 640);
   }
 
   Application::~Application()
   {
     // finish logging into a file
-    m_Window.shutdown();
+    Window::shutdown(); 
   }
 
   void Application::run()

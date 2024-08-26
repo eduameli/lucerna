@@ -126,7 +126,7 @@ void Engine::shutdown()
 
 void Engine::run()
 {
-  while (!glfwWindowShouldClose(Application::get_main_window().get_handle()))
+  while (!glfwWindowShouldClose(Window::get_handle()))
   {
     auto start = std::chrono::system_clock::now();
     glfwPollEvents();
@@ -245,7 +245,7 @@ void Engine::init_vulkan()
   if (m_UseValidationLayers == true)
     vks::setup_validation_layer_callback(h_Instance, h_DebugMessenger, validation_callback);
 
-  glfwCreateWindowSurface(h_Instance, Application::get_main_window().get_handle(), nullptr, &h_Surface);
+  glfwCreateWindowSurface(h_Instance, Window::get_handle(), nullptr, &h_Surface);
   
   create_device();
 
@@ -648,7 +648,7 @@ void Engine::init_imgui()
 	VK_CHECK_RESULT(vkCreateDescriptorPool(h_Device, &pool_info, nullptr, &imguiPool));
 
   ImGui::CreateContext();
-  ImGui_ImplGlfw_InitForVulkan(Application::get_main_window().get_handle(), true);
+  ImGui_ImplGlfw_InitForVulkan(Window::get_handle(), true);
   ImGui_ImplVulkan_InitInfo info{};
   info.Instance = h_Instance;
   info.PhysicalDevice = h_PhysicalDevice;
@@ -981,7 +981,7 @@ void Engine::resize_swapchain()
   }
 
   int w, h;
-  glfwGetWindowSize(Application::get_main_window().get_handle(), &w, &h);
+  glfwGetWindowSize(Window::get_handle(), &w, &h);
   // FIXME: should be window extent??
   m_DrawExtent.width = w;
   m_DrawExtent.height = h;
