@@ -26,6 +26,8 @@
 #include <glm/ext/matrix_clip_space.hpp> // glm::perspective
 #include <glm/ext/scalar_constants.hpp> // glm::pi
 
+#include "ar_asserts.h"
+#include "logger.h"
 
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 

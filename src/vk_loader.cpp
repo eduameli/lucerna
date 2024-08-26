@@ -11,6 +11,8 @@
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
 
+#include "logger.h"
+
 namespace Aurora
 {
 

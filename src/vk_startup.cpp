@@ -1,6 +1,7 @@
 #include "vk_startup.h"
-#include "utilities.h"
 #include "application.h"
+#include "ar_asserts.h"
+
 namespace vks
 {
 
