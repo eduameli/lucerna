@@ -6,8 +6,7 @@
 #include "vk_types.h"
 #include "vk_loader.h"
 
-namespace Aurora
-{
+namespace Aurora {
 
   struct FrameData
   {
@@ -22,7 +21,6 @@ namespace Aurora
   class Engine
   {
     public:
-      // FIXME: make my own math library or use glm
       struct ComputePushConstants
       {
         float data1[4];
