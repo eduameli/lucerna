@@ -57,9 +57,6 @@ void Engine::shutdown()
   vkDeviceWaitIdle(m_Device);
   s_Instance = nullptr;
   
-  // deleting vks Logger::
-  Logger::destroy_debug_messenger(m_Instance, m_DebugMessenger, nullptr);
-
   vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
   vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
   
@@ -85,7 +82,8 @@ void Engine::shutdown()
   }
 
   m_DeletionQueue.flush();
-
+  
+  Logger::destroy_debug_messenger(m_Instance, m_DebugMessenger, nullptr);
   vkDestroyDevice(m_Device, nullptr);
   vkDestroyInstance(m_Instance, nullptr);
 }
@@ -97,15 +95,12 @@ void Engine::run()
     auto start = std::chrono::system_clock::now();
     glfwPollEvents();
 
-    if (Engine::get().stop_rendering)
+    if (stop_rendering)
     {
-      std::cout << "SLeeping!!" << std::endl;
+      std::cout << "Sleeping!!" << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       continue;
     }
-    
-    if(Engine::get().resize_requested)
-      Engine::get().resize_swapchain();
 
     draw();
     
@@ -118,24 +113,15 @@ void Engine::run()
 void Engine::draw()
 {
   VK_CHECK_RESULT(vkWaitForFences(m_Device, 1, &get_current_frame().renderFence, true, 1000000000));
-  // new frame
-
   VK_CHECK_RESULT(vkResetFences(m_Device, 1, &get_current_frame().renderFence));
   
   get_current_frame().deletionQueue.flush();
   
   uint32_t swapchainImageIndex;
   
-  //VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
-  VkResult e = vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
-  if (e == VK_ERROR_OUT_OF_DATE_KHR)
-  {
-    resize_requested = true;
-    return;
-  }
-  
-  if (resize_requested)
-    resize_swapchain();
+  VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
+
+
 
   VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
@@ -148,25 +134,20 @@ void Engine::draw()
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-  // draw stuff here into the draw image
+  // draw compute
   draw_background(cmd);
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
- 
+  
   draw_geometry(cmd);
   
-  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-
-  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
-  // NOTE: uses blit, could use less flexible but more performant option 
   vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_SwapchainImages[swapchainImageIndex], m_DrawExtent, m_DrawExtent /* FIXME: this should be swapchain extent?? */);
   
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-  // imgui draws directly to swapchain image instead of to draw img
   draw_imgui(cmd, m_SwapchainImageViews[swapchainImageIndex]);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -191,12 +172,7 @@ void Engine::draw()
 
   info.pImageIndices = &swapchainImageIndex;
 
-  //VK_CHECK_RESULT(vkQueuePresentKHR(m_GraphicsQueue, &info));
-  VkResult presentResult = vkQueuePresentKHR(m_GraphicsQueue, &info);
-  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
-  {
-    resize_requested = true;
-  }
+  VK_CHECK_RESULT(vkQueuePresentKHR(m_GraphicsQueue, &info));
   m_FrameNumber++;
 }
 
