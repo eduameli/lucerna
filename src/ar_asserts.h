@@ -5,6 +5,9 @@
 
 #if AR_ENABLE_ASSERTS == 1
 #include <signal.h>
+
+#define AR_STOP raise(SIGTRAP)
+
 #define AR_ASSERT(condition) \
     do { \
         if (!(condition)) { \
@@ -13,7 +16,16 @@
         } \
     } while (false)
 
-#define AR_STOP raise(SIGTRAP)
+
+#define AR_LOG_ASSERT(condition, ...) \
+      do { \
+          if (!(condition)) { \
+            AR_CORE_FATAL("ASSERT FAILED [{}, {}, {}]", __FILE__, __FUNCTION__, __LINE__); \
+            AR_CORE_FATAL("{}", fmt::format(__VA_ARGS__)); \
+            AR_STOP; \
+          } \
+      } while (false)
+
 
 #else
 #define AR_ASSERT(condition, ...)

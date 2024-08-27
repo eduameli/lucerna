@@ -1,7 +1,7 @@
 #include "engine.h"
 
 #include "aurora_pch.h"
-#include "application.h"
+#include "window.h"
 #include "vk_initialisers.h"
 #include "vk_startup.h"
 #include "vk_images.h"
@@ -34,18 +34,12 @@
 
 namespace Aurora {
 
-Engine* self = nullptr;
-
-Engine& Engine::get()
-{
-  return *self;
-}
+Engine* Engine::s_Instance = nullptr;
 
 void Engine::init()
 {
-  
-  AR_ASSERT(self == nullptr);
-  self = this;
+  AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
+  s_Instance = this;
 
   init_vulkan();
   init_swapchain();
@@ -61,10 +55,11 @@ void Engine::init()
 void Engine::shutdown()
 {
   vkDeviceWaitIdle(m_Device);
+  s_Instance = nullptr;
   
-  self = nullptr;
+  // deleting vks Logger::
+  Logger::destroy_debug_messenger(m_Instance, m_DebugMessenger, nullptr);
 
-  vks::destroy_debug_messenger(m_Instance, m_DebugMessenger, nullptr);
   vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
   vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
   
@@ -158,6 +153,7 @@ void Engine::draw()
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+ 
   draw_geometry(cmd);
   
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
@@ -214,7 +210,7 @@ void Engine::init_vulkan()
   create_instance();
   
   if (m_UseValidationLayers == true)
-    vks::setup_validation_layer_callback(m_Instance, m_DebugMessenger, validation_callback);
+    Logger::setup_validation_layer_callback(m_Instance, m_DebugMessenger, Logger::validation_callback);
 
   glfwCreateWindowSurface(m_Instance, Window::get_handle(), nullptr, &m_Surface);
   
@@ -323,20 +319,6 @@ void Engine::create_instance()
   }
   
   VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &m_Instance));
-}
-
-VkBool32 Engine::validation_callback(
-  VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-  VkDebugUtilsMessageTypeFlagsEXT messageType,
-  const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-  void* pUserData)
-{
-  if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-  {
-    AR_CORE_ERROR("VALIDATION LAYER ERROR: {}", pCallbackData->pMessage);
-  }
-
-  return VK_FALSE;
 }
 
 void Engine::create_device()

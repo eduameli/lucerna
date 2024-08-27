@@ -5,6 +5,8 @@
 #include "vk_descriptors.h"
 #include "vk_types.h"
 #include "vk_loader.h"
+#include "window.h"
+
 
 namespace Aurora {
 
@@ -64,7 +66,9 @@ namespace Aurora {
       // FIXME: move to private!
       void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
       void draw_geometry(VkCommandBuffer cmd);
-      static Engine& get();
+
+
+      static Engine& get() { return *s_Instance; };
     private:
       #ifdef DEBUG
       constexpr static bool m_UseValidationLayers = true;
@@ -101,7 +105,9 @@ namespace Aurora {
       AllocatedImage m_DrawImage{};
       AllocatedImage m_DepthImage{};
       VkExtent2D m_DrawExtent{};
-      
+    
+      Window m_Window;
+
       std::vector<ComputeEffect> backgroundEffects;
       int currentBackgroundEffect{0};
   
@@ -127,55 +133,18 @@ namespace Aurora {
       void check_instance_ext_support();
       void check_validation_layer_support();
       void create_instance();
-      static VKAPI_ATTR VkBool32 VKAPI_CALL validation_callback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        void* pUserData
-      );
       void create_device();
       FrameData& get_current_frame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
       void draw_background(VkCommandBuffer cmd);
       
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
-  
+      
+      static Engine* s_Instance;
+
     public:
       // FIXME: deleting/reusing staging buffers & run on background thread who's sole purpose is executing commands like this
       GPUMeshBuffers upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
   };
-/*
-  class Engine
-  {
-    public:
-      Engine();
-      ~Engine();
-      void init_vulkan();
-      void draw();
-      
-      inline FrameData& GetCurrentFrame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
-    public:
-      static constexpr int WIDTH = 640;
-      static constexpr int HEIGHT = 480;
-    private:
-      // vkhelper or vkimage?
-      void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout);
-      // vkhelper init?
-    private:
-      FrameData m_Frames[FRAME_OVERLAP];
-      uint32_t m_FrameNumber = 0;
 
-      //Window& m_Window;
-      //Device m_Device;
-      
-      VkQueue m_GraphicsQueue{};
-      uint32_t m_GraphicsQueueIndex{};
-
-      DeletionQueue m_DeletionQueue;
-      VmaAllocator m_Allocator;
-
-      AllocatedImage m_DrawImage;
-      VkExtent2D m_DrawExtent;
-  };
-*/
 }
