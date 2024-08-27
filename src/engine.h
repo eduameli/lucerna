@@ -41,30 +41,20 @@ namespace Aurora {
       VkDescriptorSet drawImageDescriptors{};
       VkDescriptorSetLayout drawImageDescriptorLayout{};
       
-      // descriptor set for shaders and push constants...
-      //VkPipelineLayout trigPipelineLayout{};
-      //VkPipeline trianglePipeline{};
-    
       VkPipelineLayout meshPipelineLayout{};
       VkPipeline meshPipeline;
-      //GPUMeshBuffers rectangle{};
 
       VkSurfaceFormatKHR m_SwapchainFormat;
       VkExtent2D m_SwapchainExtent;
       
       bool stop_rendering = false;
       bool resize_requested = false;
+
       void resize_swapchain();
 
-      struct EngineStats
-      {
-        float frametime;
-        uint32_t triangle_count;
-        uint32_t drawcall_count;
-        float mesh_draw_time;
-      } stats;
-    
       std::vector<std::shared_ptr<MeshAsset>> testMeshes;
+
+
     public:
       void init();
       void shutdown();
@@ -81,21 +71,23 @@ namespace Aurora {
       #else
       constexpr static bool m_UseValidationLayers = false;  
       #endif
+
       std::vector<const char*> m_InstanceExtensions = {};
       const std::array<const char*, 1> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",
       };
-      VkInstance h_Instance;
-      VkSurfaceKHR h_Surface;
-      VkDebugUtilsMessengerEXT h_DebugMessenger;
+
+      VkInstance m_Instance;
+      VkSurfaceKHR m_Surface;
+      VkDebugUtilsMessengerEXT m_DebugMessenger;
       DeletionQueue m_DeletionQueue;
       
-      VkDevice h_Device;
-      VkPhysicalDevice h_PhysicalDevice;
-      VkQueue h_GraphicsQueue;
-      VkQueue h_PresentQueue;
+      VkDevice m_Device;
+      VkPhysicalDevice m_PhysicalDevice;
+      VkQueue m_GraphicsQueue;
+      VkQueue m_PresentQueue;
       QueueFamilyIndices m_Indices;
-      VkSwapchainKHR h_Swapchain;
+      VkSwapchainKHR m_Swapchain;
       std::vector<VkImage> m_SwapchainImages;
       std::vector<VkImageView> m_SwapchainImageViews;
       
@@ -174,9 +166,9 @@ namespace Aurora {
       uint32_t m_FrameNumber = 0;
 
       //Window& m_Window;
-      //Device h_Device;
+      //Device m_Device;
       
-      VkQueue h_GraphicsQueue{};
+      VkQueue m_GraphicsQueue{};
       uint32_t m_GraphicsQueueIndex{};
 
       DeletionQueue m_DeletionQueue;

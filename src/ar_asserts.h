@@ -64,4 +64,3 @@ inline std::string error_to_string(VkResult errorCode)
     assert(res == VK_SUCCESS);																		\
   }																									\
 }
-
