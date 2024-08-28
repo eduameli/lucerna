@@ -33,3 +33,7 @@
 	path = vendor/simdjson
   url = https://github.com/simdjson/simdjson.git
   ignore = dirty
+[submodule "vendor/volk"]
+	path = vendor/volk
+  url = https://github.com/zeux/volk.git
+  ignore = dirty

@@ -40,6 +40,8 @@ void Engine::init()
 {
   AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
   s_Instance = this;
+  
+  volkInitialize();
 
   init_vulkan();
   init_swapchain();
@@ -47,7 +49,7 @@ void Engine::init()
   init_sync_structures();
   init_descriptors();
   init_pipelines();
-  init_imgui(); 
+  init_imgui();
   
   testMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
 } 
@@ -262,32 +264,40 @@ void Engine::init_vulkan()
   allocatorInfo.device = m_Device;
   allocatorInfo.instance = m_Instance;
   allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+
+  VmaVulkanFunctions functions{};
+  functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+  functions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+  allocatorInfo.pVulkanFunctions = &functions;
   vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
-  m_DeletionQueue.push_function([&]() {vmaDestroyAllocator(m_Allocator);});
+  m_DeletionQueue.push_function([&]() {
+    vmaDestroyAllocator(m_Allocator);
+  });
 }
 
 void Engine::create_instance()
 {
-  VkApplicationInfo appInfo{};
-  appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  appInfo.pEngineName = "Aurora";
-  appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
-  appInfo.apiVersion = VK_API_VERSION_1_3;
+  VkApplicationInfo app;
+  app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+  app.pEngineName = "Aurora";
+  app.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+  app.apiVersion = VK_API_VERSION_1_3;
 
-  VkInstanceCreateInfo createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  createInfo.pApplicationInfo = &appInfo;
-  createInfo.enabledExtensionCount = static_cast<uint32_t>(m_InstanceExtensions.size());
-  createInfo.ppEnabledExtensionNames = m_InstanceExtensions.data();
+  VkInstanceCreateInfo instance{};
+  instance.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+  instance.pApplicationInfo = &app;
+  instance.enabledExtensionCount = static_cast<uint32_t>(m_InstanceExtensions.size());
+  instance.ppEnabledExtensionNames = m_InstanceExtensions.data();
 
   if (m_UseValidationLayers)
   {
-    createInfo.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
-    createInfo.ppEnabledLayerNames = m_ValidationLayers.data();
+    instance.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
+    instance.ppEnabledLayerNames = m_ValidationLayers.data();
   }
   
-  VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &m_Instance));
+  VK_CHECK_RESULT(vkCreateInstance(&instance, nullptr, &m_Instance));
+  volkLoadInstance(m_Instance);
 }
 
 void Engine::create_device()
@@ -296,7 +306,7 @@ void Engine::create_device()
   features.f12.bufferDeviceAddress = VK_TRUE;
   features.f13.dynamicRendering = VK_TRUE;
   features.f13.synchronization2 = VK_TRUE;
-
+  
   // could have more options like set preferred gpu type, set required format, require geometry shader, etc
   vks::DeviceBuilder builder{m_Instance, m_Surface};
   builder.set_required_extensions(m_DeviceExtensions);
@@ -307,13 +317,13 @@ void Engine::create_device()
     m_Indices,
     m_GraphicsQueue, m_PresentQueue
   );
+
+  volkLoadDevice(m_Device);
 }
 
 void Engine::init_swapchain()
 {
   vks::SwapchainBuilder builder{m_PhysicalDevice, m_Device, m_Surface, m_Indices};
-  //builder.set_preferred_present_mode();
-  //builder.set_preferred_format();
   
   builder.build(
     m_Swapchain,

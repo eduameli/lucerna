@@ -1,7 +1,6 @@
 #pragma once
-#include <vulkan/vulkan.h>
 #include "aurora_pch.h"
-
+#include <volk.h>
 namespace vkutil
 {
 // NOTE: std::filesystem::path and optional that retuns "placeholder" shader pipeline if it fails.

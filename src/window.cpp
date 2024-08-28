@@ -13,9 +13,11 @@ namespace Aurora {
   {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
-      AR_CORE_ERROR("Failed to initialise glfw");
-    
+      AR_CORE_ERROR("Failed to initialise glfw"); 
     AR_ASSERT(s_Instance == nullptr);
+
+    if (glfwVulkanSupported() != GLFW_TRUE)
+      AR_CORE_FATAL("No vulkan support setup!!");
     
     s_Instance = new Window();
     auto& win = s_Instance->m_Window;

@@ -37,6 +37,7 @@ project "aurora"
         "vendor/glm/",
         "vendor/stb_image/",
         "vendor/fastgltf/include",
+        "vendor/volk/"
     }
   
     libdirs {"build/lib/bin/%{cfg.buildcfg}"}
@@ -45,9 +46,10 @@ project "aurora"
     {
         "spdlog",
         "glfw",
-        "vulkan",
+        --"vulkan",
         "imgui",
         "fastgltf",
+        "volk"
     }
     
     filter {}
@@ -116,6 +118,7 @@ project "glfw"
   defines {
     --"_GLFW_WAYLAND",
     "_GLFW_X11",
+    --"GLFW_VULKAN_STATIC",
   }
   
   files
@@ -147,7 +150,11 @@ project "imgui"
         "vendor/glfw/include",
         "vendor/KHR/",
     }
-
+    
+    defines
+    {
+      "IMGUI_IMPL_VULKAN_USE_VOLK"
+    }
     files
     {
         "vendor/imgui/*.cpp",
@@ -189,3 +196,31 @@ project "fastgltf"
 
     filter "configurations:Release"
         optimize "On"
+
+project "volk"
+  location "vendor/volk"
+  kind "StaticLib"
+  language "C++"
+  targetdir ("build/lib/bin/%{cfg.buildcfg}")
+  objdir ("build/lib/obj/%{cfg.buildcfg}")
+
+  defines 
+  {
+    "VOLK_STATIC_DEFINES",
+    "VK_USE_PLATFORM_XLIB_KHR",
+  }
+
+  includedirs
+  {
+    "vendor/volk/*.h"
+  }
+  files
+  {
+    "vendor/volk/*.c"
+  }
+  filter "configurations:Debug"
+    symbols "On"
+
+  filter "configurations:Release"
+    optimize "On"
+
