@@ -70,10 +70,10 @@ namespace Aurora {
 
       static Engine& get() { return *s_Instance; };
     private:
-      #ifdef DEBUG
+      #ifdef USE_VALIDATION_LAYERS
       constexpr static bool m_UseValidationLayers = true;
       #else
-      constexpr static bool m_UseValidationLayers = false;  
+      constexpr static bool m_UseValidationLayers = false;
       #endif
 
       std::vector<const char*> m_InstanceExtensions = {};
@@ -129,9 +129,8 @@ namespace Aurora {
       void init_triangle_pipeline();
       void init_mesh_pipeline();
       void init_imgui();
-
-      void check_instance_ext_support();
-      void check_validation_layer_support();
+      
+      void validate_instance_supported();
       void create_instance();
       void create_device();
       FrameData& get_current_frame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }

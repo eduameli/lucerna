@@ -57,12 +57,12 @@ project "aurora"
     }
   
     filter "configurations:debug"
-        defines { "DEBUG", "AR_ENABLE_ASSERTS=1"}
+        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "USE_VALIDATION_LAYERS"}
         symbols "On"
         optimize "Off"
 
     filter "configurations:release"
-        defines { "NDEBUG" }
+        defines { "AR_LOG_LEVEL=0" }
         optimize "On"
 
 

@@ -142,7 +142,7 @@ void Engine::draw()
   
   draw_geometry(cmd);
   
-  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
   vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_SwapchainImages[swapchainImageIndex], m_DrawExtent, m_DrawExtent /* FIXME: this should be swapchain extent?? */);
@@ -176,13 +176,78 @@ void Engine::draw()
   m_FrameNumber++;
 }
 
+void Engine::validate_instance_supported()
+{
+  // validate instance version supported
+  uint32_t version = 0;
+  vkEnumerateInstanceVersion(&version);
+  AR_LOG_ASSERT(version > VK_API_VERSION_1_3, "This Application requires Vulkan 1.3, which has not been found!");
+  AR_CORE_INFO("Vulkan Instance Version: {}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
+  
+
+  // validate instance extension support
+  uint32_t requiredCount = 0;
+  const char** requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredCount);
+  m_InstanceExtensions.insert(m_InstanceExtensions.end(), requiredExtensions, requiredExtensions + requiredCount);
+  
+  if (m_UseValidationLayers)
+  {
+    m_InstanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    requiredCount++;
+  }
+
+  uint32_t supportedCount = 0;
+  vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, nullptr);
+  std::vector<VkExtensionProperties> supportedExtensions(supportedCount);
+  vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, supportedExtensions.data());
+  AR_CORE_WARN("Required Instance Extensions:");
+
+  for (auto extensionName : m_InstanceExtensions)
+  {
+    AR_CORE_WARN("\t{}", extensionName);
+    bool found = false;
+    for (auto extension : supportedExtensions)
+    {
+      if (strcmp(extensionName , extension.extensionName) == 0)
+      {
+        found = true;
+        break;
+      }
+    }
+    
+    AR_LOG_ASSERT(found, "Required {} Extension not supported!", extensionName);
+  }
+
+  // validate validation layer support
+  if (!m_UseValidationLayers)
+    return;
+
+  uint32_t layerCount = 0;
+  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+  std::vector<VkLayerProperties> supportedLayers(layerCount);
+  vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
+  
+  AR_CORE_WARN("Required Validation Layers: ");
+  for (const char* layerName : m_ValidationLayers)
+  {
+    AR_CORE_WARN("\t{}", layerName);
+    bool found = false;
+    for (const auto& layerProperties : supportedLayers)
+    {
+      if (strcmp(layerName, layerProperties.layerName) == 0)
+      {
+        found = true;
+        break;
+      }
+    }
+    
+    AR_LOG_ASSERT(found, "Required {} layer is not supported!", layerName);
+  }
+}
 
 void Engine::init_vulkan()
 {
-  uint32_t requiredAPI = VK_API_VERSION_1_3;
-  AR_CORE_WARN("Required Vulkan Instance Version 1.3");
-  check_instance_ext_support();
-  check_validation_layer_support();
+  validate_instance_supported();
   create_instance();
   
   if (m_UseValidationLayers == true)
@@ -200,78 +265,6 @@ void Engine::init_vulkan()
   vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
   m_DeletionQueue.push_function([&]() {vmaDestroyAllocator(m_Allocator);});
-}
-
-
-void Engine::check_instance_ext_support()
-{
-  uint32_t requiredCount = 0;
-  const char** requiredExtensions;
-  requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredCount);
-  m_InstanceExtensions.insert(m_InstanceExtensions.end(), requiredExtensions, requiredExtensions + requiredCount);
-  if (m_UseValidationLayers)
-  {
-    m_InstanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    requiredCount++;
-  }
-
-  uint32_t supportedCount = 0;
-  vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, nullptr);
-  std::vector<VkExtensionProperties> supportedExtensions(supportedCount);
-  vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, supportedExtensions.data());
-  AR_CORE_WARN("Required Instance Extensions: ");
-  for (const char* name : m_InstanceExtensions)
-  {
-    AR_CORE_WARN("\t{}", name);
-    bool extensionFound = false;
-    for (const auto& extension : supportedExtensions)
-    {
-      if (strcmp(name, extension.extensionName) == 0)
-      {
-        extensionFound = true;
-        break;
-      }
-    }
-
-    if (!extensionFound)
-    {
-      AR_CORE_FATAL("Required {} Extension is not supported!", name);
-      AR_STOP;
-    }
-  }
-}
-
-void Engine::check_validation_layer_support()
-{
-  if (!m_UseValidationLayers)
-    return;
-
-  uint32_t layerCount = 0;
-  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-  std::vector<VkLayerProperties> supportedLayers(layerCount);
-  vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
-  
-  AR_CORE_WARN("Required Validation Layers: ");
-  for (const char* layerName : m_ValidationLayers)
-  {
-    AR_CORE_WARN("\t{}", layerName);
-    bool layerFound = false;
-    for (const auto& layerProperties : supportedLayers)
-    {
-      if (strcmp(layerName, layerProperties.layerName) == 0)
-      {
-        layerFound = true;
-        break;
-      }
-    }
-
-    if (!layerFound)
-    {
-      AR_CORE_FATAL("Required {} layer is not supported!", layerName);
-      AR_STOP;
-    }
-  }
-
 }
 
 void Engine::create_instance()
