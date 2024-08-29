@@ -56,14 +56,14 @@ namespace Aurora {
 
   void Window::iconify_callback(GLFWwindow* window, int iconify)
   {
-    Engine::get().stop_rendering = iconify == 0 ? false : true;
+    Engine::get().stopRendering = iconify == 0 ? false : true;
     AR_CORE_INFO("Window {}", iconify == 0 ? "MAXIMISED" : "MINIMISED");
   }
 
   void Window::framebuffer_resize_callback(GLFWwindow* window, int width, int height)
   {
     AR_CORE_INFO("Window resized to {}x{}", width, height);
-    Engine::get().resize_requested = true;
+    Engine::get().resizeRequested = true;
   }
  
 } // namespace aurora

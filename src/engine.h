@@ -27,6 +27,8 @@ namespace Aurora {
       void init();
       void shutdown();
       void run();
+      static Engine& get();
+      GPUMeshBuffers upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
     public:
       struct ComputePushConstants
       {
@@ -42,107 +44,69 @@ namespace Aurora {
         VkPipelineLayout layout;
         ComputePushConstants data;
       };
-      bool resize_requested = false;
-      bool stop_rendering = false;
+      bool stopRendering = false;
+      bool resizeRequested = false;
+      uint32_t frameNumber;
     private:
       void draw();
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
       void draw_geometry(VkCommandBuffer cmd);
-    private:
-      DescriptorAllocator m_DescriptorAllocator{};
-      VkDescriptorSetLayout drawImageDescriptorSet{};
-    public:
-      DescriptorAllocator g_DescriptorAllocator{};
-      VkDescriptorSet drawImageDescriptors{};
-      VkDescriptorSetLayout drawImageDescriptorLayout{};
-      
-      VkPipelineLayout meshPipelineLayout{};
-      VkPipeline meshPipeline;
-
-
       void resize_swapchain();
-
-      std::vector<std::shared_ptr<MeshAsset>> testMeshes;
-
-
-    public:
-
-
-      static Engine& get() { return *s_Instance; };
-    private:
-      #ifdef USE_VALIDATION_LAYERS
-      constexpr static bool m_UseValidationLayers = true;
-      #else
-      constexpr static bool m_UseValidationLayers = false;
-      #endif
-
-      std::vector<const char*> m_InstanceExtensions = {};
-      const std::array<const char*, 1> m_ValidationLayers = {
-        "VK_LAYER_KHRONOS_validation",
-      };
-
-      VkInstance m_Instance;
-      VkSurfaceKHR m_Surface;
-      VkDebugUtilsMessengerEXT m_DebugMessenger; // TODO: move to Logger?
-      DeletionQueue m_DeletionQueue;
-      
-
-      DeviceContext m_Device;
-      SwapchainContext m_Swapchain;
-
-      //VkSwapchainKHR m_Swapchain;
-      //std::vector<VkImage> m_SwapchainImages;
-      //std::vector<VkImageView> m_SwapchainImageViews;
-      
-      std::vector<const char*> m_DeviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-      };
-      FrameData m_Frames[FRAME_OVERLAP];
-      uint32_t m_FrameNumber{0};
-      VmaAllocator m_Allocator{};
-      
-      AllocatedImage m_DrawImage{};
-      AllocatedImage m_DepthImage{};
-      VkExtent2D m_DrawExtent{};
-    
-      //Window m_Window;
-
-      std::vector<ComputeEffect> backgroundEffects;
-      int currentBackgroundEffect{0};
-  
-      //NOTE: one way to improve this would be to run it on a different queue than the graphics queue (transfer?) to overlap
-      // with the main render loop.
-      VkFence m_ImmediateFence;
-      VkCommandBuffer m_ImmediateCommandBuffer;
-      VkCommandPool m_ImmediateCommandPool;
-      void immediate_submit(std::function<void(VkCommandBuffer cmd)> && function);
-      
-    private:
+      void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
       void init_vulkan();
       void init_swapchain();
       void init_commands();
       void init_sync_structures();
       void init_descriptors();
-      void init_pipelines();
+      void init_pipelines(); // NOTE: this will leave engine class at some point, as its per model
       void init_background_pipelines();
-      void init_triangle_pipeline();
       void init_mesh_pipeline();
       void init_imgui();
-      
       void validate_instance_supported();
       void create_instance();
       void create_device();
-      FrameData& get_current_frame() { return m_Frames[m_FrameNumber % FRAME_OVERLAP]; }
+      FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
       void draw_background(VkCommandBuffer cmd);
-      
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
-      
-      static Engine* s_Instance;
+    private:
+      VkInstance m_Instance;
+      VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
+      DeviceContext m_Device;
+      VkSurfaceKHR m_Surface;
+      SwapchainContext m_Swapchain;
+      DeletionQueue m_DeletionQueue;
+      FrameData m_Frames[FRAME_OVERLAP];
+      DescriptorAllocator m_DescriptorAllocator;
+      std::vector<std::shared_ptr<MeshAsset>> m_TestMeshes;
+      int m_BackgroundEffectIndex = 0;
+      std::vector<ComputeEffect> m_BackgroundEffects;
+      std::vector<const char*> m_InstanceExtensions = {};
+      std::vector<const char*> m_DeviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+      };
+      std::vector<const char*> m_ValidationLayers = {
+        "VK_LAYER_KHRONOS_validation",
+      };
+      VmaAllocator m_Allocator;
+      AllocatedImage m_DrawImage;
+      VkDescriptorSet m_DrawDescriptors;
+      VkDescriptorSetLayout m_DrawDescriptorLayout;
+      VkExtent2D m_DrawExtent;
+      AllocatedImage m_DepthImage; 
 
-    public:
-      // FIXME: deleting/reusing staging buffers & run on background thread who's sole purpose is executing commands like this
-      GPUMeshBuffers upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
+      VkPipeline m_MeshPipeline;
+      VkPipelineLayout m_MeshPipelineLayout;
+      
+      #ifdef USE_VALIDATION_LAYERS
+      constexpr static bool m_UseValidationLayers = true;
+      #else
+      constexpr static bool m_UseValidationLayers = false;
+      #endif
+      
+      VkFence m_ImmFence;
+      VkCommandBuffer m_ImmCommandBuffer;
+      VkCommandPool m_ImmCommandPool;
   };
 
 }

@@ -65,7 +65,6 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
       selected = device;
     }
   }
-  
   AR_LOG_ASSERT(selected != VK_NULL_HANDLE, "Failed to find a suitable physical device!");
   
   VkPhysicalDeviceProperties properties{};
@@ -112,13 +111,12 @@ int DeviceContextBuilder::rate_physical_device(VkPhysicalDevice device)
     default:
       break;
   }
-  
   return score;
 }
 
 bool DeviceContextBuilder::is_device_suitable(VkPhysicalDevice device)
 {
-  return check_extension_support(device) && check_feature_support(device);
+  return check_feature_support(device) && check_extension_support(device);
 }
 
 bool DeviceContextBuilder::check_extension_support(VkPhysicalDevice device)

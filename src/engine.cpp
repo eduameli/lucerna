@@ -35,7 +35,13 @@
 
 namespace Aurora {
 
-Engine* Engine::s_Instance = nullptr;
+static Engine* s_Instance = nullptr;
+
+Engine& Engine::get()
+{
+  AR_LOG_ASSERT(s_Instance != nullptr, "Trying to get reference to Engine but s_Instance is a null pointer!");
+  return *s_Instance;
+}
 
 void Engine::init()
 {
@@ -50,7 +56,7 @@ void Engine::init()
   init_pipelines();
   init_imgui();
   
-  testMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
+  m_TestMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
 } 
 
 void Engine::shutdown()
@@ -76,7 +82,7 @@ void Engine::shutdown()
     m_Frames[i].deletionQueue.flush();
   }
  
-  for (auto& mesh : testMeshes)
+  for (auto& mesh : m_TestMeshes)
   {
     destroy_buffer(mesh->meshBuffers.indexBuffer);
     destroy_buffer(mesh->meshBuffers.vertexBuffer);
@@ -98,7 +104,7 @@ void Engine::run()
     if (glfwGetKey(Window::get_handle(), GLFW_KEY_ESCAPE))
       glfwSetWindowShouldClose(Window::get_handle(), true);
 
-    if (stop_rendering)
+    if (stopRendering)
     {
       std::cout << "Sleeping!!" << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -176,7 +182,7 @@ void Engine::draw()
   info.pImageIndices = &swapchainImageIndex;
 
   VK_CHECK_RESULT(vkQueuePresentKHR(m_Device.present, &info));
-  m_FrameNumber++;
+  frameNumber++;
 }
 
 void Engine::validate_instance_supported()
@@ -313,16 +319,6 @@ void Engine::create_device()
 
 void Engine::init_swapchain()
 {
-  //vks::SwapchainBuilder builder{m_Device.physical, m_Device.logical, m_Surface, m_Device.indices};
-  
-  //builder.build(
-  //  m_Swapchain,
-  //  m_SwapchainImages, 
-  //  m_SwapchainFormat, 
-  //  m_SwapchainExtent
-  //);
-  //m_SwapchainImageViews = vkutil::get_image_views(m_Device.logical, m_SwapchainFormat.format, m_SwapchainImages);
-
   SwapchainContextBuilder builder{m_Device, m_Surface};
   m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
@@ -380,13 +376,15 @@ void Engine::init_swapchain()
 
 void Engine::draw_background(VkCommandBuffer cmd)
 {
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, backgroundEffects[currentBackgroundEffect].pipeline);
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, backgroundEffects[currentBackgroundEffect].layout, 0, 1, &drawImageDescriptors, 0, nullptr);
+  ComputeEffect effect = m_BackgroundEffects[m_BackgroundEffectIndex]; 
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &m_DrawDescriptors, 0, nullptr);
   
   ComputePushConstants pc;
   //pc.data1[0] = 1.0f; pc.data1[1] = 0.0f; pc.data1[2] = 0.0f; pc.data1[3] = 1.0f;
   //pc.data2[0] = 0.0f; pc.data2[1] = 0.0f; pc.data2[2] = 1.0f; pc.data2[3] = 1.0f;
-  vkCmdPushConstants(cmd, backgroundEffects[currentBackgroundEffect].layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &backgroundEffects[currentBackgroundEffect].data);
+  vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 
   vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
 }
@@ -398,15 +396,15 @@ void Engine::init_descriptors()
   {
     {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
   };
-  g_DescriptorAllocator.init_pool(m_Device.logical, 10, sizes);
+  m_DescriptorAllocator.init_pool(m_Device.logical, 10, sizes);
 
   {
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    drawImageDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_COMPUTE_BIT);
+    m_DrawDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_COMPUTE_BIT);
   }
 
-  drawImageDescriptors = g_DescriptorAllocator.allocate(m_Device.logical, drawImageDescriptorLayout);
+  m_DrawDescriptors = m_DescriptorAllocator.allocate(m_Device.logical, m_DrawDescriptorLayout);
   
   // links the draw image to the descriptor for the compute shader in the pipeline!
   VkDescriptorImageInfo info{};
@@ -418,7 +416,7 @@ void Engine::init_descriptors()
   write.pNext = nullptr;
 
   write.dstBinding = 0;
-  write.dstSet = drawImageDescriptors;
+  write.dstSet = m_DrawDescriptors;
   write.descriptorCount = 1;
   write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   write.pImageInfo = &info;
@@ -426,8 +424,8 @@ void Engine::init_descriptors()
   vkUpdateDescriptorSets(m_Device.logical, 1, &write, 0, nullptr);
 
   m_DeletionQueue.push_function([&]() {
-    g_DescriptorAllocator.destroy_pool(m_Device.logical);
-    vkDestroyDescriptorSetLayout(m_Device.logical, drawImageDescriptorLayout, nullptr);
+    m_DescriptorAllocator.destroy_pool(m_Device.logical);
+    vkDestroyDescriptorSetLayout(m_Device.logical, m_DrawDescriptorLayout, nullptr);
   });
 }
 
@@ -443,7 +441,7 @@ void Engine::init_background_pipelines()
   VkPipelineLayoutCreateInfo computeLayout{};
   computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   computeLayout.pNext = nullptr;
-  computeLayout.pSetLayouts = &drawImageDescriptorLayout;
+  computeLayout.pSetLayouts = &m_DrawDescriptorLayout;
   computeLayout.setLayoutCount = 1;
   
   VkPushConstantRange pcs{};
@@ -511,15 +509,15 @@ void Engine::init_background_pipelines()
 
   VK_CHECK_RESULT(vkCreateComputePipelines(m_Device.logical, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
 
-  backgroundEffects.push_back(gradient);
-  backgroundEffects.push_back(sky);
+  m_BackgroundEffects.push_back(gradient);
+  m_BackgroundEffects.push_back(sky);
 
   vkDestroyShaderModule(m_Device.logical, computeDrawShader, nullptr);
   vkDestroyShaderModule(m_Device.logical, skyShader, nullptr);
 
   m_DeletionQueue.push_function([&, layout]() {
     vkDestroyPipelineLayout(m_Device.logical, layout, nullptr);
-    for (const auto& bgEffect : backgroundEffects)
+    for (const auto& bgEffect : m_BackgroundEffects)
     {
       vkDestroyPipeline(m_Device.logical, bgEffect.pipeline, nullptr);
     }
@@ -537,9 +535,9 @@ void Engine::init_sync_structures()
     VK_CHECK_RESULT(vkCreateSemaphore(m_Device.logical, &semaphore, nullptr, &m_Frames[i].renderSemaphore));
   }
 
-  VK_CHECK_RESULT(vkCreateFence(m_Device.logical, &fence, nullptr, &m_ImmediateFence));
+  VK_CHECK_RESULT(vkCreateFence(m_Device.logical, &fence, nullptr, &m_ImmFence));
   m_DeletionQueue.push_function([=, this] {
-    vkDestroyFence(m_Device.logical, m_ImmediateFence, nullptr);
+    vkDestroyFence(m_Device.logical, m_ImmFence, nullptr);
   });
 }
 
@@ -554,11 +552,11 @@ void Engine::init_commands()
   }
   
   // create immediate submit command pool & buffer
-  VK_CHECK_RESULT(vkCreateCommandPool(m_Device.logical, &commandPoolInfo, nullptr, &m_ImmediateCommandPool));
-  VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_ImmediateCommandPool, 1);
-  VK_CHECK_RESULT(vkAllocateCommandBuffers(m_Device.logical, &cmdAllocInfo, &m_ImmediateCommandBuffer));
+  VK_CHECK_RESULT(vkCreateCommandPool(m_Device.logical, &commandPoolInfo, nullptr, &m_ImmCommandPool));
+  VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_ImmCommandPool, 1);
+  VK_CHECK_RESULT(vkAllocateCommandBuffers(m_Device.logical, &cmdAllocInfo, &m_ImmCommandBuffer));
   m_DeletionQueue.push_function([=, this]() {
-    vkDestroyCommandPool(m_Device.logical, m_ImmediateCommandPool, nullptr);
+    vkDestroyCommandPool(m_Device.logical, m_ImmCommandPool, nullptr);
   });
 
 }
@@ -636,9 +634,9 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   
   if (ImGui::Begin("settings"))
   {
-    ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+    ComputeEffect& selected = m_BackgroundEffects[m_BackgroundEffectIndex];
     ImGui::Text("Selected effect: %s", selected.name);
-    ImGui::SliderInt("Effect Index: ", &currentBackgroundEffect, 0, backgroundEffects.size() - 1); 
+    ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1); 
     ImGui::ColorEdit4("data1", (float*) &selected.data.data1);
     ImGui::InputFloat4("data1", (float*) &selected.data.data1);
     ImGui::InputFloat4("data2", (float*) &selected.data.data2);
@@ -665,7 +663,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   vkCmdBeginRendering(cmd, &renderInfo);
   
   //vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
   VkViewport viewport{};
   viewport.x = 0;
   viewport.y = 0;
@@ -695,10 +693,10 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   pcs.worldMatrix = projection * view;
 
 
-  pcs.vertexBuffer = testMeshes[2]->meshBuffers.vertexBufferAddress;
-  vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
-  vkCmdBindIndexBuffer(cmd, testMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexed(cmd, testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
+  pcs.vertexBuffer = m_TestMeshes[2]->meshBuffers.vertexBufferAddress;
+  vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+  vkCmdBindIndexBuffer(cmd, m_TestMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdDrawIndexed(cmd, m_TestMeshes[2]->surfaces[0].count, 1, m_TestMeshes[2]->surfaces[0].startIndex, 0, 0);
 
 
   vkCmdEndRendering(cmd);
@@ -781,10 +779,10 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
 {
-  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &m_ImmediateFence));
-  VK_CHECK_RESULT(vkResetCommandBuffer(m_ImmediateCommandBuffer, 0));
+  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &m_ImmFence));
+  VK_CHECK_RESULT(vkResetCommandBuffer(m_ImmCommandBuffer, 0));
 
-  VkCommandBuffer cmd = m_ImmediateCommandBuffer;
+  VkCommandBuffer cmd = m_ImmCommandBuffer;
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
@@ -795,9 +793,9 @@ void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& functio
 
   VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
   VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);
-  VK_CHECK_RESULT(vkQueueSubmit2(m_Device.graphics, 1, &submit, m_ImmediateFence));
+  VK_CHECK_RESULT(vkQueueSubmit2(m_Device.graphics, 1, &submit, m_ImmFence));
 
-  VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &m_ImmediateFence, true, 9999999999));
+  VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &m_ImmFence, true, 9999999999));
 
 } 
 
@@ -824,7 +822,7 @@ void Engine::init_mesh_pipeline()
   pipelineInfo.pPushConstantRanges = &bufferRange;
   pipelineInfo.pushConstantRangeCount = 1;
   
-  VK_CHECK_RESULT(vkCreatePipelineLayout(m_Device.logical, &pipelineInfo, nullptr, &meshPipelineLayout));
+  VK_CHECK_RESULT(vkCreatePipelineLayout(m_Device.logical, &pipelineInfo, nullptr, &m_MeshPipelineLayout));
 
   //FIXME: if it does something more than set a value (set multiple, init many values) it has a func
   // pipeline layout could also have a function so everything has a func
@@ -833,7 +831,7 @@ void Engine::init_mesh_pipeline()
   // how do i do multiple return then...
 
   PipelineBuilder builder;
-  builder.PipelineLayout = meshPipelineLayout;
+  builder.PipelineLayout = m_MeshPipelineLayout;
   builder.set_shaders(meshVertShader, meshFragShader);
   builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
@@ -843,14 +841,14 @@ void Engine::init_mesh_pipeline()
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   builder.set_color_attachment_format(m_DrawImage.imageFormat);
   builder.set_depth_format(m_DepthImage.imageFormat);
-  meshPipeline = builder.build_pipeline(m_Device.logical);
+  m_MeshPipeline = builder.build_pipeline(m_Device.logical);
 
   vkDestroyShaderModule(m_Device.logical, meshFragShader, nullptr);
   vkDestroyShaderModule(m_Device.logical, meshVertShader, nullptr);
   
   m_DeletionQueue.push_function([&]() {
-    vkDestroyPipelineLayout(m_Device.logical, meshPipelineLayout, nullptr);
-    vkDestroyPipeline(m_Device.logical, meshPipeline, nullptr);
+    vkDestroyPipelineLayout(m_Device.logical, m_MeshPipelineLayout, nullptr);
+    vkDestroyPipeline(m_Device.logical, m_MeshPipeline, nullptr);
   });
 }
 
@@ -871,7 +869,7 @@ void Engine::resize_swapchain()
   m_DrawExtent.height = h;
   
   init_swapchain();
-  resize_requested = false;
+  resizeRequested = false;
 
 }
 
