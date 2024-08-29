@@ -38,8 +38,9 @@ namespace Aurora
       }
   };
 
-  struct Device
+  struct DeviceContext
   {
+      VkDevice get() { return logical; }
       VkDevice logical;
       VkPhysicalDevice physical;
       QueueFamilyIndices indices;
@@ -61,7 +62,7 @@ namespace Aurora
        * set_preferred_present_mode
        * set_preferred_distinct_present
       */
-      Device build();
+      DeviceContext build();
     public:
     private:
       VkPhysicalDevice select_physical_device();
@@ -71,7 +72,7 @@ namespace Aurora
       int rate_physical_device(VkPhysicalDevice device);
       QueueFamilyIndices find_queue_indices(VkPhysicalDevice device);
     private:
-      Device m_Device;
+      DeviceContext m_Device;
       VkInstance m_Instance;
       VkSurfaceKHR m_Surface;
       Features features{};

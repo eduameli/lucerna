@@ -165,7 +165,7 @@ QueueFamilyIndices DeviceBuilder::find_queue_indices(VkPhysicalDevice device)
   return indices;
 }
 
-Device DeviceBuilder::build()
+DeviceContext DeviceBuilder::build()
 {
   AR_ASSERT(m_Instance != VK_NULL_HANDLE);
   AR_ASSERT(m_Surface != VK_NULL_HANDLE);

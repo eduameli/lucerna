@@ -87,11 +87,8 @@ namespace Aurora {
       VkDebugUtilsMessengerEXT m_DebugMessenger;
       DeletionQueue m_DeletionQueue;
       
-      VkDevice m_Device;
-      VkPhysicalDevice m_PhysicalDevice;
-      VkQueue m_GraphicsQueue;
-      VkQueue m_PresentQueue;
-      QueueFamilyIndices m_Indices;
+
+      DeviceContext m_Device;
       VkSwapchainKHR m_Swapchain;
       std::vector<VkImage> m_SwapchainImages;
       std::vector<VkImageView> m_SwapchainImageViews;
