@@ -54,24 +54,24 @@ void Engine::init()
 
 void Engine::shutdown()
 {
-  vkDeviceWaitIdle(m_Device.logical);
+  vkDeviceWaitIdle(m_DeviceContext.logical);
   s_Instance = nullptr;
   
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain, nullptr);
+  vkDestroySwapchainKHR(m_DeviceContext.logical, m_Swapchain, nullptr);
   vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
   
   for (auto view : m_SwapchainImageViews)
   {
-    vkDestroyImageView(m_Device.logical, view, nullptr);
+    vkDestroyImageView(m_DeviceContext.logical, view, nullptr);
   }
   
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
-    vkDestroyCommandPool(m_Device.logical, m_Frames[i].commandPool, nullptr);
+    vkDestroyCommandPool(m_DeviceContext.logical, m_Frames[i].commandPool, nullptr);
 
-    vkDestroyFence(m_Device.logical, m_Frames[i].renderFence, nullptr);
-    vkDestroySemaphore(m_Device.logical, m_Frames[i].renderSemaphore, nullptr);
-    vkDestroySemaphore(m_Device.logical, m_Frames[i].swapchainSemaphore, nullptr);
+    vkDestroyFence(m_DeviceContext.logical, m_Frames[i].renderFence, nullptr);
+    vkDestroySemaphore(m_DeviceContext.logical, m_Frames[i].renderSemaphore, nullptr);
+    vkDestroySemaphore(m_DeviceContext.logical, m_Frames[i].swapchainSemaphore, nullptr);
     m_Frames[i].deletionQueue.flush();
   }
  
@@ -83,7 +83,7 @@ void Engine::shutdown()
 
   m_DeletionQueue.flush();
   Logger::destroy_debug_messenger(m_Instance, m_DebugMessenger, nullptr);
-  vkDestroyDevice(m_Device.logical, nullptr);
+  vkDestroyDevice(m_DeviceContext.logical, nullptr);
   vkDestroyInstance(m_Instance, nullptr);
 }
 
@@ -111,14 +111,14 @@ void Engine::run()
 
 void Engine::draw()
 {
-  VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &get_current_frame().renderFence, true, 1000000000));
-  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &get_current_frame().renderFence));
+  VK_CHECK_RESULT(vkWaitForFences(m_DeviceContext.logical, 1, &get_current_frame().renderFence, true, 1000000000));
+  VK_CHECK_RESULT(vkResetFences(m_DeviceContext.logical, 1, &get_current_frame().renderFence));
   
   get_current_frame().deletionQueue.flush();
   
   uint32_t swapchainImageIndex;
   
-  VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device.logical, m_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
+  VK_CHECK_RESULT(vkAcquireNextImageKHR(m_DeviceContext.logical, m_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
 
 
 
@@ -159,7 +159,7 @@ void Engine::draw()
   VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_frame().renderSemaphore);
 
   VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
-  VK_CHECK_RESULT(vkQueueSubmit2(m_Device.graphics, 1, &submit, get_current_frame().renderFence));
+  VK_CHECK_RESULT(vkQueueSubmit2(m_DeviceContext.graphics, 1, &submit, get_current_frame().renderFence));
   
   VkPresentInfoKHR info{};
   info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -171,7 +171,7 @@ void Engine::draw()
 
   info.pImageIndices = &swapchainImageIndex;
 
-  VK_CHECK_RESULT(vkQueuePresentKHR(m_Device.present, &info));
+  VK_CHECK_RESULT(vkQueuePresentKHR(m_DeviceContext.present, &info));
   m_FrameNumber++;
 }
 
@@ -257,8 +257,8 @@ void Engine::init_vulkan()
   create_device();
 
   VmaAllocatorCreateInfo allocatorInfo{};
-  allocatorInfo.physicalDevice = m_Device.physical;
-  allocatorInfo.device = m_Device.logical;
+  allocatorInfo.physicalDevice = m_DeviceContext.physical;
+  allocatorInfo.device = m_DeviceContext.logical;
   allocatorInfo.instance = m_Instance;
   allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
@@ -301,17 +301,17 @@ void Engine::create_device()
 {
   
   DeviceBuilder builder {m_Instance, m_Surface};
-  m_Device = builder
+  m_DeviceContext = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
     .build();
 
-  volkLoadDevice(m_Device.logical);
+  volkLoadDevice(m_DeviceContext.logical);
 }
 
 void Engine::init_swapchain()
 {
-  vks::SwapchainBuilder builder{m_Device.physical, m_Device.logical, m_Surface, m_Device.indices};
+  vks::SwapchainBuilder builder{m_DeviceContext.physical, m_DeviceContext.logical, m_Surface, m_DeviceContext.indices};
   
   builder.build(
     m_Swapchain,
@@ -320,7 +320,7 @@ void Engine::init_swapchain()
     m_SwapchainExtent
   );
 
-  m_SwapchainImageViews = vkutil::get_image_views(m_Device.logical, m_SwapchainFormat.format, m_SwapchainImages);
+  m_SwapchainImageViews = vkutil::get_image_views(m_DeviceContext.logical, m_SwapchainFormat.format, m_SwapchainImages);
 
   // create draw image
   VkExtent3D drawImageExtent = {m_SwapchainExtent.width, m_SwapchainExtent.height, 1}; 
@@ -345,7 +345,7 @@ void Engine::init_swapchain()
 	vmaCreateImage(m_Allocator, &rimg_info, &rimg_allocinfo, &m_DrawImage.image, &m_DrawImage.allocation, nullptr);
 
   VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(m_DrawImage.imageFormat, m_DrawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
-  VK_CHECK_RESULT(vkCreateImageView(m_Device.logical, &rview_info, nullptr, &m_DrawImage.imageView));
+  VK_CHECK_RESULT(vkCreateImageView(m_DeviceContext.logical, &rview_info, nullptr, &m_DrawImage.imageView));
   
   // NOTE: depth image creation!!!
   m_DepthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
@@ -358,14 +358,14 @@ void Engine::init_swapchain()
   vmaCreateImage(m_Allocator, &dimg_info, &rimg_allocinfo, &m_DepthImage.image, &m_DepthImage.allocation, nullptr);
   VkImageViewCreateInfo dviewinfo = vkinit::imageview_create_info(m_DepthImage.imageFormat, m_DepthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-  VK_CHECK_RESULT(vkCreateImageView(m_Device.logical, &dviewinfo, nullptr, &m_DepthImage.imageView));
+  VK_CHECK_RESULT(vkCreateImageView(m_DeviceContext.logical, &dviewinfo, nullptr, &m_DepthImage.imageView));
 
 
   m_DeletionQueue.push_function([=, this]() { 
-    vkDestroyImageView(m_Device.logical, m_DrawImage.imageView, nullptr);
+    vkDestroyImageView(m_DeviceContext.logical, m_DrawImage.imageView, nullptr);
     vmaDestroyImage(m_Allocator, m_DrawImage.image, m_DrawImage.allocation);
 
-    vkDestroyImageView(m_Device.logical, m_DepthImage.imageView, nullptr);
+    vkDestroyImageView(m_DeviceContext.logical, m_DepthImage.imageView, nullptr);
     vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
   });
 }
@@ -390,15 +390,15 @@ void Engine::init_descriptors()
   {
     {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
   };
-  g_DescriptorAllocator.init_pool(m_Device.logical, 10, sizes);
+  g_DescriptorAllocator.init_pool(m_DeviceContext.logical, 10, sizes);
 
   {
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    drawImageDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_COMPUTE_BIT);
+    drawImageDescriptorLayout = builder.build(m_DeviceContext.logical, VK_SHADER_STAGE_COMPUTE_BIT);
   }
 
-  drawImageDescriptors = g_DescriptorAllocator.allocate(m_Device.logical, drawImageDescriptorLayout);
+  drawImageDescriptors = g_DescriptorAllocator.allocate(m_DeviceContext.logical, drawImageDescriptorLayout);
   
   // links the draw image to the descriptor for the compute shader in the pipeline!
   VkDescriptorImageInfo info{};
@@ -415,11 +415,11 @@ void Engine::init_descriptors()
   write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   write.pImageInfo = &info;
 
-  vkUpdateDescriptorSets(m_Device.logical, 1, &write, 0, nullptr);
+  vkUpdateDescriptorSets(m_DeviceContext.logical, 1, &write, 0, nullptr);
 
   m_DeletionQueue.push_function([&]() {
-    g_DescriptorAllocator.destroy_pool(m_Device.logical);
-    vkDestroyDescriptorSetLayout(m_Device.logical, drawImageDescriptorLayout, nullptr);
+    g_DescriptorAllocator.destroy_pool(m_DeviceContext.logical);
+    vkDestroyDescriptorSetLayout(m_DeviceContext.logical, drawImageDescriptorLayout, nullptr);
   });
 }
 
@@ -448,18 +448,18 @@ void Engine::init_background_pipelines()
   
   VkPipelineLayout layout{};
 
-  VK_CHECK_RESULT(vkCreatePipelineLayout(m_Device.logical, &computeLayout, nullptr, &layout));
+  VK_CHECK_RESULT(vkCreatePipelineLayout(m_DeviceContext.logical, &computeLayout, nullptr, &layout));
 
   VkShaderModule computeDrawShader;
   if (!vkutil::load_shader_module
-    ("shaders/push_gradient.spv", m_Device.logical, &computeDrawShader))
+    ("shaders/push_gradient.spv", m_DeviceContext.logical, &computeDrawShader))
   {
     AR_CORE_ERROR("Error when building compute shader!");
   }
 
   VkShaderModule skyShader;
   if (!vkutil::load_shader_module
-    ("shaders/sky_shader.spv", m_Device.logical, &skyShader))
+    ("shaders/sky_shader.spv", m_DeviceContext.logical, &skyShader))
   {
     AR_CORE_ERROR("Error when building sky shader");
   }
@@ -497,23 +497,23 @@ void Engine::init_background_pipelines()
   sky.data.data1[2] = 0.4;
   sky.data.data1[3] = 0.97;
 
-  VK_CHECK_RESULT(vkCreateComputePipelines(m_Device.logical, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+  VK_CHECK_RESULT(vkCreateComputePipelines(m_DeviceContext.logical, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
   computePipelineCreateInfo.stage.module = skyShader;
 
-  VK_CHECK_RESULT(vkCreateComputePipelines(m_Device.logical, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
+  VK_CHECK_RESULT(vkCreateComputePipelines(m_DeviceContext.logical, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
 
   backgroundEffects.push_back(gradient);
   backgroundEffects.push_back(sky);
 
-  vkDestroyShaderModule(m_Device.logical, computeDrawShader, nullptr);
-  vkDestroyShaderModule(m_Device.logical, skyShader, nullptr);
+  vkDestroyShaderModule(m_DeviceContext.logical, computeDrawShader, nullptr);
+  vkDestroyShaderModule(m_DeviceContext.logical, skyShader, nullptr);
 
   m_DeletionQueue.push_function([&, layout]() {
-    vkDestroyPipelineLayout(m_Device.logical, layout, nullptr);
+    vkDestroyPipelineLayout(m_DeviceContext.logical, layout, nullptr);
     for (const auto& bgEffect : backgroundEffects)
     {
-      vkDestroyPipeline(m_Device.logical, bgEffect.pipeline, nullptr);
+      vkDestroyPipeline(m_DeviceContext.logical, bgEffect.pipeline, nullptr);
     }
   });
 }
@@ -524,33 +524,33 @@ void Engine::init_sync_structures()
   VkSemaphoreCreateInfo semaphore = vkinit::semaphore_create_info();
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
-    VK_CHECK_RESULT(vkCreateFence(m_Device.logical, &fence, nullptr, &m_Frames[i].renderFence));
-    VK_CHECK_RESULT(vkCreateSemaphore(m_Device.logical, &semaphore, nullptr, &m_Frames[i].swapchainSemaphore));
-    VK_CHECK_RESULT(vkCreateSemaphore(m_Device.logical, &semaphore, nullptr, &m_Frames[i].renderSemaphore));
+    VK_CHECK_RESULT(vkCreateFence(m_DeviceContext.logical, &fence, nullptr, &m_Frames[i].renderFence));
+    VK_CHECK_RESULT(vkCreateSemaphore(m_DeviceContext.logical, &semaphore, nullptr, &m_Frames[i].swapchainSemaphore));
+    VK_CHECK_RESULT(vkCreateSemaphore(m_DeviceContext.logical, &semaphore, nullptr, &m_Frames[i].renderSemaphore));
   }
 
-  VK_CHECK_RESULT(vkCreateFence(m_Device.logical, &fence, nullptr, &m_ImmediateFence));
+  VK_CHECK_RESULT(vkCreateFence(m_DeviceContext.logical, &fence, nullptr, &m_ImmediateFence));
   m_DeletionQueue.push_function([=, this] {
-    vkDestroyFence(m_Device.logical, m_ImmediateFence, nullptr);
+    vkDestroyFence(m_DeviceContext.logical, m_ImmediateFence, nullptr);
   });
 }
 
 void Engine::init_commands()
 {
-  VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_Device.graphicsIndex, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+  VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_DeviceContext.graphicsIndex, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
-    VK_CHECK_RESULT(vkCreateCommandPool(m_Device.logical, &commandPoolInfo, nullptr, &m_Frames[i].commandPool));
+    VK_CHECK_RESULT(vkCreateCommandPool(m_DeviceContext.logical, &commandPoolInfo, nullptr, &m_Frames[i].commandPool));
     VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_Frames[i].commandPool, 1);
-    VK_CHECK_RESULT(vkAllocateCommandBuffers(m_Device.logical, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
+    VK_CHECK_RESULT(vkAllocateCommandBuffers(m_DeviceContext.logical, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
   }
   
   // create immediate submit command pool & buffer
-  VK_CHECK_RESULT(vkCreateCommandPool(m_Device.logical, &commandPoolInfo, nullptr, &m_ImmediateCommandPool));
+  VK_CHECK_RESULT(vkCreateCommandPool(m_DeviceContext.logical, &commandPoolInfo, nullptr, &m_ImmediateCommandPool));
   VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_ImmediateCommandPool, 1);
-  VK_CHECK_RESULT(vkAllocateCommandBuffers(m_Device.logical, &cmdAllocInfo, &m_ImmediateCommandBuffer));
+  VK_CHECK_RESULT(vkAllocateCommandBuffers(m_DeviceContext.logical, &cmdAllocInfo, &m_ImmediateCommandBuffer));
   m_DeletionQueue.push_function([=, this]() {
-    vkDestroyCommandPool(m_Device.logical, m_ImmediateCommandPool, nullptr);
+    vkDestroyCommandPool(m_DeviceContext.logical, m_ImmediateCommandPool, nullptr);
   });
 
 }
@@ -577,15 +577,15 @@ void Engine::init_imgui()
 	pool_info.pPoolSizes = pool_sizes;
 
 	VkDescriptorPool imguiPool;
-	VK_CHECK_RESULT(vkCreateDescriptorPool(m_Device.logical, &pool_info, nullptr, &imguiPool));
+	VK_CHECK_RESULT(vkCreateDescriptorPool(m_DeviceContext.logical, &pool_info, nullptr, &imguiPool));
 
   ImGui::CreateContext();
   ImGui_ImplGlfw_InitForVulkan(Window::get_handle(), true);
   ImGui_ImplVulkan_InitInfo info{};
   info.Instance = m_Instance;
-  info.PhysicalDevice = m_Device.physical;
-  info.Device = m_Device.logical;
-  info.Queue = m_Device.graphics;
+  info.PhysicalDevice = m_DeviceContext.physical;
+  info.Device = m_DeviceContext.logical;
+  info.Queue = m_DeviceContext.graphics;
   info.PipelineCache = VK_NULL_HANDLE;
   info.DescriptorPool = imguiPool;
   info.MinImageCount = 3;
@@ -604,7 +604,7 @@ void Engine::init_imgui()
   
   m_DeletionQueue.push_function([=, this]() {
     ImGui_ImplVulkan_Shutdown();
-    vkDestroyDescriptorPool(m_Device.logical, imguiPool, nullptr);
+    vkDestroyDescriptorPool(m_DeviceContext.logical, imguiPool, nullptr);
   });
 
   // FIXME: temporary imgui color space fix, PR is on the way.
@@ -735,7 +735,7 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
   VkBufferDeviceAddressInfo deviceAddressInfo{};
   deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
   deviceAddressInfo.buffer = newSurface.vertexBuffer.buffer;
-  newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(m_Device.logical, &deviceAddressInfo);
+  newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(m_DeviceContext.logical, &deviceAddressInfo);
   
   newSurface.indexBuffer = create_buffer(
     indexBufferSize,
@@ -773,7 +773,7 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
 {
-  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &m_ImmediateFence));
+  VK_CHECK_RESULT(vkResetFences(m_DeviceContext.logical, 1, &m_ImmediateFence));
   VK_CHECK_RESULT(vkResetCommandBuffer(m_ImmediateCommandBuffer, 0));
 
   VkCommandBuffer cmd = m_ImmediateCommandBuffer;
@@ -787,22 +787,22 @@ void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& functio
 
   VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
   VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);
-  VK_CHECK_RESULT(vkQueueSubmit2(m_Device.graphics, 1, &submit, m_ImmediateFence));
+  VK_CHECK_RESULT(vkQueueSubmit2(m_DeviceContext.graphics, 1, &submit, m_ImmediateFence));
 
-  VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &m_ImmediateFence, true, 9999999999));
+  VK_CHECK_RESULT(vkWaitForFences(m_DeviceContext.logical, 1, &m_ImmediateFence, true, 9999999999));
 
 } 
 
 void Engine::init_mesh_pipeline()
 {
   VkShaderModule meshFragShader;
-  if (!vkutil::load_shader_module("shaders/mesh/mesh.frag.spv", m_Device.logical, &meshFragShader))
+  if (!vkutil::load_shader_module("shaders/mesh/mesh.frag.spv", m_DeviceContext.logical, &meshFragShader))
   {
     AR_CORE_ERROR("Error when building mesh fragment shader!");
   }
 
   VkShaderModule meshVertShader;
-  if (!vkutil::load_shader_module("shaders/mesh/mesh.vert.spv", m_Device.logical, &meshVertShader))
+  if (!vkutil::load_shader_module("shaders/mesh/mesh.vert.spv", m_DeviceContext.logical, &meshVertShader))
   {
     AR_CORE_ERROR("Error when building mesh vertex shader...");
   }
@@ -816,7 +816,7 @@ void Engine::init_mesh_pipeline()
   pipelineInfo.pPushConstantRanges = &bufferRange;
   pipelineInfo.pushConstantRangeCount = 1;
   
-  VK_CHECK_RESULT(vkCreatePipelineLayout(m_Device.logical, &pipelineInfo, nullptr, &meshPipelineLayout));
+  VK_CHECK_RESULT(vkCreatePipelineLayout(m_DeviceContext.logical, &pipelineInfo, nullptr, &meshPipelineLayout));
 
   //FIXME: if it does something more than set a value (set multiple, init many values) it has a func
   // pipeline layout could also have a function so everything has a func
@@ -835,25 +835,25 @@ void Engine::init_mesh_pipeline()
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   builder.set_color_attachment_format(m_DrawImage.imageFormat);
   builder.set_depth_format(m_DepthImage.imageFormat);
-  meshPipeline = builder.build_pipeline(m_Device.logical);
+  meshPipeline = builder.build_pipeline(m_DeviceContext.logical);
 
-  vkDestroyShaderModule(m_Device.logical, meshFragShader, nullptr);
-  vkDestroyShaderModule(m_Device.logical, meshVertShader, nullptr);
+  vkDestroyShaderModule(m_DeviceContext.logical, meshFragShader, nullptr);
+  vkDestroyShaderModule(m_DeviceContext.logical, meshVertShader, nullptr);
   
   m_DeletionQueue.push_function([&]() {
-    vkDestroyPipelineLayout(m_Device.logical, meshPipelineLayout, nullptr);
-    vkDestroyPipeline(m_Device.logical, meshPipeline, nullptr);
+    vkDestroyPipelineLayout(m_DeviceContext.logical, meshPipelineLayout, nullptr);
+    vkDestroyPipeline(m_DeviceContext.logical, meshPipeline, nullptr);
   });
 }
 
 void Engine::resize_swapchain()
 {
-  vkDeviceWaitIdle(m_Device.logical);
+  vkDeviceWaitIdle(m_DeviceContext.logical);
   
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain, nullptr);
+  vkDestroySwapchainKHR(m_DeviceContext.logical, m_Swapchain, nullptr);
   for (auto view : m_SwapchainImageViews)
   {
-    vkDestroyImageView(m_Device.logical, view, nullptr); 
+    vkDestroyImageView(m_DeviceContext.logical, view, nullptr); 
   }
 
   int w, h;
