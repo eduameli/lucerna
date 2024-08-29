@@ -88,7 +88,7 @@ namespace Aurora {
       DeletionQueue m_DeletionQueue;
       
 
-      DeviceContext m_DeviceContext;
+      DeviceContext m_Device;
       VkSwapchainKHR m_Swapchain;
       std::vector<VkImage> m_SwapchainImages;
       std::vector<VkImageView> m_SwapchainImageViews;

@@ -56,12 +56,7 @@ namespace Aurora
       DeviceBuilder(VkInstance instance, VkSurfaceKHR surface);
       DeviceBuilder& set_minimum_version(int major, int minor);
       DeviceBuilder& set_required_extensions(std::span<const char*> extensions);
-      /*
-       * set_preferred_gpu_type
-       * set_preferred_swapchain_format
-       * set_preferred_present_mode
-       * set_preferred_distinct_present
-      */
+      DeviceBuilder& set_preferred_gpu_type(VkPhysicalDeviceType type);
       DeviceContext build();
     public:
     private:
@@ -79,5 +74,6 @@ namespace Aurora
       int m_MajorVersion, m_MinorVersion;
       std::span<const char*> m_RequiredExtensions;
       
+      std::optional<VkPhysicalDeviceType> m_PreferredDeviceType;
   };
 } // namespace Aurora

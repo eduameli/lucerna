@@ -37,6 +37,13 @@ DeviceBuilder& DeviceBuilder::set_required_extensions(std::span<const char*> ext
   return *this;
 }
 
+DeviceBuilder& DeviceBuilder::set_preferred_gpu_type(VkPhysicalDeviceType type)
+{
+  AR_LOG_ASSERT(type != VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM, "Invalid preferred physical device type");
+  m_PreferredDeviceType = type;
+  return *this;
+}
+
 VkPhysicalDevice DeviceBuilder::select_physical_device()
 {
 
@@ -78,6 +85,12 @@ int DeviceBuilder::rate_physical_device(VkPhysicalDevice device)
   VkPhysicalDeviceProperties properties;
   vkGetPhysicalDeviceProperties(device, &properties);
   
+  if (m_PreferredDeviceType.has_value())
+  {
+    if (m_PreferredDeviceType.value() == properties.deviceType)
+      return 10;
+  }
+
   uint32_t score = 0;
   switch (properties.deviceType)
   {
@@ -218,7 +231,9 @@ DeviceContext DeviceBuilder::build()
   VK_CHECK_RESULT(vkCreateDevice(physicalDevice, &info, nullptr, &logicalDevice));
   vkGetDeviceQueue(logicalDevice, familyIndices.graphics.value(), 0, &graphicsQueue);
   vkGetDeviceQueue(logicalDevice, familyIndices.present.value(), 0, &presentQueue);
-  
+   
+  volkLoadDevice(logicalDevice);
+
   return
   {
     .logical = logicalDevice,
