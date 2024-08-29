@@ -3,7 +3,6 @@
 #include "aurora_pch.h"
 #include "window.h"
 #include "vk_initialisers.h"
-#include "vk_startup.h"
 #include "vk_images.h"
 #include "vk_descriptors.h"
 #include "vk_pipelines.h"
@@ -94,6 +93,9 @@ void Engine::run()
   {
     auto start = std::chrono::system_clock::now();
     glfwPollEvents();
+  
+    if (glfwGetKey(Window::get_handle(), GLFW_KEY_ESCAPE))
+      glfwSetWindowShouldClose(Window::get_handle(), true);
 
     if (stop_rendering)
     {
