@@ -666,7 +666,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
-  AR_CORE_WARN("SWAPCHAIN EXTENT {} {}", m_Swapchain.extent2d.width, m_Swapchain.extent2d.height);
   vkCmdBeginRendering(cmd, &renderInfo);
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
   vkCmdEndRendering(cmd);
