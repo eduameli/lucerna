@@ -29,7 +29,7 @@
 
 #include "ar_asserts.h"
 #include "logger.h"
-
+#include "vk_device.h"
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora {
@@ -41,8 +41,6 @@ void Engine::init()
   AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
   s_Instance = this;
   
-  volkInitialize();
-
   init_vulkan();
   init_swapchain();
   init_commands();
@@ -184,8 +182,33 @@ void Engine::validate_instance_supported()
   uint32_t version = 0;
   vkEnumerateInstanceVersion(&version);
   AR_LOG_ASSERT(version > VK_API_VERSION_1_3, "This Application requires Vulkan 1.3, which has not been found!");
-  AR_CORE_INFO("Vulkan Instance Version: {}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
+  AR_CORE_INFO("Using Vulkan Instance [version {}.{}.{}]", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
   
+  // validate validation layer support
+  if (!m_UseValidationLayers)
+    return;
+
+  uint32_t layerCount = 0;
+  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+  std::vector<VkLayerProperties> supportedLayers(layerCount);
+  vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
+  
+  AR_CORE_WARN("Required Validation Layers: ");
+  for (const char* layerName : m_ValidationLayers)
+  {
+    AR_CORE_WARN("\t{}", layerName);
+    bool found = false;
+    for (const auto& layerProperties : supportedLayers)
+    {
+      if (strcmp(layerName, layerProperties.layerName) == 0)
+      {
+        found = true;
+        break;
+      }
+    }
+    
+    AR_LOG_ASSERT(found, "Required {} layer is not supported!", layerName);
+  }
 
   // validate instance extension support
   uint32_t requiredCount = 0;
@@ -216,39 +239,14 @@ void Engine::validate_instance_supported()
         break;
       }
     }
-    
     AR_LOG_ASSERT(found, "Required {} Extension not supported!", extensionName);
-  }
-
-  // validate validation layer support
-  if (!m_UseValidationLayers)
-    return;
-
-  uint32_t layerCount = 0;
-  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-  std::vector<VkLayerProperties> supportedLayers(layerCount);
-  vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
-  
-  AR_CORE_WARN("Required Validation Layers: ");
-  for (const char* layerName : m_ValidationLayers)
-  {
-    AR_CORE_WARN("\t{}", layerName);
-    bool found = false;
-    for (const auto& layerProperties : supportedLayers)
-    {
-      if (strcmp(layerName, layerProperties.layerName) == 0)
-      {
-        found = true;
-        break;
-      }
-    }
-    
-    AR_LOG_ASSERT(found, "Required {} layer is not supported!", layerName);
   }
 }
 
 void Engine::init_vulkan()
 {
+  volkInitialize();
+
   validate_instance_supported();
   create_instance();
   
@@ -302,13 +300,14 @@ void Engine::create_instance()
 
 void Engine::create_device()
 {
-  Features features{};
-  features.f12.bufferDeviceAddress = VK_TRUE;
-  features.f13.dynamicRendering = VK_TRUE;
-  features.f13.synchronization2 = VK_TRUE;
   
+  DeviceBuilder builder {m_Instance, m_Surface};
+  Device dev = builder
+    .set_minimum_version(1, 3)
+    .set_required_extensions(m_DeviceExtensions)
+    .build();
   // could have more options like set preferred gpu type, set required format, require geometry shader, etc
-  vks::DeviceBuilder builder{m_Instance, m_Surface};
+  /*vks::DeviceBuilder builder{m_Instance, m_Surface};
   builder.set_required_extensions(m_DeviceExtensions);
   builder.set_required_features(features);
   
@@ -317,6 +316,12 @@ void Engine::create_device()
     m_Indices,
     m_GraphicsQueue, m_PresentQueue
   );
+  */
+  m_Device = dev.logical;
+  m_PhysicalDevice = dev.physical;
+  m_Indices = dev.indices;
+  m_GraphicsQueue = dev.graphics;
+  m_PresentQueue = dev.present;
 
   volkLoadDevice(m_Device);
 }
@@ -549,7 +554,7 @@ void Engine::init_sync_structures()
 
 void Engine::init_commands()
 {
-  VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_Indices.graphicsFamily.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+  VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_Indices.graphics.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
   for (int i = 0; i < FRAME_OVERLAP; i++)
   {
     VK_CHECK_RESULT(vkCreateCommandPool(m_Device, &commandPoolInfo, nullptr, &m_Frames[i].commandPool));

@@ -3,32 +3,10 @@
 #include "aurora_pch.h"
 #include <GLFW/glfw3.h>
 #include "vk_types.h"
-
+#include "vk_device.h"
 namespace vks
 {
   //FIXME: check features.
-  class DeviceBuilder
-  {
-    public:
-    public:
-      DeviceBuilder(VkInstance instance, VkSurfaceKHR surface);
-      void set_required_extensions(const std::vector<const char*>& extensions);
-      void set_required_features(Aurora::Features features);
-      void build(VkPhysicalDevice& physicalDevice, VkDevice& device, Aurora::QueueFamilyIndices& indices, VkQueue& graphics, VkQueue& present);
-    private:
-      VkInstance m_Instance{};
-      VkSurfaceKHR m_Surface{};
-      std::optional<std::vector<const char*>> m_RequiredExtensions;
-      Aurora::Features m_EnabledFeatures;
-      
-    private:
-      VkPhysicalDevice select_physical_device();
-      bool check_extension_support(VkPhysicalDevice device);
-      bool is_device_suitable(VkPhysicalDevice);
-      int rate_device(VkPhysicalDevice device);
-      Aurora::QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
-  };
-
   
   class SwapchainBuilder
   {

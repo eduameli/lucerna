@@ -7,6 +7,8 @@
 #include "window.h"
 #include <volk.h>
 
+#include "vk_device.h"
+
 namespace Aurora {
 
   struct FrameData
