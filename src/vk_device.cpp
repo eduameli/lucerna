@@ -11,15 +11,17 @@ DeviceBuilder::DeviceBuilder(VkInstance instance, VkSurfaceKHR surface)
   features.f12.bufferDeviceAddress = VK_TRUE;
   features.f13.dynamicRendering = VK_TRUE;
   features.f13.synchronization2 = VK_TRUE;
+}
 
-  check_feature_support = [](VkPhysicalDevice device) {
-    Features query{};
-    vkGetPhysicalDeviceFeatures2(device, &query.get());
-    AR_LOG_ASSERT(query.f12.bufferDeviceAddress == VK_TRUE, "Feature bufferDeviceAddress not supported!");
-    AR_LOG_ASSERT(query.f13.dynamicRendering == VK_TRUE, "Feature dynamicRendering not supported!");
-    AR_LOG_ASSERT(query.f13.synchronization2 == VK_TRUE, "Feature synchronization2 not supported!");
-    return true;
-  };
+bool DeviceBuilder::check_feature_support(VkPhysicalDevice device)
+{
+  Features query{};
+  vkGetPhysicalDeviceFeatures2(device, &query.get());
+  AR_LOG_ASSERT(query.f12.bufferDeviceAddress == VK_TRUE, "Feature bufferDeviceAddress not supported!");
+  AR_LOG_ASSERT(query.f13.dynamicRendering == VK_TRUE, "Feature dynamicRendering not supported!");
+  AR_LOG_ASSERT(query.f13.synchronization2 == VK_TRUE, "Feature synchronization2 not supported!");
+  
+  return true;
 }
 
 DeviceBuilder& DeviceBuilder::set_minimum_version(int major, int minor)

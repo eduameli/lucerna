@@ -66,7 +66,7 @@ namespace Aurora
     private:
       VkPhysicalDevice select_physical_device();
       bool check_extension_support(VkPhysicalDevice device);
-      std::function<bool(VkPhysicalDevice)> check_feature_support;
+      bool check_feature_support(VkPhysicalDevice device);
       bool is_device_suitable(VkPhysicalDevice device);
       int rate_physical_device(VkPhysicalDevice device);
       QueueFamilyIndices find_queue_indices(VkPhysicalDevice device);
