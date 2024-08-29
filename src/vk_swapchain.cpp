@@ -33,6 +33,7 @@ SwapchainContext SwapchainContextBuilder::build()
   VkPresentModeKHR presentMode = choose_present_mode(details.presentModes);
   VkSurfaceFormatKHR surfaceFormat = choose_surface_format(details.formats);
   VkExtent2D extent = choose_extent(details.capabilities);
+  AR_CORE_WARN("Using extent {} {}", extent.width, extent.height);
 
   uint32_t imageCount = details.capabilities.minImageCount + 1;
   if (details.capabilities.maxImageCount > 0 && imageCount > details.capabilities.maxImageCount)
@@ -85,7 +86,8 @@ SwapchainContext SwapchainContextBuilder::build()
     .views = std::move(swapchainViews),
     .format = surfaceFormat.format,
     .colorSpace = surfaceFormat.colorSpace,
-    .extent2d = extent
+    .extent2d = extent,
+    .presentMode = presentMode
 
   };
 }

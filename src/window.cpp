@@ -63,7 +63,7 @@ namespace Aurora {
   void Window::framebuffer_resize_callback(GLFWwindow* window, int width, int height)
   {
     AR_CORE_INFO("Window resized to {}x{}", width, height);
-    Engine::get().resizeRequested = true;
+    //Engine::get().resizeRequested = true;
   }
  
 } // namespace aurora

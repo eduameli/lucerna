@@ -88,12 +88,12 @@ namespace Aurora {
       std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",
       };
-      VmaAllocator m_Allocator;
-      AllocatedImage m_DrawImage;
-      VkDescriptorSet m_DrawDescriptors;
-      VkDescriptorSetLayout m_DrawDescriptorLayout;
-      VkExtent2D m_DrawExtent;
-      AllocatedImage m_DepthImage; 
+      VmaAllocator m_Allocator{};
+      AllocatedImage m_DrawImage{};
+      VkDescriptorSet m_DrawDescriptors{};
+      VkDescriptorSetLayout m_DrawDescriptorLayout{};
+      VkExtent2D m_DrawExtent{};
+      AllocatedImage m_DepthImage{}; 
 
       VkPipeline m_MeshPipeline;
       VkPipelineLayout m_MeshPipelineLayout;

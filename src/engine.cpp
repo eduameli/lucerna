@@ -98,9 +98,12 @@ void Engine::run()
 {
   while (!glfwWindowShouldClose(Window::get_handle()))
   {
+    if (resizeRequested)
+      AR_CORE_TRACE("Resize Requested!");
+
     auto start = std::chrono::system_clock::now();
     glfwPollEvents();
-  
+
     if (glfwGetKey(Window::get_handle(), GLFW_KEY_ESCAPE))
       glfwSetWindowShouldClose(Window::get_handle(), true);
 
@@ -111,32 +114,43 @@ void Engine::run()
       continue;
     }
 
+    if (resizeRequested)
+    {
+      resize_swapchain();
+    }
+    
     draw();
     
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    AR_CORE_TRACE("frame time {}", elapsed.count() / 1000.0f);
+    //AR_CORE_TRACE("frame time {}", elapsed.count() / 1000.0f);
   }
 }
 
 void Engine::draw()
 {
   VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &get_current_frame().renderFence, true, 1000000000));
-  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &get_current_frame().renderFence));
+  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &get_current_frame().renderFence)); 
   
   get_current_frame().deletionQueue.flush();
   
   uint32_t swapchainImageIndex;
   
-  VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
+  VkResult e = vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
+  //AR_CORE_INFO("acquire result {}", error_to_string(e));
+  if (e == VK_ERROR_OUT_OF_DATE_KHR || e == VK_SUBOPTIMAL_KHR)
+  {
+    resizeRequested = true;
+    AR_CORE_WARN("resize requested acquire {}", resizeRequested);
+    return;
+  }
 
-
+  m_DrawExtent.height = std::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height);
+  m_DrawExtent.width = std::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width);
+  
 
   VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
-  
-  m_DrawExtent.width = m_DrawImage.imageExtent.width;
-  m_DrawExtent.height = m_DrawImage.imageExtent.height;
   
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
@@ -154,7 +168,7 @@ void Engine::draw()
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
-  vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_DrawExtent /* FIXME: this should be swapchain extent?? */);
+  vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d /* FIXME: this should be swapchain extent?? */);
   
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   draw_imgui(cmd, m_Swapchain.views[swapchainImageIndex]);
@@ -181,7 +195,14 @@ void Engine::draw()
 
   info.pImageIndices = &swapchainImageIndex;
 
-  VK_CHECK_RESULT(vkQueuePresentKHR(m_Device.present, &info));
+  VkResult presentResult = vkQueuePresentKHR(m_Device.present, &info);
+  //AR_CORE_INFO("present resukt {}", error_to_string(presentResult));
+  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
+  {
+    resizeRequested = true;
+    AR_CORE_FATAL("resize requested present {}", resizeRequested);
+  }
+  //AR_CORE_INFO("new frame {}", resizeRequested);
   frameNumber++;
 }
 
@@ -313,7 +334,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
     .build();
 }
 
@@ -321,14 +342,13 @@ void Engine::init_swapchain()
 {
   SwapchainContextBuilder builder{m_Device, m_Surface};
   m_Swapchain = builder
-    .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
-    .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_MAILBOX_KHR)
+    //.set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
+    //.set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+    //.set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_MAILBOX_KHR)
     .build();
   
   // create draw image
   VkExtent3D drawImageExtent = {m_Swapchain.extent2d.width, m_Swapchain.extent2d.height, 1}; 
-	//hardcoding the draw format to 32 bit float
 	m_DrawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	m_DrawImage.imageExtent = drawImageExtent;
 
@@ -354,6 +374,8 @@ void Engine::init_swapchain()
   // NOTE: depth image creation!!!
   m_DepthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
   m_DepthImage.imageExtent = drawImageExtent;
+  m_DrawImage.imageExtent = drawImageExtent;
+  m_DrawExtent = {drawImageExtent.width, drawImageExtent.height};
 
   VkImageUsageFlags depthImageUsages{};
   depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -382,11 +404,9 @@ void Engine::draw_background(VkCommandBuffer cmd)
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &m_DrawDescriptors, 0, nullptr);
   
   ComputePushConstants pc;
-  //pc.data1[0] = 1.0f; pc.data1[1] = 0.0f; pc.data1[2] = 0.0f; pc.data1[3] = 1.0f;
-  //pc.data2[0] = 0.0f; pc.data2[1] = 0.0f; pc.data2[2] = 1.0f; pc.data2[3] = 1.0f;
   vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 
-  vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
+  vkCmdDispatch(cmd, std::ceil(m_Swapchain.extent2d.width / 16.0), std::ceil(m_Swapchain.extent2d.height / 16.0), 1);
 }
 
 
@@ -432,7 +452,6 @@ void Engine::init_descriptors()
 void Engine::init_pipelines()
 {
   init_background_pipelines();
-  //init_triangle_pipeline();
   init_mesh_pipeline();
 }
 
@@ -456,21 +475,19 @@ void Engine::init_background_pipelines()
 
   VK_CHECK_RESULT(vkCreatePipelineLayout(m_Device.logical, &computeLayout, nullptr, &layout));
 
-  VkShaderModule computeDrawShader;
-  if (!vkutil::load_shader_module
-    ("shaders/push_gradient.spv", m_Device.logical, &computeDrawShader))
-  {
-    AR_CORE_ERROR("Error when building compute shader!");
-  }
+  VkShaderModule gradientShader;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/push_gradient.spv", m_Device.logical, &gradientShader),
+    "Error loading Gradient Compute Effect Shader"
+  );  
 
   VkShaderModule skyShader;
-  if (!vkutil::load_shader_module
-    ("shaders/sky_shader.spv", m_Device.logical, &skyShader))
-  {
-    AR_CORE_ERROR("Error when building sky shader");
-  }
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/sky_shader.spv", m_Device.logical, &skyShader),
+    "Error loading Sky Compute Effect Shader"
+  );
 
-  VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, computeDrawShader);
+  VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader);
 
   VkComputePipelineCreateInfo computePipelineCreateInfo{};
   computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -512,7 +529,7 @@ void Engine::init_background_pipelines()
   m_BackgroundEffects.push_back(gradient);
   m_BackgroundEffects.push_back(sky);
 
-  vkDestroyShaderModule(m_Device.logical, computeDrawShader, nullptr);
+  vkDestroyShaderModule(m_Device.logical, gradientShader, nullptr);
   vkDestroyShaderModule(m_Device.logical, skyShader, nullptr);
 
   m_DeletionQueue.push_function([&, layout]() {
@@ -648,6 +665,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
+  AR_CORE_WARN("SWAPCHAIN EXTENT {} {}", m_Swapchain.extent2d.width, m_Swapchain.extent2d.height);
   vkCmdBeginRendering(cmd, &renderInfo);
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
   vkCmdEndRendering(cmd);
@@ -659,16 +677,15 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
-  //vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
   VkViewport viewport{};
   viewport.x = 0;
   viewport.y = 0;
-  viewport.width = m_DrawExtent.width;
-  viewport.height = m_DrawExtent.height;
+  viewport.width = m_Swapchain.extent2d.width;
+  viewport.height = m_Swapchain.extent2d.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
 
@@ -677,21 +694,21 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRect2D scissor{};
   scissor.offset.x = 0;
   scissor.offset.y = 0;
-  scissor.extent.width = m_DrawExtent.width;
-  scissor.extent.height = m_DrawExtent.height;
+  scissor.extent.width = m_Swapchain.extent2d.width;
+  scissor.extent.height = m_Swapchain.extent2d.height;
 
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
   GPUDrawPushConstants pcs{};
-
-  pcs.worldMatrix = {1.0f};
+  glm::mat4 model{1.0f};
   
   glm::mat4 view = glm::mat4{1.0f};
   view = glm::translate(view, glm::vec3{0, 0, -5});
-  glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_DrawExtent.width / (float) m_DrawExtent.height, 10000.0f, 0.1f);
-  projection[1][1] *= -1;
-  pcs.worldMatrix = projection * view;
 
+  glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_Swapchain.extent2d.width / (float) m_Swapchain.extent2d.height, 10000.0f, 0.1f);
+  projection[1][1] *= -1;
+
+  pcs.worldMatrix = projection * view * model;
 
   pcs.vertexBuffer = m_TestMeshes[2]->meshBuffers.vertexBufferAddress;
   vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -756,7 +773,6 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
   memcpy(data, vertices.data(), vertexBufferSize);
   memcpy((char*) data + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
 
-  // FIXME: UNFINISHED!
   immediate_submit([&](VkCommandBuffer cmd){
     VkBufferCopy vertexCopy{};
     vertexCopy.dstOffset = 0;
@@ -854,8 +870,11 @@ void Engine::init_mesh_pipeline()
 
 void Engine::resize_swapchain()
 {
+  resizeRequested = false;
+
+  AR_CORE_WARN("Resized Swapchain!");
   vkDeviceWaitIdle(m_Device.logical);
-  
+  AR_CORE_WARN("DONE!"); 
   vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
   for (auto view : m_Swapchain.views)
   {
@@ -864,11 +883,68 @@ void Engine::resize_swapchain()
 
   int w, h;
   glfwGetWindowSize(Window::get_handle(), &w, &h);
-  // FIXME: should be window extent??
-  m_DrawExtent.width = w;
-  m_DrawExtent.height = h;
+  //FIXME: should be window extent??
+  m_Swapchain.extent2d.width = w;
+  m_Swapchain.extent2d.height = h;
   
-  init_swapchain();
+  AR_CORE_INFO("new {} {}", w, h);
+
+  VkSwapchainCreateInfoKHR info{};
+  info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+  info.surface = m_Surface;
+  info.minImageCount = m_Swapchain.images.size();
+  info.imageFormat = m_Swapchain.format;
+  info.imageColorSpace = m_Swapchain.colorSpace;
+  info.imageExtent = {(uint32_t) w, (uint32_t) h};
+  info.imageArrayLayers = 1;
+  info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  
+  uint32_t familyIndices[] = {m_Device.graphicsIndex, m_Device.presentIndex};
+
+  if (m_Device.graphicsIndex != m_Device.presentIndex)
+  {
+    info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+    info.queueFamilyIndexCount = 2;
+    info.pQueueFamilyIndices = familyIndices;
+  }
+  else
+  {
+    info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    info.queueFamilyIndexCount = 0;
+    info.pQueueFamilyIndices = nullptr;
+  }
+  
+  VkSurfaceCapabilitiesKHR capabilities{};
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.physical, m_Surface, &capabilities);
+
+  info.preTransform = capabilities.currentTransform;
+  info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+  info.presentMode = m_Swapchain.presentMode;
+  info.clipped = VK_TRUE;
+  info.oldSwapchain = VK_NULL_HANDLE;
+
+
+
+
+  VK_CHECK_RESULT(vkCreateSwapchainKHR(m_Device.logical, &info, nullptr, &m_Swapchain.handle))
+  uint32_t size = m_Swapchain.images.size();
+  vkGetSwapchainImagesKHR(m_Device.logical, m_Swapchain.handle, &size, m_Swapchain.images.data());
+  m_Swapchain.views = vkutil::get_image_views(m_Device.logical, m_Swapchain.format, m_Swapchain.images);
+
+  AR_CORE_FATAL("DONE UNTIL AFTER RECREATE SWAP?");
+  
+    
+  for (int i = 0; i < FRAME_OVERLAP; i++)
+  {
+    vkDestroyCommandPool(m_Device.logical, m_Frames[i].commandPool, nullptr);
+
+    vkDestroyFence(m_Device.logical, m_Frames[i].renderFence, nullptr);
+    vkDestroySemaphore(m_Device.logical, m_Frames[i].renderSemaphore, nullptr);
+    vkDestroySemaphore(m_Device.logical, m_Frames[i].swapchainSemaphore, nullptr);
+    m_Frames[i].deletionQueue.flush();
+  }
+  
+  init_sync_structures();
   resizeRequested = false;
 
 }

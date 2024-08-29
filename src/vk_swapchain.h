@@ -12,6 +12,7 @@ namespace Aurora {
     VkFormat format;
     VkColorSpaceKHR colorSpace;
     VkExtent2D extent2d;
+    VkPresentModeKHR presentMode;
   };
   struct SwapchainSupportDetails
   {
