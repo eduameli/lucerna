@@ -69,6 +69,8 @@ namespace Aurora {
       void draw_background(VkCommandBuffer cmd);
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
+      void destroy_swapchain();
+      void create_swapchain(uint32_t width, uint32_t height);
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
@@ -94,6 +96,8 @@ namespace Aurora {
       VkDescriptorSetLayout m_DrawDescriptorLayout{};
       VkExtent2D m_DrawExtent{};
       AllocatedImage m_DepthImage{}; 
+      VkExtent2D m_WindowExtent{};
+      float m_RenderScale = 1.0f;
 
       VkPipeline m_MeshPipeline;
       VkPipelineLayout m_MeshPipelineLayout;

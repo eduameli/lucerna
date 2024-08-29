@@ -130,7 +130,6 @@ void Engine::run()
 void Engine::draw()
 {
   VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &get_current_frame().renderFence, true, 1000000000));
-  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &get_current_frame().renderFence)); 
   
   get_current_frame().deletionQueue.flush();
   
@@ -145,9 +144,10 @@ void Engine::draw()
     return;
   }
 
-  m_DrawExtent.height = std::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height);
-  m_DrawExtent.width = std::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width);
+  m_DrawExtent.height = std::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height) * m_RenderScale;
+  m_DrawExtent.width = std::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width) * m_RenderScale;
   
+  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &get_current_frame().renderFence));
 
   VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
@@ -406,7 +406,7 @@ void Engine::draw_background(VkCommandBuffer cmd)
   ComputePushConstants pc;
   vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 
-  vkCmdDispatch(cmd, std::ceil(m_Swapchain.extent2d.width / 16.0), std::ceil(m_Swapchain.extent2d.height / 16.0), 1);
+  vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
 }
 
 
@@ -659,6 +659,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::InputFloat4("data2", (float*) &selected.data.data2);
     ImGui::InputFloat4("data3", (float*) &selected.data.data3);
     ImGui::InputFloat4("data4", (float*) &selected.data.data4);
+    ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
   }
   ImGui::End();
   ImGui::Render(); 
@@ -677,15 +678,15 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-  VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, &depthAttachment);
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
   VkViewport viewport{};
   viewport.x = 0;
   viewport.y = 0;
-  viewport.width = m_Swapchain.extent2d.width;
-  viewport.height = m_Swapchain.extent2d.height;
+  viewport.width = m_DrawExtent.width;
+  viewport.height = m_DrawExtent.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
 
@@ -694,8 +695,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRect2D scissor{};
   scissor.offset.x = 0;
   scissor.offset.y = 0;
-  scissor.extent.width = m_Swapchain.extent2d.width;
-  scissor.extent.height = m_Swapchain.extent2d.height;
+  scissor.extent.width = m_DrawExtent.width;
+  scissor.extent.height = m_DrawExtent.height;
 
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
@@ -868,85 +869,39 @@ void Engine::init_mesh_pipeline()
   });
 }
 
+void Engine::destroy_swapchain()
+{
+  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
+  for (int i = 0; i < m_Swapchain.views.size(); i++)
+  {
+    vkDestroyImageView(m_Device.logical, m_Swapchain.views[i], nullptr);
+  }
+}
+
+void Engine::create_swapchain(uint32_t width, uint32_t height)
+{
+  AR_CORE_INFO("old {}", (uint64_t) m_Swapchain.handle);
+  SwapchainContextBuilder builder {m_Device, m_Surface};
+  SwapchainContext context = builder
+    .build();
+  m_Swapchain = context;
+  AR_CORE_INFO("new {}", (uint64_t) m_Swapchain.handle);
+}
+
 void Engine::resize_swapchain()
 {
-  resizeRequested = false;
-
-  AR_CORE_WARN("Resized Swapchain!");
   vkDeviceWaitIdle(m_Device.logical);
-  AR_CORE_WARN("DONE!"); 
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
-  for (auto view : m_Swapchain.views)
-  {
-    vkDestroyImageView(m_Device.logical, view, nullptr); 
-  }
 
+  destroy_swapchain();
   int w, h;
   glfwGetWindowSize(Window::get_handle(), &w, &h);
-  //FIXME: should be window extent??
-  m_Swapchain.extent2d.width = w;
-  m_Swapchain.extent2d.height = h;
-  
-  AR_CORE_INFO("new {} {}", w, h);
 
-  VkSwapchainCreateInfoKHR info{};
-  info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  info.surface = m_Surface;
-  info.minImageCount = m_Swapchain.images.size();
-  info.imageFormat = m_Swapchain.format;
-  info.imageColorSpace = m_Swapchain.colorSpace;
-  info.imageExtent = {(uint32_t) w, (uint32_t) h};
-  info.imageArrayLayers = 1;
-  info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-  
-  uint32_t familyIndices[] = {m_Device.graphicsIndex, m_Device.presentIndex};
+  m_WindowExtent.width = w;
+  m_WindowExtent.height = h;
 
-  if (m_Device.graphicsIndex != m_Device.presentIndex)
-  {
-    info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-    info.queueFamilyIndexCount = 2;
-    info.pQueueFamilyIndices = familyIndices;
-  }
-  else
-  {
-    info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    info.queueFamilyIndexCount = 0;
-    info.pQueueFamilyIndices = nullptr;
-  }
-  
-  VkSurfaceCapabilitiesKHR capabilities{};
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.physical, m_Surface, &capabilities);
+  create_swapchain(m_WindowExtent.width, m_WindowExtent.height);
 
-  info.preTransform = capabilities.currentTransform;
-  info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-  info.presentMode = m_Swapchain.presentMode;
-  info.clipped = VK_TRUE;
-  info.oldSwapchain = VK_NULL_HANDLE;
-
-
-
-
-  VK_CHECK_RESULT(vkCreateSwapchainKHR(m_Device.logical, &info, nullptr, &m_Swapchain.handle))
-  uint32_t size = m_Swapchain.images.size();
-  vkGetSwapchainImagesKHR(m_Device.logical, m_Swapchain.handle, &size, m_Swapchain.images.data());
-  m_Swapchain.views = vkutil::get_image_views(m_Device.logical, m_Swapchain.format, m_Swapchain.images);
-
-  AR_CORE_FATAL("DONE UNTIL AFTER RECREATE SWAP?");
-  
-    
-  for (int i = 0; i < FRAME_OVERLAP; i++)
-  {
-    vkDestroyCommandPool(m_Device.logical, m_Frames[i].commandPool, nullptr);
-
-    vkDestroyFence(m_Device.logical, m_Frames[i].renderFence, nullptr);
-    vkDestroySemaphore(m_Device.logical, m_Frames[i].renderSemaphore, nullptr);
-    vkDestroySemaphore(m_Device.logical, m_Frames[i].swapchainSemaphore, nullptr);
-    m_Frames[i].deletionQueue.flush();
-  }
-  
-  init_sync_structures();
   resizeRequested = false;
-
 }
 
 } // namespace aurora
