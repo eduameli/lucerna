@@ -96,5 +96,5 @@ std::vector<VkImageView> vkutil::get_image_views(VkDevice device, VkFormat forma
 
     VK_CHECK_RESULT(vkCreateImageView(device, &createInfo, nullptr, &views[i]));
   }
-  return views;
+  return std::move(views);
 }

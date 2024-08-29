@@ -40,7 +40,6 @@ namespace Aurora
 
   struct DeviceContext
   {
-      VkDevice get() { return logical; }
       VkDevice logical;
       VkPhysicalDevice physical;
       QueueFamilyIndices indices;
@@ -50,13 +49,13 @@ namespace Aurora
       uint32_t presentIndex;
   };
   
-  class DeviceBuilder 
+  class DeviceContextBuilder 
   {
     public:
-      DeviceBuilder(VkInstance instance, VkSurfaceKHR surface);
-      DeviceBuilder& set_minimum_version(int major, int minor);
-      DeviceBuilder& set_required_extensions(std::span<const char*> extensions);
-      DeviceBuilder& set_preferred_gpu_type(VkPhysicalDeviceType type);
+      DeviceContextBuilder(VkInstance instance, VkSurfaceKHR surface);
+      DeviceContextBuilder& set_minimum_version(int major, int minor);
+      DeviceContextBuilder& set_required_extensions(std::span<const char*> extensions);
+      DeviceContextBuilder& set_preferred_gpu_type(VkPhysicalDeviceType type);
       DeviceContext build();
     public:
     private:

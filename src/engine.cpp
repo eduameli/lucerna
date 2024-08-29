@@ -30,6 +30,7 @@
 #include "ar_asserts.h"
 #include "logger.h"
 #include "vk_device.h"
+#include "vk_swapchain.h"
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora {
@@ -57,10 +58,10 @@ void Engine::shutdown()
   vkDeviceWaitIdle(m_Device.logical);
   s_Instance = nullptr;
   
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain, nullptr);
+  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
   vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
   
-  for (auto view : m_SwapchainImageViews)
+  for (auto view : m_Swapchain.views)
   {
     vkDestroyImageView(m_Device.logical, view, nullptr);
   }
@@ -118,7 +119,7 @@ void Engine::draw()
   
   uint32_t swapchainImageIndex;
   
-  VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device.logical, m_Swapchain, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
+  VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex));
 
 
 
@@ -142,13 +143,13 @@ void Engine::draw()
   draw_geometry(cmd);
   
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
-  vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_SwapchainImages[swapchainImageIndex], m_DrawExtent, m_DrawExtent /* FIXME: this should be swapchain extent?? */);
+  vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_DrawExtent /* FIXME: this should be swapchain extent?? */);
   
-  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  draw_imgui(cmd, m_SwapchainImageViews[swapchainImageIndex]);
-  vkutil::transition_image(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+  vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  draw_imgui(cmd, m_Swapchain.views[swapchainImageIndex]);
+  vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
   VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
@@ -164,7 +165,7 @@ void Engine::draw()
   VkPresentInfoKHR info{};
   info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   info.pNext = nullptr;
-  info.pSwapchains = &m_Swapchain;
+  info.pSwapchains = &m_Swapchain.handle;
   info.swapchainCount = 1;
   info.pWaitSemaphores = &get_current_frame().renderSemaphore;
   info.waitSemaphoreCount = 1;
@@ -299,7 +300,7 @@ void Engine::create_instance()
 
 void Engine::create_device()
 {
-  DeviceBuilder builder {m_Instance, m_Surface};
+  DeviceContextBuilder builder {m_Instance, m_Surface};
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
@@ -309,18 +310,25 @@ void Engine::create_device()
 
 void Engine::init_swapchain()
 {
-  vks::SwapchainBuilder builder{m_Device.physical, m_Device.logical, m_Surface, m_Device.indices};
+  //vks::SwapchainBuilder builder{m_Device.physical, m_Device.logical, m_Surface, m_Device.indices};
   
-  builder.build(
-    m_Swapchain,
-    m_SwapchainImages, 
-    m_SwapchainFormat, 
-    m_SwapchainExtent
-  );
-  m_SwapchainImageViews = vkutil::get_image_views(m_Device.logical, m_SwapchainFormat.format, m_SwapchainImages);
+  //builder.build(
+  //  m_Swapchain,
+  //  m_SwapchainImages, 
+  //  m_SwapchainFormat, 
+  //  m_SwapchainExtent
+  //);
+  //m_SwapchainImageViews = vkutil::get_image_views(m_Device.logical, m_SwapchainFormat.format, m_SwapchainImages);
 
+  SwapchainContextBuilder builder{m_Device, m_Surface};
+  m_Swapchain = builder
+    .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
+    .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_MAILBOX_KHR)
+    .build();
+  
   // create draw image
-  VkExtent3D drawImageExtent = {m_SwapchainExtent.width, m_SwapchainExtent.height, 1}; 
+  VkExtent3D drawImageExtent = {m_Swapchain.extent2d.width, m_Swapchain.extent2d.height, 1}; 
 	//hardcoding the draw format to 32 bit float
 	m_DrawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	m_DrawImage.imageExtent = drawImageExtent;
@@ -593,7 +601,7 @@ void Engine::init_imgui()
   VkPipelineRenderingCreateInfo info2{};
   info2.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
   info2.colorAttachmentCount = 1;
-  info2.pColorAttachmentFormats = &m_SwapchainFormat.format;
+  info2.pColorAttachmentFormats = &m_Swapchain.format;
   
   info.PipelineRenderingCreateInfo = info2;
   ImGui_ImplVulkan_Init(&info);
@@ -638,7 +646,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
   ImGui::Render(); 
 
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  VkRenderingInfo renderInfo = vkinit::rendering_info(m_SwapchainExtent, &colorAttachment, nullptr);
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
   vkCmdBeginRendering(cmd, &renderInfo);
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
   vkCmdEndRendering(cmd);
@@ -847,8 +855,8 @@ void Engine::resize_swapchain()
 {
   vkDeviceWaitIdle(m_Device.logical);
   
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain, nullptr);
-  for (auto view : m_SwapchainImageViews)
+  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
+  for (auto view : m_Swapchain.views)
   {
     vkDestroyImageView(m_Device.logical, view, nullptr); 
   }

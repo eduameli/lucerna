@@ -19,7 +19,7 @@ void SwapchainBuilder::build(VkSwapchainKHR& swapchain, std::vector<VkImage>& im
   surfaceFormat = choose_surface_format(details.formats);
   extent = choose_extent(details.capabilities);
 
-  uint32_t imageCount = details.capabilities.minImageCount;
+  uint32_t imageCount = details.capabilities.minImageCount + 1;
   if (details.capabilities.maxImageCount > 0 && imageCount > details.capabilities.maxImageCount)
   {
     imageCount = details.capabilities.maxImageCount;
@@ -137,38 +137,6 @@ VkExtent2D SwapchainBuilder::choose_extent(const VkSurfaceCapabilitiesKHR& capab
     
     return actualExtent;
   }
-}
-
-void setup_validation_layer_callback(VkInstance instance, VkDebugUtilsMessengerEXT& messenger, PFN_vkDebugUtilsMessengerCallbackEXT callback)
-{
-  VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-  createInfo.pfnUserCallback = callback;
-  VK_CHECK_RESULT(create_debug_messenger(instance, &createInfo, nullptr, &messenger));
-}
-
-
-VkResult create_debug_messenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
-{
-  auto fn = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-  if (fn == nullptr)
-  {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-
-  return fn(instance, pCreateInfo, pAllocator, pDebugMessenger);
-}
-
-void destroy_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
-{
-  auto fn = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-  if (fn == nullptr)
-  {
-    return;
-  }
-  fn(instance, debugMessenger, pAllocator);
 }
 
 } // namespace vkstartup

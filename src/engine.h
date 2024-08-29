@@ -6,6 +6,7 @@
 #include "vk_loader.h"
 #include "window.h"
 #include <volk.h>
+#include "vk_swapchain.h"
 
 #include "vk_device.h"
 
@@ -47,8 +48,8 @@ namespace Aurora {
       VkPipelineLayout meshPipelineLayout{};
       VkPipeline meshPipeline;
 
-      VkSurfaceFormatKHR m_SwapchainFormat;
-      VkExtent2D m_SwapchainExtent;
+      //VkSurfaceFormatKHR m_SwapchainFormat;
+      //VkExtent2D m_SwapchainExtent;
       
       bool stop_rendering = false;
       bool resize_requested = false;
@@ -84,14 +85,16 @@ namespace Aurora {
 
       VkInstance m_Instance;
       VkSurfaceKHR m_Surface;
-      VkDebugUtilsMessengerEXT m_DebugMessenger;
+      VkDebugUtilsMessengerEXT m_DebugMessenger; // TODO: move to Logger?
       DeletionQueue m_DeletionQueue;
       
 
       DeviceContext m_Device;
-      VkSwapchainKHR m_Swapchain;
-      std::vector<VkImage> m_SwapchainImages;
-      std::vector<VkImageView> m_SwapchainImageViews;
+      SwapchainContext m_Swapchain;
+
+      //VkSwapchainKHR m_Swapchain;
+      //std::vector<VkImage> m_SwapchainImages;
+      //std::vector<VkImageView> m_SwapchainImageViews;
       
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,

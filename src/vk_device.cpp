@@ -5,7 +5,7 @@
 namespace Aurora 
 {
 
-DeviceBuilder::DeviceBuilder(VkInstance instance, VkSurfaceKHR surface)
+DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR surface)
   : m_Instance{instance}, m_Surface{surface} 
 {
   features.f12.bufferDeviceAddress = VK_TRUE;
@@ -13,7 +13,7 @@ DeviceBuilder::DeviceBuilder(VkInstance instance, VkSurfaceKHR surface)
   features.f13.synchronization2 = VK_TRUE;
 }
 
-bool DeviceBuilder::check_feature_support(VkPhysicalDevice device)
+bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
 {
   Features query{};
   vkGetPhysicalDeviceFeatures2(device, &query.get());
@@ -24,27 +24,27 @@ bool DeviceBuilder::check_feature_support(VkPhysicalDevice device)
   return true;
 }
 
-DeviceBuilder& DeviceBuilder::set_minimum_version(int major, int minor)
+DeviceContextBuilder& DeviceContextBuilder::set_minimum_version(int major, int minor)
 {
   m_MajorVersion = major;
   m_MinorVersion = minor;
   return *this;
 }
 
-DeviceBuilder& DeviceBuilder::set_required_extensions(std::span<const char*> extensions)
+DeviceContextBuilder& DeviceContextBuilder::set_required_extensions(std::span<const char*> extensions)
 {
   m_RequiredExtensions = extensions;
   return *this;
 }
 
-DeviceBuilder& DeviceBuilder::set_preferred_gpu_type(VkPhysicalDeviceType type)
+DeviceContextBuilder& DeviceContextBuilder::set_preferred_gpu_type(VkPhysicalDeviceType type)
 {
   AR_LOG_ASSERT(type != VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM, "Invalid preferred physical device type");
   m_PreferredDeviceType = type;
   return *this;
 }
 
-VkPhysicalDevice DeviceBuilder::select_physical_device()
+VkPhysicalDevice DeviceContextBuilder::select_physical_device()
 {
 
   uint32_t deviceCount;
@@ -76,7 +76,7 @@ VkPhysicalDevice DeviceBuilder::select_physical_device()
   return selected;
 }
 
-int DeviceBuilder::rate_physical_device(VkPhysicalDevice device)
+int DeviceContextBuilder::rate_physical_device(VkPhysicalDevice device)
 {
   if (!is_device_suitable(device))
     return -1;
@@ -116,12 +116,12 @@ int DeviceBuilder::rate_physical_device(VkPhysicalDevice device)
   return score;
 }
 
-bool DeviceBuilder::is_device_suitable(VkPhysicalDevice device)
+bool DeviceContextBuilder::is_device_suitable(VkPhysicalDevice device)
 {
   return check_extension_support(device) && check_feature_support(device);
 }
 
-bool DeviceBuilder::check_extension_support(VkPhysicalDevice device)
+bool DeviceContextBuilder::check_extension_support(VkPhysicalDevice device)
 {
   AR_LOG_ASSERT(m_RequiredExtensions.size() > 0, "Required Swapchain Extensions not requested");
 
@@ -147,7 +147,7 @@ bool DeviceBuilder::check_extension_support(VkPhysicalDevice device)
   return true; 
 }
 
-QueueFamilyIndices DeviceBuilder::find_queue_indices(VkPhysicalDevice device)
+QueueFamilyIndices DeviceContextBuilder::find_queue_indices(VkPhysicalDevice device)
 {
   QueueFamilyIndices indices{};
 
@@ -178,7 +178,7 @@ QueueFamilyIndices DeviceBuilder::find_queue_indices(VkPhysicalDevice device)
   return indices;
 }
 
-DeviceContext DeviceBuilder::build()
+DeviceContext DeviceContextBuilder::build()
 {
   AR_ASSERT(m_Instance != VK_NULL_HANDLE);
   AR_ASSERT(m_Surface != VK_NULL_HANDLE);
