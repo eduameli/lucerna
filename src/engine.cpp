@@ -30,6 +30,7 @@
 #include "logger.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
+
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
 namespace Aurora {
@@ -626,7 +627,7 @@ void Engine::init_imgui()
   }
 }
 
-void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
+void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 {
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
@@ -647,7 +648,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
   ImGui::End();
   ImGui::Render(); 
 
-  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
   vkCmdBeginRendering(cmd, &renderInfo);
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);

@@ -1,14 +1,13 @@
 #pragma once
 
+#include <volk.h>
 #include "aurora_pch.h"
 #include "vk_descriptors.h"
 #include "vk_types.h"
 #include "vk_loader.h"
 #include "window.h"
-#include <volk.h>
-#include "vk_swapchain.h"
-
 #include "vk_device.h"
+#include "vk_swapchain.h"
 
 namespace Aurora {
 
@@ -25,6 +24,10 @@ namespace Aurora {
   class Engine
   {
     public:
+      void init();
+      void shutdown();
+      void run();
+    public:
       struct ComputePushConstants
       {
         float data1[4];
@@ -32,7 +35,6 @@ namespace Aurora {
         float data3[4];
         float data4[4];
       };
-    
       struct ComputeEffect
       {
         const char* name;
@@ -40,7 +42,16 @@ namespace Aurora {
         VkPipelineLayout layout;
         ComputePushConstants data;
       };
-
+      bool resize_requested = false;
+      bool stop_rendering = false;
+    private:
+      void draw();
+      void draw_imgui(VkCommandBuffer cmd, VkImageView target);
+      void draw_geometry(VkCommandBuffer cmd);
+    private:
+      DescriptorAllocator m_DescriptorAllocator{};
+      VkDescriptorSetLayout drawImageDescriptorSet{};
+    public:
       DescriptorAllocator g_DescriptorAllocator{};
       VkDescriptorSet drawImageDescriptors{};
       VkDescriptorSetLayout drawImageDescriptorLayout{};
@@ -48,11 +59,6 @@ namespace Aurora {
       VkPipelineLayout meshPipelineLayout{};
       VkPipeline meshPipeline;
 
-      //VkSurfaceFormatKHR m_SwapchainFormat;
-      //VkExtent2D m_SwapchainExtent;
-      
-      bool stop_rendering = false;
-      bool resize_requested = false;
 
       void resize_swapchain();
 
@@ -60,14 +66,6 @@ namespace Aurora {
 
 
     public:
-      void init();
-      void shutdown();
-
-      void run();
-      void draw();
-      // FIXME: move to private!
-      void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
-      void draw_geometry(VkCommandBuffer cmd);
 
 
       static Engine& get() { return *s_Instance; };
@@ -107,7 +105,7 @@ namespace Aurora {
       AllocatedImage m_DepthImage{};
       VkExtent2D m_DrawExtent{};
     
-      Window m_Window;
+      //Window m_Window;
 
       std::vector<ComputeEffect> backgroundEffects;
       int currentBackgroundEffect{0};
