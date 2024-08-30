@@ -69,8 +69,6 @@ namespace Aurora {
       void draw_background(VkCommandBuffer cmd);
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
-      void destroy_swapchain();
-      void create_swapchain();
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?

@@ -35,7 +35,6 @@
 namespace Aurora {
 
 static Engine* s_Instance = nullptr;
-
 Engine& Engine::get()
 {
   AR_LOG_ASSERT(s_Instance != nullptr, "Trying to get reference to Engine but s_Instance is a null pointer!");
@@ -161,7 +160,7 @@ void Engine::draw()
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
-  vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d /* FIXME: this should be swapchain extent?? */);
+  vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
   
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   draw_imgui(cmd, m_Swapchain.views[swapchainImageIndex]);
@@ -705,9 +704,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   vkCmdBindIndexBuffer(cmd, m_TestMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
   vkCmdDrawIndexed(cmd, m_TestMeshes[2]->surfaces[0].count, 1, m_TestMeshes[2]->surfaces[0].startIndex, 0, 0);
 
-
   vkCmdEndRendering(cmd);
-  
 }
 
 AllocatedBuffer Engine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
@@ -858,29 +855,21 @@ void Engine::init_mesh_pipeline()
   });
 }
 
-void Engine::destroy_swapchain()
+void Engine::resize_swapchain()
 {
+  vkDeviceWaitIdle(m_Device.logical);
+
   for (int i = 0; i < m_Swapchain.views.size(); i++)
   {
     vkDestroyImageView(m_Device.logical, m_Swapchain.views[i], nullptr);
   }
   vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
-}
 
-void Engine::create_swapchain()
-{
   SwapchainContextBuilder builder {m_Device, m_Surface};
   SwapchainContext context = builder
     .build();
   m_Swapchain = context;
-}
-
-void Engine::resize_swapchain()
-{
-  vkDeviceWaitIdle(m_Device.logical);
-
-  destroy_swapchain();
-  create_swapchain();
+  
   resizeRequested = false;
 }
 

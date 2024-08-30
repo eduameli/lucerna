@@ -8,9 +8,6 @@ namespace Aurora {
   {
     public:
       static void init();
-    public:
-      static std::shared_ptr<spdlog::logger> s_Logger;
-    public:
       static VkBool32 validation_callback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -31,6 +28,8 @@ namespace Aurora {
         VkDebugUtilsMessengerEXT debugMessenger,
         const VkAllocationCallbacks* pAllocator
       );
+    public:
+      static std::shared_ptr<spdlog::logger> s_Logger;
   };
 } // namespace aurora
 
