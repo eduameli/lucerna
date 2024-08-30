@@ -3,7 +3,9 @@
 workspace "aurora"
     configurations { "debug", "release" }
     architecture "x86_64"
-
+    linkoptions {"-fuse-ld=mold"}
+    -- toolset "clang"
+    -- buildoptions { "-Wno-nullability-completeness" }
 project "aurora"
     kind "WindowedApp"
     language "C++"
@@ -35,6 +37,7 @@ project "aurora"
         "vendor/glm/",
         "vendor/stb_image/",
         "vendor/fastgltf/include",
+        "vendor/volk/"
     }
   
     libdirs {"build/lib/bin/%{cfg.buildcfg}"}
@@ -43,9 +46,10 @@ project "aurora"
     {
         "spdlog",
         "glfw",
-        "vulkan",
+        --"vulkan",
         "imgui",
         "fastgltf",
+        "volk"
     }
     
     filter {}
@@ -55,12 +59,12 @@ project "aurora"
     }
   
     filter "configurations:debug"
-        defines { "DEBUG", "AR_ENABLE_ASSERTS=1"}
+        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "USE_VALIDATION_LAYERS"}
         symbols "On"
         optimize "Off"
 
     filter "configurations:release"
-        defines { "NDEBUG" }
+        defines { "AR_LOG_LEVEL=0" }
         optimize "On"
 
 
@@ -114,6 +118,7 @@ project "glfw"
   defines {
     --"_GLFW_WAYLAND",
     "_GLFW_X11",
+    --"GLFW_VULKAN_STATIC",
   }
   
   files
@@ -145,7 +150,11 @@ project "imgui"
         "vendor/glfw/include",
         "vendor/KHR/",
     }
-
+    
+    defines
+    {
+      "IMGUI_IMPL_VULKAN_USE_VOLK"
+    }
     files
     {
         "vendor/imgui/*.cpp",
@@ -187,3 +196,31 @@ project "fastgltf"
 
     filter "configurations:Release"
         optimize "On"
+
+project "volk"
+  location "vendor/volk"
+  kind "StaticLib"
+  language "C++"
+  targetdir ("build/lib/bin/%{cfg.buildcfg}")
+  objdir ("build/lib/obj/%{cfg.buildcfg}")
+
+  defines 
+  {
+    "VOLK_STATIC_DEFINES",
+    "VK_USE_PLATFORM_XLIB_KHR",
+  }
+
+  includedirs
+  {
+    "vendor/volk/*.h"
+  }
+  files
+  {
+    "vendor/volk/*.c"
+  }
+  filter "configurations:Debug"
+    symbols "On"
+
+  filter "configurations:Release"
+    optimize "On"
+
