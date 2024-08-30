@@ -134,12 +134,13 @@ void Engine::draw()
   
   uint32_t swapchainImageIndex;
   VkResult e = vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
-  if (e == VK_ERROR_OUT_OF_DATE_KHR || e == VK_SUBOPTIMAL_KHR)
+  if (e == VK_ERROR_OUT_OF_DATE_KHR)
   {
     resizeRequested = true;
-    AR_CORE_WARN("resize requested acquire {}", resizeRequested);
     return;
   }
+  if (e == VK_SUBOPTIMAL_KHR)
+    resizeRequested = true;
 
   m_DrawExtent.height = std::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height) * m_RenderScale;
   m_DrawExtent.width = std::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width) * m_RenderScale;
@@ -192,13 +193,14 @@ void Engine::draw()
 
   VkResult presentResult = vkQueuePresentKHR(m_Device.present, &presentInfo);
   //AR_CORE_INFO("present resukt {}", error_to_string(presentResult));
-  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
+  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
   {
     resizeRequested = true;
-    AR_CORE_FATAL("resize requested present {}", resizeRequested);
     return;
   }
-  //AR_CORE_INFO("new frame {}", resizeRequested);
+  if (presentResult == VK_SUBOPTIMAL_KHR)
+    resizeRequested = true;
+  
   frameNumber++;
 }
 
