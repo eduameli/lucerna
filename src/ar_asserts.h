@@ -1,7 +1,6 @@
 #pragma once
 
 #include "logger.h" 
-//#include <vulkan/vulkan.h>
 #include <volk.h>
 
 #if AR_ENABLE_ASSERTS == 1
@@ -75,7 +74,7 @@ inline std::string error_to_string(VkResult errorCode)
   VkResult res = (f);																					\
   if (res != VK_SUCCESS)																				\
   {																									\
-    AR_CORE_ERROR("Error: VkResult is [{}] in {} at line {}", error_to_string(res), __FILE__, __LINE__); \
-    assert(res == VK_SUCCESS);																		\
+    AR_CORE_ERROR("Error: VkResult is [{}] in at [{}, {}, {}]", error_to_string(res), __FILE__, __FUNCTION__, __LINE__); \
+    AR_ASSERT(res == VK_SUCCESS);																		\
   }																									\
 }

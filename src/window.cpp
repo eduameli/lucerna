@@ -48,6 +48,13 @@ namespace Aurora {
     return s_Instance->m_Window;
   }
   
+  VkExtent2D Window::get_extent()
+  {
+    int w, h;
+    glfwGetFramebufferSize(Window::get_handle(), &w, &h);
+    return {static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
+  }
+
   void Window::glfw_error_callback(int error, const char* description)
   {
     AR_CORE_ERROR("GLFW Error ({}): {}", error, description);

@@ -84,12 +84,10 @@ int DeviceContextBuilder::rate_physical_device(VkPhysicalDevice device)
   VkPhysicalDeviceProperties properties;
   vkGetPhysicalDeviceProperties(device, &properties);
   
-  if (m_PreferredDeviceType.has_value())
+  if (properties.deviceType == m_PreferredDeviceType)
   {
-    if (m_PreferredDeviceType.value() == properties.deviceType)
-      return 10;
+    return INT_MAX;
   }
-
   uint32_t score = 0;
   switch (properties.deviceType)
   {

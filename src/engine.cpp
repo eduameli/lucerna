@@ -12,7 +12,6 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
-//FIXME: temportary imgui!
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
@@ -120,7 +119,7 @@ void Engine::run()
     
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    //AR_CORE_TRACE("frame time {}", elapsed.count() / 1000.0f);
+    AR_CORE_TRACE("frame time {}", elapsed.count() / 1000.0f);
   }
 }
 
@@ -188,7 +187,6 @@ void Engine::draw()
   presentInfo.pImageIndices = &swapchainImageIndex;
 
   VkResult presentResult = vkQueuePresentKHR(m_Device.present, &presentInfo);
-  //AR_CORE_INFO("present resukt {}", error_to_string(presentResult));
   if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
   {
     resizeRequested = true;
@@ -325,7 +323,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
     .build();
 }
 
@@ -666,7 +664,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
-  //VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
@@ -870,7 +867,7 @@ void Engine::destroy_swapchain()
   vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
 }
 
-void Engine::create_swapchain(uint32_t width, uint32_t height)
+void Engine::create_swapchain()
 {
   SwapchainContextBuilder builder {m_Device, m_Surface};
   SwapchainContext context = builder
@@ -883,13 +880,7 @@ void Engine::resize_swapchain()
   vkDeviceWaitIdle(m_Device.logical);
 
   destroy_swapchain();
-  int w, h;
-  glfwGetWindowSize(Window::get_handle(), &w, &h);
-
-  m_WindowExtent.width = w;
-  m_WindowExtent.height = h;
-
-  create_swapchain(m_WindowExtent.width, m_WindowExtent.height);
+  create_swapchain();
   resizeRequested = false;
 }
 

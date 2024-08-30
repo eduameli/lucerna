@@ -149,11 +149,7 @@ VkExtent2D SwapchainContextBuilder::choose_extent(VkSurfaceCapabilitiesKHR capab
   {
     int width, height;
     glfwGetFramebufferSize(Aurora::Window::get_handle(), &width, &height);
-    VkExtent2D actualExtent = {
-      (uint32_t) (width),
-      (uint32_t) (height)
-    };
-
+    VkExtent2D actualExtent = Window::get_extent(); 
     actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
     actualExtent.height = std::clamp(actualExtent.width, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
     

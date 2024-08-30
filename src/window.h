@@ -1,6 +1,8 @@
 #pragma once
 
 #include "aurora_pch.h"
+#include <volk.h>
+
 class GLFWwindow;
 
 namespace Aurora {
@@ -11,6 +13,7 @@ namespace Aurora {
       static void shutdown();
       static Window& get();
       static GLFWwindow* get_handle();
+      static VkExtent2D get_extent();
     private:
       static void glfw_error_callback(int error, const char* description);
       static void iconify_callback(GLFWwindow* window, int iconify);

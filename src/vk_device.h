@@ -73,6 +73,6 @@ namespace Aurora
       int m_MajorVersion, m_MinorVersion;
       std::span<const char*> m_RequiredExtensions;
       
-      std::optional<VkPhysicalDeviceType> m_PreferredDeviceType;
+      VkPhysicalDeviceType m_PreferredDeviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
   };
 } // namespace Aurora
