@@ -33,7 +33,6 @@ SwapchainContext SwapchainContextBuilder::build()
   VkPresentModeKHR presentMode = choose_present_mode(details.presentModes);
   VkSurfaceFormatKHR surfaceFormat = choose_surface_format(details.formats);
   VkExtent2D extent = choose_extent(details.capabilities);
-  AR_CORE_WARN("Using extent {} {}", extent.width, extent.height);
 
   uint32_t imageCount = details.capabilities.minImageCount + 1;
   if (details.capabilities.maxImageCount > 0 && imageCount > details.capabilities.maxImageCount)
@@ -127,38 +126,16 @@ VkSurfaceFormatKHR SwapchainContextBuilder::choose_surface_format(std::span<VkSu
   }
   return supportedFormats[0];
 }
-std::string SwapchainContextBuilder::stringify_present_mode(VkPresentModeKHR presentMode)
-{
-  switch (presentMode) {
-    case VK_PRESENT_MODE_IMMEDIATE_KHR:
-        return "VK_PRESENT_MODE_IMMEDIATE_KHR";
-    case VK_PRESENT_MODE_MAILBOX_KHR:
-        return "VK_PRESENT_MODE_MAILBOX_KHR";
-    case VK_PRESENT_MODE_FIFO_KHR:
-        return "VK_PRESENT_MODE_FIFO_KHR";
-    case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
-        return "VK_PRESENT_MODE_FIFO_RELAXED_KHR";
-    case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:
-        return "VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR";
-    case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR:
-        return "VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR";
-    case VK_PRESENT_MODE_MAX_ENUM_KHR:
-        return "VK_PRESENT_MODE_MAX_ENUM_KHR";
-    default:
-        return "UNKNOWN_PRESENT_MODE";
-  }
-}
+
 VkPresentModeKHR SwapchainContextBuilder::choose_present_mode(std::span<VkPresentModeKHR> supportedModes)
 {
   for (const auto& mode : supportedModes)
     {
       if (mode == m_PresentMode)
       {
-        AR_CORE_INFO("Using {}", stringify_present_mode(m_PresentMode));
         return mode;
       }
   }
-  AR_CORE_INFO("Using VK_PRESENT_MODE_FIFO_KHR");
   return VK_PRESENT_MODE_FIFO_KHR;
 }
 
@@ -185,3 +162,25 @@ VkExtent2D SwapchainContextBuilder::choose_extent(VkSurfaceCapabilitiesKHR capab
 }
 
 } // namespace aurora
+
+std::string vkutil::stringify_present_mode(VkPresentModeKHR presentMode)
+{
+  switch (presentMode) {
+    case VK_PRESENT_MODE_IMMEDIATE_KHR:
+        return "VK_PRESENT_MODE_IMMEDIATE_KHR";
+    case VK_PRESENT_MODE_MAILBOX_KHR:
+        return "VK_PRESENT_MODE_MAILBOX_KHR";
+    case VK_PRESENT_MODE_FIFO_KHR:
+        return "VK_PRESENT_MODE_FIFO_KHR";
+    case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+        return "VK_PRESENT_MODE_FIFO_RELAXED_KHR";
+    case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:
+        return "VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR";
+    case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR:
+        return "VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR";
+    case VK_PRESENT_MODE_MAX_ENUM_KHR:
+        return "VK_PRESENT_MODE_MAX_ENUM_KHR";
+    default:
+        return "UNKNOWN_PRESENT_MODE";
+  }
+}

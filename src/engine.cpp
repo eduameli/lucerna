@@ -98,8 +98,6 @@ void Engine::run()
 {
   while (!glfwWindowShouldClose(Window::get_handle()))
   {
-    if (resizeRequested)
-      AR_CORE_TRACE("Resize Requested!");
     auto start = std::chrono::system_clock::now();
     glfwPollEvents();
 
@@ -108,7 +106,7 @@ void Engine::run()
 
     if (stopRendering)
     {
-      std::cout << "Sleeping!!" << std::endl;
+      std::cout << "Application Sleeping" << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       continue;
     }
@@ -139,8 +137,6 @@ void Engine::draw()
     resizeRequested = true;
     return;
   }
-  if (e == VK_SUBOPTIMAL_KHR)
-    resizeRequested = true;
 
   m_DrawExtent.height = std::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height) * m_RenderScale;
   m_DrawExtent.width = std::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width) * m_RenderScale;
@@ -193,13 +189,10 @@ void Engine::draw()
 
   VkResult presentResult = vkQueuePresentKHR(m_Device.present, &presentInfo);
   //AR_CORE_INFO("present resukt {}", error_to_string(presentResult));
-  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
+  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
   {
     resizeRequested = true;
-    return;
   }
-  if (presentResult == VK_SUBOPTIMAL_KHR)
-    resizeRequested = true;
   
   frameNumber++;
 }
@@ -340,10 +333,12 @@ void Engine::init_swapchain()
 {
   SwapchainContextBuilder builder{m_Device, m_Surface};
   m_Swapchain = builder
-    //.set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
-    //.set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    //.set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_MAILBOX_KHR)
+    .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
+    .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_MAILBOX_KHR)
     .build();
+    
+  AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
   
   // create draw image
   VkExtent3D drawImageExtent = {m_Swapchain.extent2d.width, m_Swapchain.extent2d.height, 1}; 
@@ -877,12 +872,10 @@ void Engine::destroy_swapchain()
 
 void Engine::create_swapchain(uint32_t width, uint32_t height)
 {
-  AR_CORE_INFO("old {}", (uint64_t) m_Swapchain.handle);
   SwapchainContextBuilder builder {m_Device, m_Surface};
   SwapchainContext context = builder
     .build();
   m_Swapchain = context;
-  AR_CORE_INFO("new {}", (uint64_t) m_Swapchain.handle);
 }
 
 void Engine::resize_swapchain()

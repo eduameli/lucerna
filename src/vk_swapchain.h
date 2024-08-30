@@ -36,7 +36,6 @@ namespace Aurora {
       VkSurfaceFormatKHR choose_surface_format(std::span<VkSurfaceFormatKHR> supportedFormats);
       VkPresentModeKHR choose_present_mode(std::span<VkPresentModeKHR> supportedModes);
       VkExtent2D choose_extent(VkSurfaceCapabilitiesKHR capabilities);
-      std::string stringify_present_mode(VkPresentModeKHR presentMode);
     private:
       DeviceContext m_Device;
       VkSurfaceKHR m_Surface;
@@ -45,3 +44,8 @@ namespace Aurora {
       VkPresentModeKHR m_PresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
   };
 } // namespace aurora
+
+namespace vkutil
+{
+  std::string stringify_present_mode(VkPresentModeKHR presentMode);
+}

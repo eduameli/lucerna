@@ -25,7 +25,6 @@ namespace Aurora {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     win = glfwCreateWindow(width, height, name.data(), nullptr, nullptr);
     glfwSetWindowIconifyCallback(win, iconify_callback);
-    glfwSetFramebufferSizeCallback(win, framebuffer_resize_callback);
   }
   
   void Window::shutdown()
@@ -60,10 +59,4 @@ namespace Aurora {
     AR_CORE_INFO("Window {}", iconify == 0 ? "MAXIMISED" : "MINIMISED");
   }
 
-  void Window::framebuffer_resize_callback(GLFWwindow* window, int width, int height)
-  {
-    AR_CORE_INFO("Window resized to {}x{}", width, height);
-    //Engine::get().resizeRequested = true;
-  }
- 
 } // namespace aurora
