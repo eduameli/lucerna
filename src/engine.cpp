@@ -100,7 +100,6 @@ void Engine::run()
   {
     if (resizeRequested)
       AR_CORE_TRACE("Resize Requested!");
-
     auto start = std::chrono::system_clock::now();
     glfwPollEvents();
 
@@ -134,9 +133,7 @@ void Engine::draw()
   get_current_frame().deletionQueue.flush();
   
   uint32_t swapchainImageIndex;
-  
   VkResult e = vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
-  //AR_CORE_INFO("acquire result {}", error_to_string(e));
   if (e == VK_ERROR_OUT_OF_DATE_KHR || e == VK_SUBOPTIMAL_KHR)
   {
     resizeRequested = true;
@@ -184,23 +181,22 @@ void Engine::draw()
 
   VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
   VK_CHECK_RESULT(vkQueueSubmit2(m_Device.graphics, 1, &submit, get_current_frame().renderFence));
+ 
   
-  VkPresentInfoKHR info{};
-  info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  info.pNext = nullptr;
-  info.pSwapchains = &m_Swapchain.handle;
-  info.swapchainCount = 1;
-  info.pWaitSemaphores = &get_current_frame().renderSemaphore;
-  info.waitSemaphoreCount = 1;
+  VkPresentInfoKHR presentInfo = vkinit::present_info();
+  presentInfo.pSwapchains = &m_Swapchain.handle;
+  presentInfo.swapchainCount = 1;
+  presentInfo.pWaitSemaphores = &get_current_frame().renderSemaphore;
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pImageIndices = &swapchainImageIndex;
 
-  info.pImageIndices = &swapchainImageIndex;
-
-  VkResult presentResult = vkQueuePresentKHR(m_Device.present, &info);
+  VkResult presentResult = vkQueuePresentKHR(m_Device.present, &presentInfo);
   //AR_CORE_INFO("present resukt {}", error_to_string(presentResult));
   if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
   {
     resizeRequested = true;
     AR_CORE_FATAL("resize requested present {}", resizeRequested);
+    return;
   }
   //AR_CORE_INFO("new frame {}", resizeRequested);
   frameNumber++;
@@ -870,11 +866,11 @@ void Engine::init_mesh_pipeline()
 
 void Engine::destroy_swapchain()
 {
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
   for (int i = 0; i < m_Swapchain.views.size(); i++)
   {
     vkDestroyImageView(m_Device.logical, m_Swapchain.views[i], nullptr);
   }
+  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
 }
 
 void Engine::create_swapchain(uint32_t width, uint32_t height)
@@ -899,7 +895,6 @@ void Engine::resize_swapchain()
   m_WindowExtent.height = h;
 
   create_swapchain(m_WindowExtent.width, m_WindowExtent.height);
-
   resizeRequested = false;
 }
 
