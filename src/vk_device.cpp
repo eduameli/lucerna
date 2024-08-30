@@ -242,12 +242,6 @@ DeviceContext DeviceContextBuilder::build()
     .graphicsIndex = familyIndices.graphics.value(),
     .presentIndex = familyIndices.present.value(),
   };
-
-  /* TODO: remove this comment!
-   * select gpu device (rate?, suitable?, features?, extensions?) 
-   * create queues (queue family indices, distinct present?, async?)
-  */
-
 }
 
 

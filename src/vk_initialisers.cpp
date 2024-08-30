@@ -197,6 +197,18 @@ VkRenderingInfo vkinit::rendering_info(VkExtent2D renderExtent, VkRenderingAttac
   return renderInfo;
 }
 
+VkPresentInfoKHR vkinit::present_info()
+{
+  VkPresentInfoKHR info{};
+  info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  info.pNext = nullptr;
+  info.swapchainCount = 0;
+  info.pSwapchains = nullptr;
+  info.pWaitSemaphores = nullptr;
+  info.waitSemaphoreCount = 0;
+  info.pImageIndices = nullptr;
+  return info;
+}
 
 VkPipelineShaderStageCreateInfo vkinit::pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char* entry)
 {

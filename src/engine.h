@@ -69,6 +69,8 @@ namespace Aurora {
       void draw_background(VkCommandBuffer cmd);
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
+      void destroy_swapchain();
+      void create_swapchain(uint32_t width, uint32_t height);
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
@@ -88,12 +90,14 @@ namespace Aurora {
       std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",
       };
-      VmaAllocator m_Allocator;
-      AllocatedImage m_DrawImage;
-      VkDescriptorSet m_DrawDescriptors;
-      VkDescriptorSetLayout m_DrawDescriptorLayout;
-      VkExtent2D m_DrawExtent;
-      AllocatedImage m_DepthImage; 
+      VmaAllocator m_Allocator{};
+      AllocatedImage m_DrawImage{};
+      VkDescriptorSet m_DrawDescriptors{};
+      VkDescriptorSetLayout m_DrawDescriptorLayout{};
+      VkExtent2D m_DrawExtent{};
+      AllocatedImage m_DepthImage{}; 
+      VkExtent2D m_WindowExtent{};
+      float m_RenderScale = 1.0f;
 
       VkPipeline m_MeshPipeline;
       VkPipelineLayout m_MeshPipelineLayout;
