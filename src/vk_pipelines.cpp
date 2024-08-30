@@ -2,8 +2,9 @@
 #include <fstream>
 #include "aurora_pch.h"
 #include "vk_initialisers.h"
+#include "ar_asserts.h"
+#include "logger.h"
 
-// FIX: return optional & use std::path?
 bool vkutil::load_shader_module(const char *filepath, VkDevice device, VkShaderModule* outShaderModule)
 {
   std::ifstream file(filepath, std::ios::ate | std::ios::binary);

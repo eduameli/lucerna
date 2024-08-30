@@ -1,9 +1,11 @@
-#include "aurora_pch.h"
+#include "logger.h"
 #include "application.h"
+
 int main(int argc, char* argv[])
 {
-  Aurora::Log::Init();
+  Aurora::Logger::init();
 
   Aurora::Application app;
   app.run();
 }
+

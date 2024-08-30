@@ -22,22 +22,6 @@
 #include <limits>
 
 #include <chrono>
-
-//NOTE: useful vulkan types?
-
-
-namespace Aurora {
-  template<typename T>
-  using Scope = std::unique_ptr<T>;
-  template<typename T>
-  using Ref = std::shared_ptr<T>;
-
-  //FIX: taken from Auralius stream? idk if its good or if i can use "using" or smth like that...
-  template<typename O, typename I>
-  [[nodiscard]] O as(I && v) { return static_cast<O>(std::forward<I>(v)); }
-}
-
-#include "utilities.h"
-#include "log.h"
+#include <thread>
 
 #endif
