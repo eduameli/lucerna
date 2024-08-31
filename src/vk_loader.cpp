@@ -96,14 +96,13 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(Engine* 
       }
 
         // load uvs
-      auto uv = p.findAttribute("TEX_COORD_0");
+      auto uv = p.findAttribute("TEXCOORD_0");
       if (uv != p.attributes.end())
       {
         auto lambda = [&](glm::vec2 v, size_t index) {
           vertices[initial_vtx + index].uv_x = v.x;
           vertices[initial_vtx + index].uv_y = v.y;
         };
-
         fastgltf::iterateAccessorWithIndex<glm::vec2>(asset.get(), asset->accessors[(*uv).accessorIndex], lambda);
       }
 

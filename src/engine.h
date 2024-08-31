@@ -63,6 +63,7 @@ namespace Aurora {
       void init_background_pipelines();
       void init_mesh_pipeline();
       void init_imgui();
+      void init_default_data();
       void validate_instance_supported();
       void create_instance();
       void create_device();
@@ -70,7 +71,7 @@ namespace Aurora {
       void draw_background(VkCommandBuffer cmd);
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
-
+      
       AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       void destroy_image(const AllocatedImage& img);
@@ -117,6 +118,14 @@ namespace Aurora {
 
       GPUSceneData m_SceneData;
       VkDescriptorSetLayout m_SceneDescriptorLayout;
+
+      AllocatedImage m_WhiteImage;
+      AllocatedImage m_BlackImage;
+      AllocatedImage m_GreyImage;
+      AllocatedImage m_ErrorCheckerboardImage;
+      VkSampler m_DefaultSamplerLinear;
+      VkSampler m_DefaultSamplerNearest;
+      VkDescriptorSetLayout m_SingleImageDescriptorLayout;
   };
 
 }

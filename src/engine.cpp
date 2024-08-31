@@ -24,6 +24,7 @@
 #include <glm/ext/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale
 #include <glm/ext/matrix_clip_space.hpp> // glm::perspective
 #include <glm/ext/scalar_constants.hpp> // glm::pi
+#include <glm/packing.hpp>
 
 #include "ar_asserts.h"
 #include "logger.h"
@@ -41,6 +42,51 @@ Engine& Engine::get()
   return *s_Instance;
 }
 
+void Engine::init_default_data()
+{
+  m_TestMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
+  uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+  m_WhiteImage = create_image((void*)&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+  
+  uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+  m_GreyImage = create_image((void*)&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+  uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+  m_BlackImage = create_image((void*)&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+  uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+  std::array<uint32_t, 16*16> pixels;
+  for (int x = 0; x < 16; x++)
+  {
+    for (int y = 0; y < 16; y++)
+    {
+      pixels[y * 16 + x] = ((x%2) ^(y%2)) ? magenta : black;
+    }
+  }
+  
+  m_ErrorCheckerboardImage = create_image(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+  VkSamplerCreateInfo sampl{};
+  sampl.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  sampl.magFilter = VK_FILTER_NEAREST;
+  sampl.minFilter = VK_FILTER_NEAREST;
+  vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerNearest);
+
+  sampl.magFilter = VK_FILTER_LINEAR;
+  sampl.minFilter = VK_FILTER_LINEAR;
+
+  vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerLinear);
+
+  m_DeletionQueue.push_function([&]{
+    vkDestroySampler(m_Device.logical, m_DefaultSamplerLinear, nullptr);
+    vkDestroySampler(m_Device.logical, m_DefaultSamplerNearest, nullptr);
+
+    destroy_image(m_WhiteImage);
+    destroy_image(m_GreyImage);
+    destroy_image(m_BlackImage);
+    destroy_image(m_ErrorCheckerboardImage);
+  });
+}
+
 void Engine::init()
 {
   AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
@@ -54,8 +100,13 @@ void Engine::init()
   init_pipelines();
   init_imgui();
   
-  m_TestMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
+  init_default_data();
+  // init default data 
+  
+  
+
 } 
+
 
 void Engine::shutdown()
 {
@@ -425,7 +476,12 @@ void Engine::init_descriptors()
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     m_SceneDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT); 
   } 
-
+  
+  {
+    DescriptorLayoutBuilder builder;
+    builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    m_SingleImageDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_FRAGMENT_BIT);
+  }
 
   // links the draw image to the descriptor for the compute shader in the pipeline!
   DescriptorWriter writer;
@@ -453,6 +509,7 @@ void Engine::init_descriptors()
   m_DeletionQueue.push_function([&]() {
     m_DescriptorAllocator.destroy_pool(m_Device.logical);
     vkDestroyDescriptorSetLayout(m_Device.logical, m_DrawDescriptorLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_Device.logical, m_SingleImageDescriptorLayout, nullptr);
   });
 }
 
@@ -702,9 +759,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.update_set(m_Device.logical, globalDescriptor);
 
-  VkExtent2D win = Window::get_extent();
-
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
   VkViewport viewport{};
   viewport.x = 0;
   viewport.y = 0;
@@ -723,12 +777,25 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
+
+  VkDescriptorSet imageSet = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SingleImageDescriptorLayout);
+  {
+    DescriptorWriter writer;
+    writer.write_image(0, m_ErrorCheckerboardImage.imageView, m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.update_set(m_Device.logical, imageSet);
+  }
+
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipelineLayout, 0, 1, &imageSet, 0, nullptr);
+  
+
+
   GPUDrawPushConstants pcs{};
   glm::mat4 model{1.0f};
   //model = glm::rotate(model, (float) glm::radians(glfwGetTime() * 100.0), glm::vec3(0.0f, 1.0f, 0.0f));
   
-  int w, h;
-  glfwGetFramebufferSize(Window::get_handle(), &w, &h);
 
   glm::mat4 view = glm::mat4{1.0f};
   view = glm::translate(view, glm::vec3{0, 0, -5});
@@ -844,13 +911,13 @@ void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& functio
 void Engine::init_mesh_pipeline()
 {
   VkShaderModule meshFragShader;
-  if (!vkutil::load_shader_module("shaders/mesh/mesh.frag.spv", m_Device.logical, &meshFragShader))
+  if (!vkutil::load_shader_module("shaders/textures/tex_image.frag.spv", m_Device.logical, &meshFragShader))
   {
     AR_CORE_ERROR("Error when building mesh fragment shader!");
   }
 
   VkShaderModule meshVertShader;
-  if (!vkutil::load_shader_module("shaders/mesh/mesh.vert.spv", m_Device.logical, &meshVertShader))
+  if (!vkutil::load_shader_module("shaders/textures/colored_triangle_mesh.vert.spv", m_Device.logical, &meshVertShader))
   {
     AR_CORE_ERROR("Error when building mesh vertex shader...");
   }
@@ -863,6 +930,8 @@ void Engine::init_mesh_pipeline()
   VkPipelineLayoutCreateInfo pipelineInfo = vkinit::pipeline_layout_create_info();
   pipelineInfo.pPushConstantRanges = &bufferRange;
   pipelineInfo.pushConstantRangeCount = 1;
+  pipelineInfo.pSetLayouts = &m_SingleImageDescriptorLayout;
+  pipelineInfo.setLayoutCount = 1;
   
   VK_CHECK_RESULT(vkCreatePipelineLayout(m_Device.logical, &pipelineInfo, nullptr, &m_MeshPipelineLayout));
 
@@ -879,7 +948,8 @@ void Engine::init_mesh_pipeline()
   builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
   builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   builder.set_multisampling_none();
-  builder.enable_blending_additive();
+  builder.disable_blending();
+  //builder.enable_blending_additive();
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   builder.set_color_attachment_format(m_DrawImage.imageFormat);
   builder.set_depth_format(m_DepthImage.imageFormat);
@@ -963,7 +1033,7 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
     copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     copyRegion.imageSubresource.mipLevel = 0;
     copyRegion.imageSubresource.baseArrayLayer = 0;
-    copyRegion.imageSubresource.layerCount = 0;
+    copyRegion.imageSubresource.layerCount = 1;
     copyRegion.imageExtent = size;
 
     vkCmdCopyBufferToImage(cmd, uploadBuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
