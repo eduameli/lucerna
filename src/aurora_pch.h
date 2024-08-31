@@ -20,6 +20,7 @@
 
 #include <optional>
 #include <limits>
+#include <deque>
 
 #include <chrono>
 #include <thread>

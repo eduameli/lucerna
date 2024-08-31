@@ -18,6 +18,7 @@ namespace Aurora {
     VkSemaphore swapchainSemaphore{}, renderSemaphore{};
     VkFence renderFence{};
     DeletionQueue deletionQueue;
+    DescriptorAllocatorGrowable frameDescriptors;
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
 
@@ -69,6 +70,10 @@ namespace Aurora {
       void draw_background(VkCommandBuffer cmd);
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
+
+      AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+      AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+      void destroy_image(const AllocatedImage& img);
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
@@ -109,6 +114,9 @@ namespace Aurora {
       VkFence m_ImmFence;
       VkCommandBuffer m_ImmCommandBuffer;
       VkCommandPool m_ImmCommandPool;
+
+      GPUSceneData m_SceneData;
+      VkDescriptorSetLayout m_SceneDescriptorLayout;
   };
 
 }

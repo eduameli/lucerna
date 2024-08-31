@@ -85,6 +85,8 @@ void Engine::shutdown()
     destroy_buffer(mesh->meshBuffers.indexBuffer);
     destroy_buffer(mesh->meshBuffers.vertexBuffer);
   }
+  
+  vkDestroyDescriptorSetLayout(m_Device.logical, m_SceneDescriptorLayout, nullptr);
 
   m_DeletionQueue.flush();
   Logger::destroy_debug_messenger(m_Instance, m_DebugMessenger, nullptr);
@@ -127,7 +129,8 @@ void Engine::draw()
   VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &get_current_frame().renderFence, true, 1000000000));
   
   get_current_frame().deletionQueue.flush();
-  
+  get_current_frame().frameDescriptors.clear_pools(m_Device.logical);
+
   uint32_t swapchainImageIndex;
   VkResult e = vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
   if (e == VK_ERROR_OUT_OF_DATE_KHR)
@@ -138,7 +141,7 @@ void Engine::draw()
 
   m_DrawExtent.height = std::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height) * m_RenderScale;
   m_DrawExtent.width = std::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width) * m_RenderScale;
-  
+
   VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &get_current_frame().renderFence));
 
   VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
@@ -408,30 +411,44 @@ void Engine::init_descriptors()
   };
   m_DescriptorAllocator.init_pool(m_Device.logical, 10, sizes);
 
+  // compute background descriptor layout? 
   {
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     m_DrawDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_COMPUTE_BIT);
   }
-
   m_DrawDescriptors = m_DescriptorAllocator.allocate(m_Device.logical, m_DrawDescriptorLayout);
   
+  // scene data descriptor layout
+  {
+    DescriptorLayoutBuilder builder;
+    builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    m_SceneDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT); 
+  } 
+
+
   // links the draw image to the descriptor for the compute shader in the pipeline!
-  VkDescriptorImageInfo info{};
-  info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-  info.imageView = m_DrawImage.imageView;
+  DescriptorWriter writer;
+  writer.write_image(0, m_DrawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+  writer.update_set(m_Device.logical, m_DrawDescriptors);
+  
+  // creates global frame descriptor set
+  for (int i = 0; i < FRAME_OVERLAP; i++)
+  {
+    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frameSizes = {
+      {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
+      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
+      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
+    };
+    m_Frames[i].frameDescriptors = DescriptorAllocatorGrowable{};
+    m_Frames[i].frameDescriptors.init(m_Device.logical, 1000, frameSizes);
+    
+    m_DeletionQueue.push_function([&, i]() {
+      m_Frames[i].frameDescriptors.destroy_pools(m_Device.logical);
+    });
 
-  VkWriteDescriptorSet write{};
-  write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  write.pNext = nullptr;
-
-  write.dstBinding = 0;
-  write.dstSet = m_DrawDescriptors;
-  write.descriptorCount = 1;
-  write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  write.pImageInfo = &info;
-
-  vkUpdateDescriptorSets(m_Device.logical, 1, &write, 0, nullptr);
+  }
 
   m_DeletionQueue.push_function([&]() {
     m_DescriptorAllocator.destroy_pool(m_Device.logical);
@@ -665,10 +682,28 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 {
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
+  // descriptor set for scene data created every frame!
+  // we also allocate the uniform buffer to showcase how u can do temporal per frame data that
+  // is dynamically created
+  
+  AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  get_current_frame().deletionQueue.push_function([=, this] {
+    destroy_buffer(gpuSceneDataBuffer);
+  });
+
+  GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
+  *sceneUniformData = m_SceneData;
+  
+  VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
+  DescriptorWriter writer;
+  writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  writer.update_set(m_Device.logical, globalDescriptor);
+
+  VkExtent2D win = Window::get_extent();
+
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
   VkViewport viewport{};
   viewport.x = 0;
@@ -683,22 +718,26 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRect2D scissor{};
   scissor.offset.x = 0;
   scissor.offset.y = 0;
-  scissor.extent.width = m_DrawExtent.width;
-  scissor.extent.height = m_DrawExtent.height;
+  scissor.extent.width = viewport.width;
+  scissor.extent.height = viewport.height;
 
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
   GPUDrawPushConstants pcs{};
   glm::mat4 model{1.0f};
+  //model = glm::rotate(model, (float) glm::radians(glfwGetTime() * 100.0), glm::vec3(0.0f, 1.0f, 0.0f));
   
+  int w, h;
+  glfwGetFramebufferSize(Window::get_handle(), &w, &h);
+
   glm::mat4 view = glm::mat4{1.0f};
   view = glm::translate(view, glm::vec3{0, 0, -5});
 
-  glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_Swapchain.extent2d.width / (float) m_Swapchain.extent2d.height, 10000.0f, 0.1f);
+  glm::mat4 projection = glm::perspective(glm::radians(70.0f), static_cast<float>(m_Swapchain.extent2d.width)/static_cast<float>(m_Swapchain.extent2d.height),  10000.0f, 0.1f);
   projection[1][1] *= -1;
 
-  pcs.worldMatrix = projection * view * model;
-
+  pcs.worldMatrix = projection * view;
+  //pcs.worldMatrix = glm::mat4{1.0};
   pcs.vertexBuffer = m_TestMeshes[2]->meshBuffers.vertexBufferAddress;
   vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
   vkCmdBindIndexBuffer(cmd, m_TestMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -871,6 +910,75 @@ void Engine::resize_swapchain()
   m_Swapchain = context;
   
   resizeRequested = false;
+}
+
+AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+{
+  AllocatedImage newImage;
+  newImage.imageFormat = format;
+  newImage.imageExtent = size;
+
+  VkImageCreateInfo imgInfo = vkinit::image_create_info(format, usage, size);
+  if (mipmapped)
+  {
+    imgInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
+  }
+
+  VmaAllocationCreateInfo allocInfo{};
+  allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  allocInfo.requiredFlags = VkMemoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
+
+  VK_CHECK_RESULT(vmaCreateImage(m_Allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
+  
+  VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+  if (format == VK_FORMAT_D32_SFLOAT)
+  {
+    aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+  }
+
+  VkImageViewCreateInfo viewInfo = vkinit::imageview_create_info(format, newImage.image, aspectFlags);
+  viewInfo.subresourceRange.levelCount = imgInfo.mipLevels;
+
+  VK_CHECK_RESULT(vkCreateImageView(m_Device.logical, &viewInfo, nullptr, &newImage.imageView));
+
+  return newImage;
+}
+
+AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+{
+  // 4 bytes per pixel RGBA
+  size_t dataSize = size.depth * size.width * size.height * 4;
+  AllocatedBuffer uploadBuffer = create_buffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  
+  memcpy(uploadBuffer.info.pMappedData, data, dataSize);
+  
+  AllocatedImage newImage = create_image(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
+
+  immediate_submit([&](VkCommandBuffer cmd) {
+    vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VkBufferImageCopy copyRegion{};
+    copyRegion.bufferOffset = 0;
+    copyRegion.bufferRowLength = 0;
+    copyRegion.bufferImageHeight = 0;
+    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyRegion.imageSubresource.mipLevel = 0;
+    copyRegion.imageSubresource.baseArrayLayer = 0;
+    copyRegion.imageSubresource.layerCount = 0;
+    copyRegion.imageExtent = size;
+
+    vkCmdCopyBufferToImage(cmd, uploadBuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    
+    vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  });
+  
+  destroy_buffer(uploadBuffer);
+  return newImage;
+}
+
+void Engine::destroy_image(const AllocatedImage& img)
+{
+  vkDestroyImageView(m_Device.logical, img.imageView, nullptr);
+  vmaDestroyImage(m_Allocator, img.image, img.allocation);
 }
 
 } // namespace aurora

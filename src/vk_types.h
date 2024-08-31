@@ -55,6 +55,17 @@ namespace Aurora
     VkDeviceAddress vertexBuffer;
   };
   
+  struct GPUSceneData
+  {
+    glm::mat4 view;
+    glm::mat4 proj;
+    glm::mat4 viewproj;
+    glm::vec4 ambientColour;
+    glm::vec4 sunlightDirection;
+    glm::vec4 sunlightColour;
+  };
+
+
   // FIXME: only needed in egine?? or maybe only types that are referenced multiple times, created many times
   struct DeletionQueue
   {
