@@ -11,7 +11,7 @@ namespace Aurora
     glfwSetKeyCallback(Window::get_handle(), key_callback);
     glfwSetCursorPosCallback(Window::get_handle(), cursor_pos_callback);
 
-    glfwSetInputMode(Window::get_handle(), GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
+    glfwSetInputMode(Window::get_handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   }
 
   void Camera::update()
