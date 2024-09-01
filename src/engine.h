@@ -10,6 +10,37 @@
 #include "vk_swapchain.h"
 
 namespace Aurora {
+   struct GLTFMetallic_Roughness
+    {
+    MaterialPipeline opaquePipeline;
+    MaterialPipeline transparentPipeline;
+  
+    VkDescriptorSetLayout materialLayout;
+    
+    struct MaterialConstants
+    {
+      glm::vec4 colorFactors;
+      glm::vec4 metal_rough_factors;
+      glm::vec4 extra[14]; // uniform buffers need minimum requirement for alignment, 256bytes is a good default alignment that gpus meet 
+    };
+
+    struct MaterialResources
+    {
+      AllocatedImage colorImage;
+      VkSampler colorSampler;
+      AllocatedImage metalRoughImage;
+      VkSampler metalRoughSampler;
+      VkBuffer dataBuffer;
+      uint32_t dataBufferOffset;
+    };
+
+    DescriptorWriter writer;
+    
+    void build_pipelines(Engine* engine);
+    void clear_resources(VkDevice device);
+
+    MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+  };
 
   struct FrameData
   {
@@ -48,6 +79,8 @@ namespace Aurora {
       bool stopRendering = false;
       bool resizeRequested = false;
       uint32_t frameNumber;
+      SwapchainContext m_Swapchain;
+      DeviceContext m_Device; 
     private:
       void draw();
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
@@ -78,12 +111,10 @@ namespace Aurora {
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
-      DeviceContext m_Device;
       VkSurfaceKHR m_Surface;
-      SwapchainContext m_Swapchain;
       DeletionQueue m_DeletionQueue;
       FrameData m_Frames[FRAME_OVERLAP];
-      DescriptorAllocator m_DescriptorAllocator;
+      DescriptorAllocatorGrowable globalDescriptorAllocator;
       std::vector<std::shared_ptr<MeshAsset>> m_TestMeshes;
       int m_BackgroundEffectIndex = 0;
       std::vector<ComputeEffect> m_BackgroundEffects;
@@ -95,11 +126,17 @@ namespace Aurora {
         "VK_LAYER_KHRONOS_validation",
       };
       VmaAllocator m_Allocator{};
+    public:
       AllocatedImage m_DrawImage{};
+    private:
       VkDescriptorSet m_DrawDescriptors{};
       VkDescriptorSetLayout m_DrawDescriptorLayout{};
       VkExtent2D m_DrawExtent{};
-      AllocatedImage m_DepthImage{}; 
+    public:
+      AllocatedImage m_DepthImage{};
+      MaterialInstance defaultData;
+      GLTFMetallic_Roughness metalRoughMaterial;
+    private:
       VkExtent2D m_WindowExtent{};
       float m_RenderScale = 1.0f;
 
@@ -117,8 +154,9 @@ namespace Aurora {
       VkCommandPool m_ImmCommandPool;
 
       GPUSceneData m_SceneData;
+    public:
       VkDescriptorSetLayout m_SceneDescriptorLayout;
-
+    private:
       AllocatedImage m_WhiteImage;
       AllocatedImage m_BlackImage;
       AllocatedImage m_GreyImage;
@@ -127,5 +165,6 @@ namespace Aurora {
       VkSampler m_DefaultSamplerNearest;
       VkDescriptorSetLayout m_SingleImageDescriptorLayout;
   };
-
-}
+  
+ 
+} // namespace aurora

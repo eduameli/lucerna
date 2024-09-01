@@ -51,7 +51,7 @@ void Engine::init_default_data()
   uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
   m_GreyImage = create_image((void*)&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
-  uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+  uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 1));
   m_BlackImage = create_image((void*)&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
   uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -75,6 +75,28 @@ void Engine::init_default_data()
   sampl.minFilter = VK_FILTER_LINEAR;
 
   vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerLinear);
+
+
+
+  GLTFMetallic_Roughness::MaterialResources materialResources;
+  materialResources.colorImage = m_WhiteImage;
+  materialResources.colorSampler = m_DefaultSamplerLinear;
+  materialResources.metalRoughImage = m_WhiteImage;
+  materialResources.metalRoughSampler = m_DefaultSamplerLinear;
+
+  AllocatedBuffer materialConstants = create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = (GLTFMetallic_Roughness::MaterialConstants*) materialConstants.allocation->GetMappedData();
+  sceneUniformData->colorFactors = glm::vec4{1, 1, 1, 1};
+  sceneUniformData->metal_rough_factors = glm::vec4{1, 0.5, 0, 0};
+  
+  m_DeletionQueue.push_function([=, this]{
+    destroy_buffer(materialConstants);
+  });
+  
+  materialResources.dataBuffer = materialConstants.buffer;
+  materialResources.dataBufferOffset = 0;
+
+  defaultData = metalRoughMaterial.write_material(m_Device.logical, MaterialPass::MainColour, materialResources, globalDescriptorAllocator);
 
   m_DeletionQueue.push_function([&]{
     vkDestroySampler(m_Device.logical, m_DefaultSamplerLinear, nullptr);
@@ -456,11 +478,11 @@ void Engine::draw_background(VkCommandBuffer cmd)
 
 void Engine::init_descriptors()
 {
-  std::vector<DescriptorAllocator::PoolSizeRatio> sizes = 
+  std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = 
   {
     {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
   };
-  m_DescriptorAllocator.init_pool(m_Device.logical, 10, sizes);
+  globalDescriptorAllocator.init(m_Device.logical, 10, sizes);
 
   // compute background descriptor layout? 
   {
@@ -468,7 +490,7 @@ void Engine::init_descriptors()
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     m_DrawDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_COMPUTE_BIT);
   }
-  m_DrawDescriptors = m_DescriptorAllocator.allocate(m_Device.logical, m_DrawDescriptorLayout);
+  m_DrawDescriptors = globalDescriptorAllocator.allocate(m_Device.logical, m_DrawDescriptorLayout);
   
   // scene data descriptor layout
   {
@@ -507,7 +529,7 @@ void Engine::init_descriptors()
   }
 
   m_DeletionQueue.push_function([&]() {
-    m_DescriptorAllocator.destroy_pool(m_Device.logical);
+    globalDescriptorAllocator.destroy_pools(m_Device.logical);
     vkDestroyDescriptorSetLayout(m_Device.logical, m_DrawDescriptorLayout, nullptr);
     vkDestroyDescriptorSetLayout(m_Device.logical, m_SingleImageDescriptorLayout, nullptr);
   });
@@ -517,6 +539,8 @@ void Engine::init_pipelines()
 {
   init_background_pipelines();
   init_mesh_pipeline();
+
+  metalRoughMaterial.build_pipelines(this);
 }
 
 void Engine::init_background_pipelines()
@@ -1049,6 +1073,101 @@ void Engine::destroy_image(const AllocatedImage& img)
 {
   vkDestroyImageView(m_Device.logical, img.imageView, nullptr);
   vmaDestroyImage(m_Allocator, img.image, img.allocation);
+}
+
+
+void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
+{
+
+  VkDevice device = engine->m_Device.logical;
+
+  VkShaderModule meshFragShader;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/meshes/mesh.frag.spv", device, &meshFragShader),
+    "Error when building the triangle fragment shader module"
+  );
+
+  VkShaderModule meshVertShader;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/meshes/mesh.vert.spv", device, &meshVertShader),
+    "Error when building the triangle vertex shader module"
+  );
+
+  VkPushConstantRange matrixRange{};
+  matrixRange.offset = 0;
+  matrixRange.size = sizeof(GPUDrawPushConstants);
+  matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  
+  DescriptorLayoutBuilder layoutBuilder;
+  layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+  materialLayout = layoutBuilder.build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+ 
+  VkDescriptorSetLayout layouts[] = {
+    engine->m_SceneDescriptorLayout,
+    materialLayout,
+  };
+
+  VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+  mesh_layout_info.setLayoutCount = 2;
+  mesh_layout_info.pSetLayouts = layouts;
+  mesh_layout_info.pPushConstantRanges = &matrixRange;
+  mesh_layout_info.pushConstantRangeCount = 1;
+
+  VkPipelineLayout newLayout;
+  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &mesh_layout_info, nullptr, &newLayout));
+
+  opaquePipeline.layout = newLayout;
+  transparentPipeline.layout = newLayout;
+
+  PipelineBuilder pipelineBuilder;
+  pipelineBuilder.set_shaders(meshVertShader, meshFragShader);
+  pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  pipelineBuilder.set_multisampling_none();
+  pipelineBuilder.disable_blending();
+  pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+  pipelineBuilder.set_color_attachment_format(engine->m_DrawImage.imageFormat);
+  pipelineBuilder.set_depth_format(engine->m_DepthImage.imageFormat);
+
+  pipelineBuilder.PipelineLayout = newLayout;
+
+  opaquePipeline.pipeline = pipelineBuilder.build_pipeline(device);
+
+  pipelineBuilder.enable_blending_additive();
+  pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+  transparentPipeline.pipeline = pipelineBuilder.build_pipeline(device);
+
+  vkDestroyShaderModule(device, meshFragShader, nullptr);
+  vkDestroyShaderModule(device, meshVertShader, nullptr);
+}
+
+MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+{
+  MaterialInstance matData;
+  matData.passType = pass;
+  if (pass == MaterialPass::Transparent)
+  {
+    matData.pipeline = &transparentPipeline;
+  }
+  else
+  {
+    matData.pipeline = &opaquePipeline;
+  }
+
+  matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
+
+  writer.clear();
+  writer.write_buffer(0, resources.dataBuffer, sizeof(MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  writer.update_set(device, matData.materialSet);
+  return matData;
 }
 
 } // namespace aurora

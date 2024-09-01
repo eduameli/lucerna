@@ -84,5 +84,26 @@ namespace Aurora
       deletors.clear();
     }
   };
-}
+
+  enum class MaterialPass:uint8_t 
+  {
+    MainColour,
+    Transparent,
+    Other,
+  }; 
+
+  struct MaterialPipeline 
+  {
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+  };
+
+  struct MaterialInstance
+  {
+    MaterialPipeline* pipeline;
+    VkDescriptorSet materialSet;
+    MaterialPass passType;
+  };
+
+} // namespace aurora
 
