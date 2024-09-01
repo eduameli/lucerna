@@ -87,7 +87,7 @@ void Engine::init_default_data()
   AllocatedBuffer materialConstants = create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = (GLTFMetallic_Roughness::MaterialConstants*) materialConstants.allocation->GetMappedData();
   sceneUniformData->colorFactors = glm::vec4{1, 1, 1, 1};
-  sceneUniformData->metal_rough_factors = glm::vec4{1, 0.5, 0, 0};
+  sceneUniformData->metal_rough_factors = glm::vec4{1, 0.5, 0, 1};
   
   m_DeletionQueue.push_function([=, this]{
     destroy_buffer(materialConstants);
@@ -97,6 +97,25 @@ void Engine::init_default_data()
   materialResources.dataBufferOffset = 0;
 
   defaultData = metalRoughMaterial.write_material(m_Device.logical, MaterialPass::MainColour, materialResources, globalDescriptorAllocator);
+
+
+  for (auto& m : m_TestMeshes)
+  {
+    std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
+    newNode->mesh = m;
+
+    newNode->localTransform = glm::mat4{1.0f};
+    newNode->worldTransform = glm::mat4{1.0f};
+
+    for (auto& s : newNode->mesh->surfaces)
+    {
+      s.material = std::make_shared<GLTFMaterial>(defaultData);
+    }
+    loadedNodes[m->name] = std::move(newNode);
+    AR_CORE_TRACE("render obj {}", m->name);
+  }
+
+
 
   m_DeletionQueue.push_function([&]{
     vkDestroySampler(m_Device.logical, m_DefaultSamplerLinear, nullptr);
@@ -108,7 +127,59 @@ void Engine::init_default_data()
     destroy_image(m_ErrorCheckerboardImage);
   });
 }
+/*
+void Engine::update_scene()
+{
+  mainDrawContext.OpaqueSurfaces.clear();
+  loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, mainDrawContext);
 
+  m_SceneData.view = glm::translate(m_SceneData.view, glm::vec3{0, 0, -5});
+  m_SceneData.proj = glm::perspective(glm::radians(70.0f), (float)m_Swapchain.extent2d.width / (float) m_Swapchain.extent2d.height, 10000.0f, 0.1f);
+  
+  m_SceneData.proj[1][1] *= -1;
+  m_SceneData.viewproj = m_SceneData.proj * m_SceneData.view;
+  m_SceneData.ambientColour = glm::vec4(0.1f);
+  m_SceneData.sunlightColour = glm::vec4(1.0f);
+  m_SceneData.sunlightDirection = glm::vec4(0.1, 0.5, 1.0f, 1.0f);
+  
+  
+  for (int x = -3; x < 3; x++)
+  {
+    glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2});
+    glm::mat4 translation = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 1, 0});
+    loadedNodes["Cube"]->draw(translation * scale, mainDrawContext);
+  }
+
+}
+*/
+void Engine::update_scene()
+{
+	mainDrawContext.OpaqueSurfaces.clear();
+
+	loadedNodes["Suzanne"]->draw(glm::mat4{1.f}, mainDrawContext);	
+
+	sceneData.view = glm::translate(glm::mat4{1.0f}, glm::vec3{ 0,0,-5 });
+	// camera projection
+	sceneData.proj = glm::perspective(glm::radians(70.f), (float)m_Swapchain.extent2d.width / (float)m_Swapchain.extent2d.height, 10000.f, 0.1f);
+
+	// invert the Y direction on projection matrix so that we are more similar
+	// to opengl and gltf axis
+	sceneData.proj[1][1] *= -1;
+	sceneData.viewproj = sceneData.proj * sceneData.view;
+
+	//some default lighting parameters
+	sceneData.ambientColour = glm::vec4(.1f);
+	sceneData.sunlightColour = glm::vec4(1.f);
+	sceneData.sunlightDirection = glm::vec4(0,1,0.5,1.f);
+
+  for (int x = -3; x< 3; x++)
+  {
+       glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2});
+       glm::mat4 translation = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 1, 0});
+      loadedNodes["Cube"]->draw(translation * scale, mainDrawContext);
+  }
+
+}
 void Engine::init()
 {
   AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
@@ -199,6 +270,8 @@ void Engine::run()
 
 void Engine::draw()
 {
+  update_scene();
+
   VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &get_current_frame().renderFence, true, 1000000000));
   
   get_current_frame().deletionQueue.flush();
@@ -769,20 +842,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // descriptor set for scene data created every frame!
   // we also allocate the uniform buffer to showcase how u can do temporal per frame data that
   // is dynamically created
-  
-  AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  get_current_frame().deletionQueue.push_function([=, this] {
-    destroy_buffer(gpuSceneDataBuffer);
-  });
-
-  GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
-  *sceneUniformData = m_SceneData;
-  
-  VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
-  DescriptorWriter writer;
-  writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.update_set(m_Device.logical, globalDescriptor);
-
+ 
   VkViewport viewport{};
   viewport.x = 0;
   viewport.y = 0;
@@ -802,8 +862,36 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 
+  AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  get_current_frame().deletionQueue.push_function([=, this] {
+    destroy_buffer(gpuSceneDataBuffer);
+  });
 
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
+  GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
+  *sceneUniformData = sceneData;
+  
+  VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
+  DescriptorWriter writer;
+  writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  writer.update_set(m_Device.logical, globalDescriptor);
+
+	for (const RenderObject& draw : mainDrawContext.OpaqueSurfaces) {
+
+		vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+		vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 0,1, &globalDescriptor,0,nullptr );
+		vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 1,1, &draw.material->materialSet,0,nullptr );
+
+		vkCmdBindIndexBuffer(cmd, draw.indexBuffer,0,VK_INDEX_TYPE_UINT32);
+
+		GPUDrawPushConstants pushConstants;
+		pushConstants.vertexBuffer = draw.vertexBufferAddress;
+		pushConstants.worldMatrix = draw.transform;
+		vkCmdPushConstants(cmd,draw.material->pipeline->layout ,VK_SHADER_STAGE_VERTEX_BIT,0, sizeof(GPUDrawPushConstants), &pushConstants);
+
+		vkCmdDrawIndexed(cmd,draw.indexCount,1,draw.firstIndex,0,0);
+	}
+
+  /*vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
 
   VkDescriptorSet imageSet = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SingleImageDescriptorLayout);
   {
@@ -833,7 +921,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
   vkCmdBindIndexBuffer(cmd, m_TestMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
   vkCmdDrawIndexed(cmd, m_TestMeshes[2]->surfaces[0].count, 1, m_TestMeshes[2]->surfaces[0].startIndex, 0, 0);
-
+  */
   vkCmdEndRendering(cmd);
 }
 
@@ -1168,6 +1256,26 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
   writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   writer.update_set(device, matData.materialSet);
   return matData;
+}
+
+void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
+{
+  glm::mat4 nodeMatrix = topMatrix * worldTransform;
+  for (auto& s : mesh->surfaces)
+  {
+    RenderObject def;
+    def.indexCount = s.count;
+    def.firstIndex = s.startIndex;
+    def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
+    def.material = &s.material->data;
+
+    def.transform = nodeMatrix;
+    def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
+    ctx.OpaqueSurfaces.push_back(def);
+  }
+  
+  Node::draw(topMatrix, ctx);
+
 }
 
 } // namespace aurora

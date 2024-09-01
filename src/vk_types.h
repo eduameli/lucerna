@@ -14,6 +14,8 @@
 #include <glm/ext/matrix_clip_space.hpp> // glm::perspective
 #include <glm/ext/scalar_constants.hpp> // glm::pi
 
+#include "aurora_pch.h"
+
 namespace Aurora
 {
   struct AllocatedImage
@@ -103,6 +105,38 @@ namespace Aurora
     MaterialPipeline* pipeline;
     VkDescriptorSet materialSet;
     MaterialPass passType;
+  };
+  
+  struct DrawContext;
+  class IRenderable
+  {
+    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+  };
+
+  struct Node: public IRenderable
+  {
+    std::weak_ptr<Node> parent;
+    std::vector<std::shared_ptr<Node>> children;
+    
+    glm::mat4 localTransform;
+    glm::mat4 worldTransform;
+
+    void refresh_transform(const glm::mat4& parentMatrix)
+    {
+      worldTransform = parentMatrix * localTransform;
+      for (auto c : children)
+      {
+        c->refresh_transform(worldTransform);
+      }
+    }
+    
+    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx)
+    {
+      for (auto& c : children)
+      {
+        c->draw(topMatrix, ctx);
+      }
+    }
   };
 
 } // namespace aurora

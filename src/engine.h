@@ -53,6 +53,31 @@ namespace Aurora {
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
 
+
+
+struct RenderObject {
+	uint32_t indexCount;
+	uint32_t firstIndex;
+	VkBuffer indexBuffer;
+
+	MaterialInstance* material;
+
+	glm::mat4 transform;
+	VkDeviceAddress vertexBufferAddress;
+};
+
+struct DrawContext {
+	std::vector<RenderObject> OpaqueSurfaces;
+};
+struct MeshNode : public Node {
+
+	std::shared_ptr<MeshAsset> mesh;
+
+	virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+};
+
+
+
   class Engine
   {
     public:
@@ -153,7 +178,7 @@ namespace Aurora {
       VkCommandBuffer m_ImmCommandBuffer;
       VkCommandPool m_ImmCommandPool;
 
-      GPUSceneData m_SceneData;
+      GPUSceneData sceneData;
     public:
       VkDescriptorSetLayout m_SceneDescriptorLayout;
     private:
@@ -164,6 +189,10 @@ namespace Aurora {
       VkSampler m_DefaultSamplerLinear;
       VkSampler m_DefaultSamplerNearest;
       VkDescriptorSetLayout m_SingleImageDescriptorLayout;
+    public:
+      DrawContext mainDrawContext;
+      std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
+      void update_scene();
   };
   
  
