@@ -16,6 +16,7 @@ project "aurora"
     defines 
     {
     	"SPDLOG_COMPILED_LIB",
+      "GLM_ENABLE_EXPERIMENTAL",
     }
     
     pchheader "src/aurora_pch.h"

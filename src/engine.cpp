@@ -154,11 +154,15 @@ void Engine::update_scene()
 */
 void Engine::update_scene()
 {
+
+  mainCamera.update();
+  
+
 	mainDrawContext.OpaqueSurfaces.clear();
 
 	loadedNodes["Suzanne"]->draw(glm::mat4{1.f}, mainDrawContext);	
 
-	sceneData.view = glm::translate(glm::mat4{1.0f}, glm::vec3{ 0,0,-5 });
+	sceneData.view = mainCamera.get_view_matrix();
 	// camera projection
 	sceneData.proj = glm::perspective(glm::radians(70.f), (float)m_Swapchain.extent2d.width / (float)m_Swapchain.extent2d.height, 10000.f, 0.1f);
 
@@ -195,7 +199,12 @@ void Engine::init()
   
   init_default_data();
   // init default data 
-  
+  mainCamera.init();
+
+  mainCamera.velocity = glm::vec3{0.0f};
+  mainCamera.position = glm::vec3{0, 0, 5};
+  mainCamera.pitch = 0;
+  mainCamera.yaw = 0;
   
 
 } 

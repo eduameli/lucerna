@@ -120,7 +120,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(Engine* 
 
     }
 
-    constexpr bool OverrideColors = true;
+    constexpr bool OverrideColors = false;
     if (OverrideColors)
     {
       for (Vertex& vtx : vertices)

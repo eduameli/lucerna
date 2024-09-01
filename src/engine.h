@@ -8,6 +8,7 @@
 #include "window.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
+#include "camera.h"
 
 namespace Aurora {
    struct GLTFMetallic_Roughness
@@ -193,6 +194,7 @@ struct MeshNode : public Node {
       DrawContext mainDrawContext;
       std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
       void update_scene();
+      Camera mainCamera;
   };
   
  
