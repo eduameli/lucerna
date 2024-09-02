@@ -18,7 +18,7 @@ namespace Aurora
 //FIXME: errors print error message -> string
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(Engine* engine, std::filesystem::path filepath)
 {
-  AR_CORE_INFO("Loading GLTF File at {}", filepath.c_str());
+  AR_CORE_INFO("Loading Meshes from GLTF File at {}", filepath.c_str());
   fastgltf::Parser parser;
   auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
   
@@ -137,5 +137,97 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(Engine* 
   return meshes;
 }
 
+
+std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
+{
+  AR_CORE_INFO("Loading GLTF File at {}", filepath.c_str());
+
+  std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
+  scene->creator = engine;
+  LoadedGLTF& file = *scene.get();
+  
+
+  constexpr auto gltfOptions = 
+    fastgltf::Options::DontRequireValidAssetMember |
+    fastgltf::Options::AllowDouble | 
+    fastgltf::Options::LoadExternalImages;
+  
+  AR_CORE_INFO("Loading GLTF File at {}", filepath.c_str());
+  fastgltf::Parser parser;
+  auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
+  
+  if (data.error() != fastgltf::Error::None)
+  {
+    AR_CORE_ERROR("Error loading GLTF File!");
+    return {};
+  }
+
+  auto asset = parser.loadGltf(data.get(), filepath.parent_path(), gltfOptions);
+  if (auto error = asset.error(); error != fastgltf::Error::None)
+  {
+    AR_CORE_ERROR("Error parsing GLTF File!");
+    return {};
+  }
+
+  
+  std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
+    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3},
+    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
+    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
+  };
+
+  file.descriptorPool.init(engine->m_Device.logical, asset->materials.size(), sizes);
+  
+
+  for (fastgltf::Sampler& sampler : asset->samplers)
+  {
+    VkSamplerCreateInfo sampl{};
+    sampl.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampl.pNext = nullptr;
+    sampl.maxLod = VK_LOD_CLAMP_NONE;
+    sampl.minLod = 0;
+    sampl.magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
+    sampl.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+
+    sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+    
+    VkSampler newSampler;
+    vkCreateSampler(engine->m_Device.logical, &sampl, nullptr, &newSampler);
+    file.samplers.push_back(newSampler);
+  }
+
+  // adapt to new api
+  return scene;
+}
+
+VkFilter extract_filter(fastgltf::Filter filter)
+{
+  switch (filter)
+  {
+    case fastgltf::Filter::Nearest:
+    case fastgltf::Filter::NearestMipMapNearest:
+    case fastgltf::Filter::NearestMipMapLinear:
+      return VK_FILTER_NEAREST;
+    case fastgltf::Filter::Linear:
+    case fastgltf::Filter::LinearMipMapNearest:
+    case fastgltf::Filter::LinearMipMapLinear:
+    default:
+      return VK_FILTER_LINEAR;
+  }
+}
+
+VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter)
+{
+  switch (filter)
+  {
+    case fastgltf::Filter::NearestMipMapNearest:
+    case fastgltf::Filter::LinearMipMapNearest:
+      return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    case fastgltf::Filter::NearestMipMapLinear:
+    case fastgltf::Filter::LinearMipMapLinear:
+    default:
+      return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  }
+}
 
 } // namespace aurora
