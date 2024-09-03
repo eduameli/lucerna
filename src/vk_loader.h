@@ -47,13 +47,14 @@ struct LoadedGLTF : public IRenderable
   AllocatedBuffer materialDataBuffer;
 
   Engine* creator;
+  
+  void clearAll();
 
   ~LoadedGLTF() {clearAll();}
   
-  virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx);
+  virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx);
 
 private:
-  void clearAll();
 };
 
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath); 

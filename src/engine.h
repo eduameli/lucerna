@@ -128,6 +128,7 @@ struct MeshNode : public Node {
       void create_device();
       FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
       void draw_background(VkCommandBuffer cmd);
+    public:
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
       
@@ -182,7 +183,7 @@ struct MeshNode : public Node {
       GPUSceneData sceneData;
     public:
       VkDescriptorSetLayout m_SceneDescriptorLayout;
-    private:
+    public:
       AllocatedImage m_WhiteImage;
       AllocatedImage m_BlackImage;
       AllocatedImage m_GreyImage;
@@ -195,6 +196,7 @@ struct MeshNode : public Node {
       std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
       void update_scene();
       Camera mainCamera;
+      std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
   };
   
  

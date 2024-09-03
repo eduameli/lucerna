@@ -175,6 +175,9 @@ void Engine::update_scene()
 	sceneData.ambientColour = glm::vec4(.1f);
 	sceneData.sunlightColour = glm::vec4(1.f);
 	sceneData.sunlightDirection = glm::vec4(0,1,0.5,1.f);
+  
+
+  loadedScenes["structure"]->draw(glm::mat4{1.0f}, mainDrawContext);
 
   for (int x = -3; x< 3; x++)
   {
@@ -206,6 +209,12 @@ void Engine::init()
   mainCamera.pitch = 0;
   mainCamera.yaw = 0;
   
+  std::string structurePath = "assets/structure.glb";
+  auto structureFile = load_gltf(this, structurePath);
+
+  AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
+
+  loadedScenes["structure"] = *structureFile;
 
 } 
 
@@ -215,6 +224,8 @@ void Engine::shutdown()
   vkDeviceWaitIdle(m_Device.logical);
   s_Instance = nullptr;
   
+  loadedScenes.clear();
+
   vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
   vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
   
