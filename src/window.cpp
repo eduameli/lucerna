@@ -23,7 +23,7 @@ namespace Aurora {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     win = glfwCreateWindow(width, height, name.data(), nullptr, nullptr);
     glfwSetWindowIconifyCallback(win, iconify_callback);
-    glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   }
   
   void Window::shutdown()

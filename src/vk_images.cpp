@@ -1,5 +1,9 @@
 #include "vk_images.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+
 #include "vk_initialisers.h"
 #include "ar_asserts.h"
 

@@ -9,9 +9,10 @@ namespace Aurora
     if (glfwRawMouseMotionSupported())
       glfwSetInputMode(Window::get_handle(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     glfwSetKeyCallback(Window::get_handle(), key_callback);
+    // FIXME: this breaks imgui input
     glfwSetCursorPosCallback(Window::get_handle(), cursor_pos_callback);
 
-    glfwSetInputMode(Window::get_handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(Window::get_handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   }
 
   void Camera::update()
