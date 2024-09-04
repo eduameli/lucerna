@@ -1264,7 +1264,7 @@ void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
   pipelineBuilder.set_shaders(meshVertShader, meshFragShader);
   pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE); // NOTE: backface culling?
   pipelineBuilder.set_multisampling_none();
   pipelineBuilder.disable_blending();
   pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);

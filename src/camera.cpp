@@ -18,7 +18,7 @@ namespace Aurora
   void Camera::update()
   {
     glm::mat4 cameraRotation = get_rotation_matrix();
-    position += glm::vec3(cameraRotation * glm::vec4(velocity * 0.5f, 0.0f));
+    position += glm::vec3(cameraRotation * glm::vec4(velocity * 0.1f, 0.0f));
   }
   
   void Camera::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
