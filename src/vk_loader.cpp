@@ -331,7 +331,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
          fastgltf::iterateAccessorWithIndex<glm::vec3>(asset, asset.accessors[(*normals).accessorIndex], lambda);
       }
 
-      auto uv = p.findAttribute("TEXCOORD_O");
+      auto uv = p.findAttribute("TEXCOORD_0");
       if (uv != p.attributes.end())
       {
         auto lambda = [&](glm::vec2 v, size_t index) {
@@ -339,7 +339,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
           vertices[initial_vtx + index].uv_y = v.y;
         };
 
-         fastgltf::iterateAccessorWithIndex<glm::vec3>(asset, asset.accessors[(*uv).accessorIndex], lambda);
+         fastgltf::iterateAccessorWithIndex<glm::vec2>(asset, asset.accessors[(*uv).accessorIndex], lambda);
       }
 
       auto colors = p.findAttribute("COLOR_O");

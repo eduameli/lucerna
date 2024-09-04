@@ -154,6 +154,9 @@ void Engine::update_scene()
 */
 void Engine::update_scene()
 {
+  
+  mainDrawContext.OpaqueSurfaces.clear();
+  mainDrawContext.TransparentSurfaces.clear();
 
   mainCamera.update();
   
@@ -209,7 +212,7 @@ void Engine::init()
   mainCamera.pitch = 0;
   mainCamera.yaw = 0;
   
-  std::string structurePath = "assets/structure.glb";
+  std::string structurePath = "assets/sponza.glb";
   auto structureFile = load_gltf(this, structurePath);
 
   AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
@@ -895,7 +898,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.update_set(m_Device.logical, globalDescriptor);
 
-	for (const RenderObject& draw : mainDrawContext.OpaqueSurfaces) {
+	/*for (const RenderObject& draw : mainDrawContext.OpaqueSurfaces) {
 
 		vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
 		vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 0,1, &globalDescriptor,0,nullptr );
@@ -909,8 +912,35 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 		vkCmdPushConstants(cmd,draw.material->pipeline->layout ,VK_SHADER_STAGE_VERTEX_BIT,0, sizeof(GPUDrawPushConstants), &pushConstants);
 
 		vkCmdDrawIndexed(cmd,draw.indexCount,1,draw.firstIndex,0,0);
-	}
+	}*/
 
+  auto draw = [&](const RenderObject& draw) {
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd , VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
+    vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    
+    GPUDrawPushConstants pcs{};
+    pcs.vertexBuffer = draw.vertexBufferAddress;
+    pcs.worldMatrix = draw.transform;
+    vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+
+    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+  };
+
+  for (auto& r : mainDrawContext.OpaqueSurfaces)
+  {
+    draw(r);
+  }
+
+  for (auto& r : mainDrawContext.TransparentSurfaces)
+  {
+    draw(r);
+  }
+  
+  //mainDrawContext.TransparentSurfaces.clear();
+  //mainDrawContext.OpaqueSurfaces.clear();
+  
   /*vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
 
   VkDescriptorSet imageSet = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SingleImageDescriptorLayout);
@@ -1080,8 +1110,8 @@ void Engine::init_mesh_pipeline()
   builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
   builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   builder.set_multisampling_none();
-  builder.disable_blending();
-  //builder.enable_blending_additive();
+  //builder.disable_blending();
+  builder.enable_blending_additive();
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   builder.set_color_attachment_format(m_DrawImage.imageFormat);
   builder.set_depth_format(m_DepthImage.imageFormat);
