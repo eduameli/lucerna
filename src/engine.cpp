@@ -169,9 +169,9 @@ void Engine::update_scene()
 	sceneData.viewproj = sceneData.proj * sceneData.view;
 
 	//some default lighting parameters
-	sceneData.ambientColour = glm::vec4(.1f);
-	sceneData.sunlightColour = glm::vec4(1.f);
-	sceneData.sunlightDirection = glm::vec4(0,1,0.5,1.f);
+	sceneData.ambientColour = glm::vec4(0.1f);
+	sceneData.sunlightColour = glm::vec4(1.0f);
+	sceneData.sunlightDirection = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
   
 
   loadedScenes["structure"]->draw(glm::mat4{1.0f}, mainDrawContext);
