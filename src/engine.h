@@ -1,16 +1,14 @@
 #pragma once
-
-#include <volk.h>
 #include "aurora_pch.h"
 #include "vk_descriptors.h"
 #include "vk_types.h"
 #include "vk_loader.h"
-#include "window.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
 #include "camera.h"
 
 namespace Aurora {
+
    struct GLTFMetallic_Roughness
     {
     MaterialPipeline opaquePipeline;

@@ -1,6 +1,10 @@
+#pragma once
+
 #include "vk_types.h"
-#include "GLFW/glfw3.h"
-#include "glm/vec3.hpp"
+
+#include <glm/fwd.hpp>
+
+class GLFWwindow;
 
 namespace Aurora
 {

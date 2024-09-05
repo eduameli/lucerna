@@ -3,19 +3,26 @@
 #include "engine.h"
 #include "vk_initialisers.h"
 #include "vk_types.h"
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/quaternion.hpp>
+
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
 #include <fastgltf/math.hpp>
 #include <fastgltf/types.hpp>
+
 #include "logger.h"
-#include <variant>
+
 #include "ar_asserts.h"
 
 #include "vk_images.h"
 #include "stb_image.h"
+
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace Aurora
 {
@@ -151,7 +158,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   scene->creator = engine;
   LoadedGLTF& file = *scene.get();
       
-  constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers;
+  constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers;
   AR_CORE_INFO("Loading GLTF File at {}", filepath.c_str());
   fastgltf::Parser parser;
   auto data = fastgltf::GltfDataBuffer::FromPath(filepath);

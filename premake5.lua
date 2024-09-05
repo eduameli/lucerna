@@ -1,11 +1,9 @@
 --TODO: REFACTOR BUILD SYSTEM, BUILD GLFW SYSTEM INDEPENDENT
-
 workspace "aurora"
     configurations { "debug", "release" }
     architecture "x86_64"
     linkoptions {"-fuse-ld=mold"}
-    -- toolset "clang"
-    -- buildoptions { "-Wno-nullability-completeness" }
+
 project "aurora"
     kind "WindowedApp"
     language "C++"
@@ -15,8 +13,9 @@ project "aurora"
     
     defines 
     {
-    	"SPDLOG_COMPILED_LIB",
-      "GLM_ENABLE_EXPERIMENTAL",
+    	"GLM_ENABLE_EXPERIMENTAL",
+      "GLM_FORCE_RADIANS",
+      "GLM_FORCE_DEPTH_ZERO_TO_ONE"
     }
     
     pchheader "src/aurora_pch.h"
@@ -30,7 +29,7 @@ project "aurora"
     includedirs 
     {
         "vendor/spdlog/include",
-        "vendor/glfw/include", -- if they are needed here are they also needed when compiling the static lib?
+        "vendor/glfw/include",
         "vendor/KHR",
         "vendor/vulkan/include",
         "vendor/VulkanMemoryAllocator/include",
@@ -47,10 +46,9 @@ project "aurora"
     {
         "spdlog",
         "glfw",
-        --"vulkan",
         "imgui",
         "fastgltf",
-        "volk"
+        "volk",
     }
     
     filter {}
@@ -68,9 +66,6 @@ project "aurora"
         defines { "AR_LOG_LEVEL=0" }
         optimize "On"
 
-
-
-
 project "spdlog"
     location "vendor/spdlog"
     kind "StaticLib"
@@ -78,7 +73,6 @@ project "spdlog"
     cppdialect "c++20"
     targetdir ("build/lib/bin/%{cfg.buildcfg}")
     objdir ("build/lib/obj/%{cfg.buildcfg}")
-    --staticruntime "On"	
 
     defines
     {
@@ -192,10 +186,10 @@ project "fastgltf"
    }
  
     
-    filter "configurations:Debug"
+    filter "configurations:debug"
         symbols "On"
 
-    filter "configurations:Release"
+    filter "configurations:release"
         optimize "On"
 
 project "volk"
@@ -219,9 +213,8 @@ project "volk"
   {
     "vendor/volk/*.c"
   }
-  filter "configurations:Debug"
+  filter "configurations:debug"
     symbols "On"
 
-  filter "configurations:Release"
+  filter "configurations:release"
     optimize "On"
-
