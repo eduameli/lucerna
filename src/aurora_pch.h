@@ -24,5 +24,6 @@
 
 #include <chrono>
 #include <thread>
+#include <variant>
 
 #endif

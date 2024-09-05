@@ -1,20 +1,11 @@
 #pragma once
-#include <optional>
 #include <volk.h>
 #include "vk_mem_alloc.h"
-#include <functional>
-#include <deque>
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/vec3.hpp> // glm::vec3
-#include <glm/vec4.hpp> // glm::vec4
-#include <glm/mat4x4.hpp> // glm::mat4
-#include <glm/ext/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale
-#include <glm/ext/matrix_clip_space.hpp> // glm::perspective
-#include <glm/ext/scalar_constants.hpp> // glm::pi
-
 #include "aurora_pch.h"
+
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 
 namespace Aurora
 {

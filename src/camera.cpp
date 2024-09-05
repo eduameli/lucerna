@@ -1,7 +1,10 @@
 #include "camera.h"
 #include "window.h"
-#include "glm/gtx/quaternion.hpp"
-#include "glm/gtx/transform.hpp"
+#include <GLFW/glfw3.h>
+
+#include <glm/mat4x4.hpp>
+#include <glm/gtx/quaternion.hpp>
+
 namespace Aurora
 {
   void Camera::init()

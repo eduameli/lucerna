@@ -4,6 +4,7 @@
 #include <filesystem>
 #include "vk_descriptors.h"
 #include "fastgltf/core.hpp"
+
 namespace Aurora {
 
 // forward declaration

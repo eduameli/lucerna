@@ -1,5 +1,5 @@
 #pragma once
-#include "vk_types.h"
+#include <volk.h>
 
 namespace vkinit
 {

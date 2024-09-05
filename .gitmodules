@@ -5,9 +5,6 @@
 	path = vendor/glfw
   url = https://github.com/glfw/glfw.git
   ignore = dirty
-[submodule "vendor/vulkan"]
-	path = vendor/vulkan
-	url = https://github.com/KhronosGroup/Vulkan-Headers.git
 
 [submodule "vendor/VulkanMemoryAllocator"]
 	path = vendor/VulkanMemoryAllocator
