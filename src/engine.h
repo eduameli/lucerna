@@ -8,7 +8,8 @@
 #include "camera.h"
 
 namespace Aurora {
-
+  
+  
    struct GLTFMetallic_Roughness
     {
     MaterialPipeline opaquePipeline;
@@ -60,7 +61,7 @@ struct RenderObject {
 	VkBuffer indexBuffer;
 
 	MaterialInstance* material;
-
+  Bounds bounds;
 	glm::mat4 transform;
 	VkDeviceAddress vertexBufferAddress;
 };
@@ -204,6 +205,6 @@ struct EngineStats
       Camera mainCamera;
       std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
   };
-  
+  bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
  
 } // namespace aurora
