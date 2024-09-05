@@ -159,7 +159,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   LoadedGLTF& file = *scene.get();
       
   constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers;
-  AR_CORE_INFO("Loading GLTF File at {}", filepath.c_str());
   fastgltf::Parser parser;
   auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
   
@@ -551,21 +550,16 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
                 }
             },
             [&](fastgltf::sources::BufferView& view) {
-                AR_CORE_ERROR("buffer view!");
                 auto& bufferView = asset.bufferViews[view.bufferViewIndex];
                 auto& buffer = asset.buffers[bufferView.bufferIndex];
-                AR_CORE_WARN("buffer view, buff {} {}", bufferView.byteOffset, buffer.byteLength);
                 std::visit(fastgltf::visitor { // We only care about VectorWithMime here, because we
                                                // specify LoadExternalBuffers, meaning all buffers
                                                // are already loaded into a vector.
                                [](auto& arg) {
-                                  using T = std::decay_t<decltype(arg)>;
-                                  AR_CORE_FATAL("buffer.data holds {}", typeid(T).name());
                                 },
                                 // FIXME: in the tutorial this was fastgltf::sources::Vector because they asserted it would be casue of the options
                                 // using fastlgltf::sources::Array works for me now but might cause other problems,, keep in mind!
                                [&](fastgltf::sources::Array& vector) {
-                                    AR_CORE_ERROR("loading!!! buffer view .. from {}",(uint64_t) (unsigned char*) (vector.bytes.data() + bufferView.byteOffset));
                                    unsigned char* data = stbi_load_from_memory((unsigned char*)(vector.bytes.data() + bufferView.byteOffset),
                                        static_cast<int>(bufferView.byteLength),
                                        &width, &height, &nrChannels, 4);

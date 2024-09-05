@@ -148,7 +148,9 @@ void Engine::update_scene()
 */
 void Engine::update_scene()
 {
-  
+
+  auto start = std::chrono::system_clock::now();
+
   mainDrawContext.OpaqueSurfaces.clear();
   mainDrawContext.TransparentSurfaces.clear();
 
@@ -182,7 +184,10 @@ void Engine::update_scene()
        glm::mat4 translation = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 1, 0});
       loadedNodes["Cube"]->draw(translation * scale, mainDrawContext);
   }
-
+  
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  stats.scene_update_time = elapsed.count() / 1000.0f;
 }
 void Engine::init()
 {
@@ -206,7 +211,7 @@ void Engine::init()
   mainCamera.pitch = 0;
   mainCamera.yaw = 0;
   
-  std::string structurePath = "assets/sponza.glb";
+  std::string structurePath = "assets/structure.glb";
   auto structureFile = load_gltf(this, structurePath);
 
   AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
@@ -281,7 +286,7 @@ void Engine::run()
     
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    AR_CORE_TRACE("frame time {}", elapsed.count() / 1000.0f);
+    stats.frametime = elapsed.count() / 1000.0f;
   }
 }
 
@@ -369,31 +374,30 @@ void Engine::validate_instance_supported()
   AR_CORE_INFO("Using Vulkan Instance [version {}.{}.{}]", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
   
   // validate validation layer support
-  if (!m_UseValidationLayers)
-    return;
-
-  uint32_t layerCount = 0;
-  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-  std::vector<VkLayerProperties> supportedLayers(layerCount);
-  vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
-  
-  AR_CORE_WARN("Required Validation Layers: ");
-  for (const char* layerName : m_ValidationLayers)
+  if (m_UseValidationLayers)
   {
-    AR_CORE_WARN("\t{}", layerName);
-    bool found = false;
-    for (const auto& layerProperties : supportedLayers)
-    {
-      if (strcmp(layerName, layerProperties.layerName) == 0)
-      {
-        found = true;
-        break;
-      }
-    }
+    uint32_t layerCount = 0;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+    std::vector<VkLayerProperties> supportedLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
     
-    AR_LOG_ASSERT(found, "Required {} layer is not supported!", layerName);
+    AR_CORE_WARN("Required Validation Layers: ");
+    for (const char* layerName : m_ValidationLayers)
+    {
+      AR_CORE_WARN("\t{}", layerName);
+      bool found = false;
+      for (const auto& layerProperties : supportedLayers)
+      {
+        if (strcmp(layerName, layerProperties.layerName) == 0)
+        {
+          found = true;
+          break;
+        }
+      }
+      
+      AR_LOG_ASSERT(found, "Required {} layer is not supported!", layerName);
+    }
   }
-
   // validate instance extension support
   uint32_t requiredCount = 0;
   const char** requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredCount);
@@ -434,8 +438,10 @@ void Engine::init_vulkan()
   validate_instance_supported();
   create_instance();
   
-  if (m_UseValidationLayers == true)
+  if (m_UseValidationLayers)
+  {
     Logger::setup_validation_layer_callback(m_Instance, m_DebugMessenger, Logger::validation_callback);
+  }
 
   glfwCreateWindowSurface(m_Instance, Window::get_handle(), nullptr, &m_Surface);
   
@@ -471,7 +477,7 @@ void Engine::create_instance()
   instance.pApplicationInfo = &app;
   instance.enabledExtensionCount = static_cast<uint32_t>(m_InstanceExtensions.size());
   instance.ppEnabledExtensionNames = m_InstanceExtensions.data();
-
+  
   if (m_UseValidationLayers)
   {
     instance.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
@@ -488,7 +494,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
     .build();
 }
 
@@ -839,6 +845,15 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::InputFloat4("data4", (float*) &selected.data.data4);
     ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
   }
+
+  ImGui::Begin("Stats");
+    ImGui::Text("frametime %f ms", stats.frametime);
+    ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+    ImGui::Text("update time %f ms", stats.scene_update_time);
+    ImGui::Text("triangles %i", stats.triangle_count);
+    ImGui::Text("draws %i", stats.drawcall_count);
+  ImGui::End();
+
   ImGui::End();
   ImGui::Render(); 
 
@@ -851,6 +866,10 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
+  auto start = std::chrono::system_clock::now();
+  stats.drawcall_count = 0;
+  stats.triangle_count = 0;
+
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
@@ -920,6 +939,9 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
 
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+
+    stats.drawcall_count++;
+    stats.triangle_count += draw.indexCount / 3;
   };
 
   for (auto& r : mainDrawContext.OpaqueSurfaces)
@@ -967,6 +989,10 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   vkCmdDrawIndexed(cmd, m_TestMeshes[2]->surfaces[0].count, 1, m_TestMeshes[2]->surfaces[0].startIndex, 0, 0);
   */
   vkCmdEndRendering(cmd);
+
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  stats.mesh_draw_time = elapsed.count() / 1000.0f;
 }
 
 AllocatedBuffer Engine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)

@@ -76,7 +76,14 @@ struct MeshNode : public Node {
 	virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 };
 
-
+struct EngineStats
+{
+  float frametime;
+  int triangle_count;
+  int drawcall_count;
+  float scene_update_time;
+  float mesh_draw_time;
+};
 
   class Engine
   {
@@ -130,7 +137,7 @@ struct MeshNode : public Node {
     public:
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
-      
+      EngineStats stats; 
       AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       void destroy_image(const AllocatedImage& img);

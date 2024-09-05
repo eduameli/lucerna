@@ -63,7 +63,7 @@ project "aurora"
         optimize "Off"
 
     filter "configurations:release"
-        defines { "AR_LOG_LEVEL=0" }
+        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1"}
         optimize "On"
 
 project "spdlog"
