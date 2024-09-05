@@ -4,6 +4,7 @@
 
 #include <glm/mat4x4.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <imgui.h>
 
 namespace Aurora
 {
@@ -57,7 +58,9 @@ namespace Aurora
 
     yaw += xOffset / 200.0f;
     pitch += yOffset / 200.0f;
-
+  
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMousePosEvent((float) xpos, (float) ypos);
   }
   
   glm::mat4 Camera::get_view_matrix()
