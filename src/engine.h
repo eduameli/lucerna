@@ -109,12 +109,13 @@ struct EngineStats
         VkPipelineLayout layout;
         ComputePushConstants data;
       };
-      bool stopRendering = false;
-      bool resizeRequested = false;
-      uint32_t frameNumber;
+      bool stopRendering{false};
+      bool resizeRequested{false};
+      uint32_t frameNumber{0};
       SwapchainContext m_Swapchain;
       DeviceContext m_Device; 
     private:
+      inline bool should_quit();
       void draw();
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
       void draw_geometry(VkCommandBuffer cmd);
@@ -125,7 +126,7 @@ struct EngineStats
       void init_commands();
       void init_sync_structures();
       void init_descriptors();
-      void init_pipelines(); // NOTE: this will leave engine class at some point, as its per model
+      void init_pipelines();
       void init_background_pipelines();
       void init_mesh_pipeline();
       void init_imgui();

@@ -121,31 +121,7 @@ void Engine::init_default_data()
     destroy_image(m_ErrorCheckerboardImage);
   });
 }
-/*
-void Engine::update_scene()
-{
-  mainDrawContext.OpaqueSurfaces.clear();
-  loadedNodes["Suzanne"]->draw(glm::mat4{1.0f}, mainDrawContext);
 
-  m_SceneData.view = glm::translate(m_SceneData.view, glm::vec3{0, 0, -5});
-  m_SceneData.proj = glm::perspective(glm::radians(70.0f), (float)m_Swapchain.extent2d.width / (float) m_Swapchain.extent2d.height, 10000.0f, 0.1f);
-  
-  m_SceneData.proj[1][1] *= -1;
-  m_SceneData.viewproj = m_SceneData.proj * m_SceneData.view;
-  m_SceneData.ambientColour = glm::vec4(0.1f);
-  m_SceneData.sunlightColour = glm::vec4(1.0f);
-  m_SceneData.sunlightDirection = glm::vec4(0.1, 0.5, 1.0f, 1.0f);
-  
-  
-  for (int x = -3; x < 3; x++)
-  {
-    glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2});
-    glm::mat4 translation = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 1, 0});
-    loadedNodes["Cube"]->draw(translation * scale, mainDrawContext);
-  }
-
-}
-*/
 void Engine::update_scene()
 {
 
@@ -203,7 +179,6 @@ void Engine::init()
   init_imgui();
   
   init_default_data();
-  // init default data 
   mainCamera.init();
    
   std::string structurePath = "assets/sponza.glb";
@@ -255,15 +230,17 @@ void Engine::shutdown()
   vkDestroyInstance(m_Instance, nullptr);
 }
 
+bool Engine::should_quit()
+{
+  return !glfwWindowShouldClose(Window::get()) || glfwGetKey(Window::get(), GLFW_KEY_ESCAPE);
+}
+
 void Engine::run()
 {
-  while (!glfwWindowShouldClose(Window::get()))
+  while (should_quit())
   {
     auto start = std::chrono::system_clock::now();
     glfwPollEvents();
-
-    if (glfwGetKey(Window::get(), GLFW_KEY_ESCAPE))
-      glfwSetWindowShouldClose(Window::get(), true);
 
     if (stopRendering)
     {
@@ -900,25 +877,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // we also allocate the uniform buffer to showcase how u can do temporal per frame data that
   // is dynamically created
  
-/*  VkViewport viewport{};
-  viewport.x = 0;
-  viewport.y = 0;
-  viewport.width = m_DrawExtent.width;
-  viewport.height = m_DrawExtent.height;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-
-  vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-  VkRect2D scissor{};
-  scissor.offset.x = 0;
-  scissor.offset.y = 0;
-  scissor.extent.width = viewport.width;
-  scissor.extent.height = viewport.height;
-
-  vkCmdSetScissor(cmd, 0, 1, &scissor);
-*/
-
   AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   get_current_frame().deletionQueue.push_function([=, this] {
     destroy_buffer(gpuSceneDataBuffer);
@@ -932,21 +890,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.update_set(m_Device.logical, globalDescriptor);
 
-	/*for (const RenderObject& draw : mainDrawContext.OpaqueSurfaces) {
-
-		vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-		vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 0,1, &globalDescriptor,0,nullptr );
-		vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 1,1, &draw.material->materialSet,0,nullptr );
-
-		vkCmdBindIndexBuffer(cmd, draw.indexBuffer,0,VK_INDEX_TYPE_UINT32);
-
-		GPUDrawPushConstants pushConstants;
-		pushConstants.vertexBuffer = draw.vertexBufferAddress;
-		pushConstants.worldMatrix = draw.transform;
-		vkCmdPushConstants(cmd,draw.material->pipeline->layout ,VK_SHADER_STAGE_VERTEX_BIT,0, sizeof(GPUDrawPushConstants), &pushConstants);
-
-		vkCmdDrawIndexed(cmd,draw.indexCount,1,draw.firstIndex,0,0);
-	}*/
   
   MaterialPipeline* lastPipeline = nullptr;
   MaterialInstance* lastMaterial = nullptr;
@@ -1010,40 +953,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     draw(r);
   }
   
-  //mainDrawContext.TransparentSurfaces.clear();
-  //mainDrawContext.OpaqueSurfaces.clear();
-  
-  /*vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
-
-  VkDescriptorSet imageSet = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SingleImageDescriptorLayout);
-  {
-    DescriptorWriter writer;
-    writer.write_image(0, m_ErrorCheckerboardImage.imageView, m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    writer.update_set(m_Device.logical, imageSet);
-  }
-
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipelineLayout, 0, 1, &imageSet, 0, nullptr);
-  
-
-
-  GPUDrawPushConstants pcs{};
-  glm::mat4 model{1.0f};
-  //model = glm::rotate(model, (float) glm::radians(glfwGetTime() * 100.0), glm::vec3(0.0f, 1.0f, 0.0f));
-  
-
-  glm::mat4 view = glm::mat4{1.0f};
-  view = glm::translate(view, glm::vec3{0, 0, -5});
-
-  glm::mat4 projection = glm::perspective(glm::radians(70.0f), static_cast<float>(m_Swapchain.extent2d.width)/static_cast<float>(m_Swapchain.extent2d.height),  10000.0f, 0.1f);
-  projection[1][1] *= -1;
-
-  pcs.worldMatrix = projection * view;
-  //pcs.worldMatrix = glm::mat4{1.0};
-  pcs.vertexBuffer = m_TestMeshes[2]->meshBuffers.vertexBufferAddress;
-  vkCmdPushConstants(cmd, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
-  vkCmdBindIndexBuffer(cmd, m_TestMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexed(cmd, m_TestMeshes[2]->surfaces[0].count, 1, m_TestMeshes[2]->surfaces[0].startIndex, 0, 0);
-  */
   vkCmdEndRendering(cmd);
 
   auto end = std::chrono::system_clock::now();
@@ -1173,12 +1082,6 @@ void Engine::init_mesh_pipeline()
   
   VK_CHECK_RESULT(vkCreatePipelineLayout(m_Device.logical, &pipelineInfo, nullptr, &m_MeshPipelineLayout));
 
-  //FIXME: if it does something more than set a value (set multiple, init many values) it has a func
-  // pipeline layout could also have a function so everything has a func
-  // should i make DeviceBuilder and SwapchainBuilder like this too?
-  // creation depends on vkdevice u could create the same thing with diff devices but options change the thing so should be in the build func?
-  // how do i do multiple return then...
-
   PipelineBuilder builder;
   builder.PipelineLayout = m_MeshPipelineLayout;
   builder.set_shaders(meshVertShader, meshFragShader);
@@ -1204,6 +1107,7 @@ void Engine::init_mesh_pipeline()
 
 void Engine::resize_swapchain()
 {
+  // FIX: build from previous swapchain
   vkDeviceWaitIdle(m_Device.logical);
 
   for (int i = 0; i < m_Swapchain.views.size(); i++)
@@ -1407,39 +1311,39 @@ void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
 bool is_visible(const RenderObject& obj, const glm::mat4& viewproj)
 {
   std::array<glm::vec3, 8> corners {
-            glm::vec3 {1, 1, 1},
-            glm::vec3 {1, 1, -1},
-            glm::vec3 {1, -1, 1},
-            glm::vec3 {1, -1, -1},
-            glm::vec3 {-1, 1, 1},
-            glm::vec3 {-1, 1, -1},
-            glm::vec3 {-1, -1, 1},
-            glm::vec3 {-1, -1, -1}
+    glm::vec3 {1, 1, 1},
+    glm::vec3 {1, 1, -1},
+    glm::vec3 {1, -1, 1},
+    glm::vec3 {1, -1, -1},
+    glm::vec3 {-1, 1, 1},
+    glm::vec3 {-1, 1, -1},
+    glm::vec3 {-1, -1, 1},
+    glm::vec3 {-1, -1, -1}
   };
 
-            glm::mat4 matrix = viewproj * obj.transform;
-            glm::vec3 min = {1.5, 1.5, 1.5};
-            glm::vec3 max = {-1.5, -1.5, -1.5};
+  glm::mat4 matrix = viewproj * obj.transform;
+  glm::vec3 min = {1.5, 1.5, 1.5};
+  glm::vec3 max = {-1.5, -1.5, -1.5};
 
-            for (int c = 0; c < 8; c++)
-            {
-              glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.0f);
+  for (int c = 0; c < 8; c++)
+  {
+    glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.0f);
 
-              v.x = v.x / v.w;
-              v.y = v.y / v.w;
-              v.z = v.z / v.w;
-              
-              min = glm::min(glm::vec3 {v.x, v.y, v.z}, min);
-              max = glm::max(glm::vec3{v.x, v.y, v.z}, max);
-            }
+    v.x = v.x / v.w;
+    v.y = v.y / v.w;
+    v.z = v.z / v.w;
+    
+    min = glm::min(glm::vec3 {v.x, v.y, v.z}, min);
+    max = glm::max(glm::vec3{v.x, v.y, v.z}, max);
+  }
 
-            if (min.z > 1.0f || max.z < 0.0f || min.x > 1.0f ||  max.x < -1.0f || min.y > 1.0f || max.y < -1.0f)
-            {
-              return false;
-            }
-            else {
-              return true;
-            }
+  if (min.z > 1.0f || max.z < 0.0f || min.x > 1.0f ||  max.x < -1.0f || min.y > 1.0f || max.y < -1.0f)
+  {
+    return false;
+  }
+  else {
+    return true;
+  }
 }
 
 } // namespace aurora
