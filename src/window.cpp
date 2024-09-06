@@ -23,7 +23,6 @@ namespace Aurora {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     win = glfwCreateWindow(width, height, name.data(), nullptr, nullptr);
     glfwSetWindowIconifyCallback(win, iconify_callback);
-    //glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   }
   
   void Window::shutdown()
@@ -35,13 +34,7 @@ namespace Aurora {
     s_Instance = nullptr;
   }
   
-  Window& Window::get()
-  {
-    AR_ASSERT(s_Instance != nullptr);
-    return *s_Instance;
-  }
-  
-  GLFWwindow* Window::get_handle()
+  GLFWwindow* Window::get()
   {
     AR_ASSERT(s_Instance != nullptr);
     return s_Instance->m_Window;
@@ -50,7 +43,7 @@ namespace Aurora {
   VkExtent2D Window::get_extent()
   {
     int w, h;
-    glfwGetFramebufferSize(Window::get_handle(), &w, &h);
+    glfwGetFramebufferSize(Window::get(), &w, &h);
     return {static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
   }
 
@@ -62,7 +55,7 @@ namespace Aurora {
   void Window::iconify_callback(GLFWwindow* window, int iconify)
   {
     Engine::get().stopRendering = iconify == 0 ? false : true;
-    AR_CORE_INFO("Window {}", iconify == 0 ? "MAXIMISED" : "MINIMISED");
+    AR_CORE_WARN("{} Rendering", iconify == 0 ? "Resumed" : "Suspended");
   }
 
 } // namespace aurora

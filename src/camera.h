@@ -1,8 +1,7 @@
 #pragma once
 
-#include "vk_types.h"
-
 #include <glm/fwd.hpp>
+#include "vk_types.h"
 
 class GLFWwindow;
 
@@ -13,7 +12,7 @@ namespace Aurora
     public:
       void init();
       static inline glm::vec3 velocity{0.0f};
-      static inline float speed = 1.0f;
+      static inline float speed = 0.2f;
       glm::vec3 position;
       static inline float pitch{0.0f};
       static inline float yaw{0.0f};

@@ -11,14 +11,10 @@ namespace Aurora
 {
   void Camera::init()
   {
-    if (glfwRawMouseMotionSupported())
-      glfwSetInputMode(Window::get_handle(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-    glfwSetKeyCallback(Window::get_handle(), key_callback);
-    // FIXME: this breaks imgui input
-    glfwSetCursorPosCallback(Window::get_handle(), cursor_pos_callback);
-    glfwSetMouseButtonCallback(Window::get_handle(), mouse_button_callback);
-    glfwSetScrollCallback(Window::get_handle(), scroll_callback);
-    //glfwSetInputMode(Window::get_handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetKeyCallback(Window::get(), key_callback);
+    glfwSetCursorPosCallback(Window::get(), cursor_pos_callback);
+    glfwSetMouseButtonCallback(Window::get(), mouse_button_callback);
+    glfwSetScrollCallback(Window::get(), scroll_callback);
   }
 
   void Camera::update()
@@ -49,33 +45,38 @@ namespace Aurora
 
   void Camera::cursor_pos_callback(GLFWwindow* window, double xpos, double ypos)
   {
+    
     ImGuiIO& io = ImGui::GetIO();
     io.AddMousePosEvent((float) xpos, (float) ypos);
-    
-    if (!capture_mouse)
+  
+    if (io.WantCaptureMouse)
     {
       s_LastX = xpos;
       s_LastY = ypos;
       return;
     }
-
+    
     float xOffset = xpos - s_LastX;
     float yOffset = s_LastY - ypos;
 
     s_LastX = xpos;
     s_LastY = ypos;
-
-    //yOffset *= s_Sens;
-    //xOffset *= s_Sens;
-
-    yaw += xOffset / 200.0f;
-    pitch += yOffset / 200.0f;
   
-    
+    if (capture_mouse)
+    {
+      yaw += xOffset / 200.0f;
+      pitch += yOffset / 200.0f;
+    }
   }
   
   void Camera::mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
   {
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMouseButtonEvent(button, action);
+    
+    if (io.WantCaptureMouse)
+      return;
+
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
     {
       capture_mouse = true;
@@ -91,9 +92,14 @@ namespace Aurora
 
   void Camera::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
   {
-    float v = speed + yoffset*0.1;
-    speed = std::clamp(v, 0.05f, 5.0f);
-    AR_CORE_TRACE("speed {}", speed);
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMouseWheelEvent(xoffset, yoffset);
+
+    if (io.WantCaptureMouse)
+      return;
+
+    float v = speed + yoffset*0.05;
+    speed = std::clamp(v, 0.001f, 10.0f);
   }
 
   glm::mat4 Camera::get_view_matrix()

@@ -11,8 +11,7 @@ namespace Aurora {
     public:
       static void init(std::string_view name, int width, int height);
       static void shutdown();
-      static Window& get();
-      static GLFWwindow* get_handle();
+      static GLFWwindow* get();
       static VkExtent2D get_extent();
     private:
       static void glfw_error_callback(int error, const char* description);

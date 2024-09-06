@@ -211,7 +211,7 @@ void Engine::init()
   mainCamera.pitch = 0;
   mainCamera.yaw = 0;
   
-  std::string structurePath = "assets/structure.glb";
+  std::string structurePath = "assets/sponza.glb";
   auto structureFile = load_gltf(this, structurePath);
 
   AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
@@ -262,18 +262,17 @@ void Engine::shutdown()
 
 void Engine::run()
 {
-  while (!glfwWindowShouldClose(Window::get_handle()))
+  while (!glfwWindowShouldClose(Window::get()))
   {
     auto start = std::chrono::system_clock::now();
     glfwPollEvents();
 
-    if (glfwGetKey(Window::get_handle(), GLFW_KEY_ESCAPE))
-      glfwSetWindowShouldClose(Window::get_handle(), true);
+    if (glfwGetKey(Window::get(), GLFW_KEY_ESCAPE))
+      glfwSetWindowShouldClose(Window::get(), true);
 
     if (stopRendering)
     {
-      std::cout << "Application Sleeping" << std::endl;
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
       continue;
     }
 
@@ -443,7 +442,7 @@ void Engine::init_vulkan()
     Logger::setup_validation_layer_callback(m_Instance, m_DebugMessenger, Logger::validation_callback);
   }
 
-  glfwCreateWindowSurface(m_Instance, Window::get_handle(), nullptr, &m_Surface);
+  glfwCreateWindowSurface(m_Instance, Window::get(), nullptr, &m_Surface);
   
   create_device();
 
@@ -787,7 +786,7 @@ void Engine::init_imgui()
 	VK_CHECK_RESULT(vkCreateDescriptorPool(m_Device.logical, &pool_info, nullptr, &imguiPool));
 
   ImGui::CreateContext();
-  ImGui_ImplGlfw_InitForVulkan(Window::get_handle(), true);
+  ImGui_ImplGlfw_InitForVulkan(Window::get(), true);
   ImGui_ImplVulkan_InitInfo info{};
   info.Instance = m_Instance;
   info.PhysicalDevice = m_Device.physical;

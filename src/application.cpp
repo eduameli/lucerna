@@ -5,7 +5,7 @@ namespace Aurora {
   Application::Application()
   {
     // read and set preferred configuration
-    Window::init("aurora", 1024, 640);
+    Window::init("aurora", 1280, 800);
   }
 
   Application::~Application()
@@ -16,7 +16,7 @@ namespace Aurora {
 
   void Application::run()
   {
-    // NOTE: configure engine m_Engine.init() / m_Engine.init(Config& config);
+    // NOTE: configure engine startup from args or config.toml file 
     m_Engine.init();
     m_Engine.run();
     m_Engine.shutdown();

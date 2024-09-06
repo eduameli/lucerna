@@ -1,7 +1,7 @@
 #pragma once
 
-#include "logger.h" 
 #include <volk.h>
+#include "logger.h" 
 
 #if AR_ENABLE_ASSERTS == 1
 #include <signal.h>
@@ -28,8 +28,8 @@
 
 
 #else
-#define AR_ASSERT(condition, ...)
-#define AR_LOG_ASSERT(condition, ...)
+#define AR_ASSERT(condition) condition
+#define AR_LOG_ASSERT(condition, ...) condition
 #define AR_STOP
 #endif
 
