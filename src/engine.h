@@ -9,12 +9,10 @@
 
 namespace Aurora {
   
-  
    struct GLTFMetallic_Roughness
     {
     MaterialPipeline opaquePipeline;
     MaterialPipeline transparentPipeline;
-  
     VkDescriptorSetLayout materialLayout;
     
     struct MaterialConstants
@@ -35,10 +33,8 @@ namespace Aurora {
     };
 
     DescriptorWriter writer;
-    
     void build_pipelines(Engine* engine);
     void clear_resources(VkDevice device);
-
     MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
   };
 
@@ -94,6 +90,13 @@ struct EngineStats
       void run();
       static Engine& get();
       GPUMeshBuffers upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
+      AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+      void destroy_buffer(const AllocatedBuffer& buffer);
+      EngineStats stats; 
+      AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+      AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+      void destroy_image(const AllocatedImage& img);
+
     public:
       struct ComputePushConstants
       {
@@ -113,7 +116,24 @@ struct EngineStats
       bool resizeRequested{false};
       uint32_t frameNumber{0};
       SwapchainContext m_Swapchain;
-      DeviceContext m_Device; 
+      DeviceContext m_Device;
+      AllocatedImage m_DrawImage{};
+      AllocatedImage m_DepthImage{};
+      MaterialInstance defaultData;
+      GLTFMetallic_Roughness metalRoughMaterial;
+      VkDescriptorSetLayout m_SceneDescriptorLayout;
+      AllocatedImage m_WhiteImage;
+      AllocatedImage m_BlackImage;
+      AllocatedImage m_GreyImage;
+      AllocatedImage m_ErrorCheckerboardImage;
+      VkSampler m_DefaultSamplerLinear;
+      VkSampler m_DefaultSamplerNearest;
+      VkDescriptorSetLayout m_SingleImageDescriptorLayout;
+      DrawContext mainDrawContext;
+      std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
+      void update_scene();
+      Camera mainCamera;
+      std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
     private:
       inline bool should_quit();
       void draw();
@@ -136,13 +156,6 @@ struct EngineStats
       void create_device();
       FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
       void draw_background(VkCommandBuffer cmd);
-    public:
-      AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-      void destroy_buffer(const AllocatedBuffer& buffer);
-      EngineStats stats; 
-      AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-      AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-      void destroy_image(const AllocatedImage& img);
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
@@ -161,17 +174,9 @@ struct EngineStats
         "VK_LAYER_KHRONOS_validation",
       };
       VmaAllocator m_Allocator{};
-    public:
-      AllocatedImage m_DrawImage{};
-    private:
       VkDescriptorSet m_DrawDescriptors{};
       VkDescriptorSetLayout m_DrawDescriptorLayout{};
       VkExtent2D m_DrawExtent{};
-    public:
-      AllocatedImage m_DepthImage{};
-      MaterialInstance defaultData;
-      GLTFMetallic_Roughness metalRoughMaterial;
-    private:
       VkExtent2D m_WindowExtent{};
       float m_RenderScale = 1.0f;
 
@@ -189,22 +194,6 @@ struct EngineStats
       VkCommandPool m_ImmCommandPool;
 
       GPUSceneData sceneData;
-    public:
-      VkDescriptorSetLayout m_SceneDescriptorLayout;
-    public:
-      AllocatedImage m_WhiteImage;
-      AllocatedImage m_BlackImage;
-      AllocatedImage m_GreyImage;
-      AllocatedImage m_ErrorCheckerboardImage;
-      VkSampler m_DefaultSamplerLinear;
-      VkSampler m_DefaultSamplerNearest;
-      VkDescriptorSetLayout m_SingleImageDescriptorLayout;
-    public:
-      DrawContext mainDrawContext;
-      std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
-      void update_scene();
-      Camera mainCamera;
-      std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
   };
   bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
  
