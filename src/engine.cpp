@@ -205,12 +205,7 @@ void Engine::init()
   init_default_data();
   // init default data 
   mainCamera.init();
-
-  mainCamera.velocity = glm::vec3{0.0f};
-  mainCamera.position = glm::vec3{0, 0, 5};
-  mainCamera.pitch = 0;
-  mainCamera.yaw = 0;
-  
+   
   std::string structurePath = "assets/sponza.glb";
   auto structureFile = load_gltf(this, structurePath);
 
@@ -807,7 +802,7 @@ void Engine::init_imgui()
   info.PipelineRenderingCreateInfo = info2;
   ImGui_ImplVulkan_Init(&info);
   ImGui_ImplVulkan_CreateFontsTexture();
-  
+
   m_DeletionQueue.push_function([=, this]() {
     ImGui_ImplVulkan_Shutdown();
     vkDestroyDescriptorPool(m_Device.logical, imguiPool, nullptr);
