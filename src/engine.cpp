@@ -848,10 +848,10 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
   {
-    if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
-    {
+    //if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
+    //{
       opaque_draws.push_back(i);
-    }
+    //}
   }
   
   // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
@@ -936,7 +936,9 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
     GPUDrawPushConstants pcs{};
     pcs.vertexBuffer = draw.vertexBufferAddress;
-    pcs.worldMatrix = draw.transform;
+    pcs.worldMatrix = glm::scale(draw.transform, glm::vec3(10.0f));
+    // world matrix is the model matrix??
+
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
 
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
