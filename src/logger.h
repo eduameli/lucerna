@@ -17,17 +17,6 @@ namespace Aurora {
         VkInstance instance,
         VkDebugUtilsMessengerEXT& messenger,
         PFN_vkDebugUtilsMessengerCallbackEXT callback);
-      static VkResult create_debug_messenger(
-        VkInstance instance,
-        const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-        const VkAllocationCallbacks* pAllocator,
-        VkDebugUtilsMessengerEXT* pDebugMessenger
-      );
-      static void destroy_debug_messenger(
-        VkInstance instance,
-        VkDebugUtilsMessengerEXT debugMessenger,
-        const VkAllocationCallbacks* pAllocator
-      );
     public:
       static std::shared_ptr<spdlog::logger> s_Logger;
   };

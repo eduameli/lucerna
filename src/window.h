@@ -17,6 +17,6 @@ namespace Aurora {
       static void glfw_error_callback(int error, const char* description);
       static void iconify_callback(GLFWwindow* window, int iconify);
     private:
-      GLFWwindow* m_Window;
+      GLFWwindow* m_Window{nullptr};
   };
 } // namespace Aurora

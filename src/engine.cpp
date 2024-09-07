@@ -225,7 +225,9 @@ void Engine::shutdown()
   vkDestroyDescriptorSetLayout(m_Device.logical, m_SceneDescriptorLayout, nullptr);
 
   m_DeletionQueue.flush();
-  Logger::destroy_debug_messenger(m_Instance, m_DebugMessenger, nullptr);
+  
+  vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
+
   vkDestroyDevice(m_Device.logical, nullptr);
   vkDestroyInstance(m_Instance, nullptr);
 }

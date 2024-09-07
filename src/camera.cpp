@@ -7,17 +7,72 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 
-#include "aurora_pch.h"
-#include "logger.h"
-
 namespace Aurora
 {
   void Camera::init()
   {
-    glfwSetKeyCallback(Window::get(), key_callback);
-    glfwSetCursorPosCallback(Window::get(), cursor_pos_callback);
-    glfwSetMouseButtonCallback(Window::get(), mouse_button_callback);
-    glfwSetScrollCallback(Window::get(), scroll_callback);
+    // wasd movement
+    glfwSetKeyCallback(Window::get(), [](GLFWwindow* window, int key, int scancode, int action, int mods){
+      ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+      if (action == GLFW_PRESS)
+      {
+        if (key == GLFW_KEY_W) {s_Velocity.z = -1;}
+        if (key == GLFW_KEY_S) {s_Velocity.z = 1;}
+        if (key == GLFW_KEY_A) {s_Velocity.x = -1;}
+        if(key == GLFW_KEY_D) {s_Velocity.x = 1;}
+      }
+      
+      if (action == GLFW_RELEASE)
+      {
+        if (key == GLFW_KEY_W) {s_Velocity.z = 0;}
+        if (key == GLFW_KEY_S) {s_Velocity.z = 0;}
+        if (key == GLFW_KEY_A) {s_Velocity.x = 0;}
+        if(key == GLFW_KEY_D) {s_Velocity.x = 0;}
+      }
+    });
+    
+    // move camera
+    glfwSetCursorPosCallback(Window::get(), [](GLFWwindow* window, double xpos, double ypos) {
+      ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos); 
+      
+      float xOffset = xpos - s_LastMouseX;
+      float yOffset = s_LastMouseY - ypos;
+      
+      s_LastMouseX = xpos;
+      s_LastMouseY = ypos;
+    
+      if (s_CursorCaptured)
+      {
+        s_Yaw += xOffset / 200.0f;
+        s_Pitch += yOffset / 200.0f;
+      }
+    });
+    
+    // left click to move camera
+    glfwSetMouseButtonCallback(Window::get(), [](GLFWwindow* window, int button, int action, int mods) {
+      ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+      
+      if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+      {
+        s_CursorCaptured = true;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      }
+      else
+      {
+        s_CursorCaptured = false;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      }
+
+    });
+    
+    // scroll to control speed
+    glfwSetScrollCallback(Window::get(), [](GLFWwindow* window, double xoffset, double yoffset){
+      ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+
+      float v = s_Speed + yoffset*0.01;
+      s_Speed = std::clamp(v, 0.001f, 2.0f);
+ 
+    });
   }
 
   void Camera::update()
@@ -38,68 +93,6 @@ namespace Aurora
     glm::quat pitchRotation = glm::angleAxis(s_Pitch, glm::vec3{1.0f, 0.0f, 0.0f});
     glm::quat yawRotation = glm::angleAxis(s_Yaw, glm::vec3{0.0f, -1.0f, 0.0f});
     return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
-  }
-
-  void Camera::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-  {
-    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
-
-    if (action == GLFW_PRESS)
-    {
-      if (key == GLFW_KEY_W) {s_Velocity.z = -1;}
-      if (key == GLFW_KEY_S) {s_Velocity.z = 1;}
-      if (key == GLFW_KEY_A) {s_Velocity.x = -1;}
-      if(key == GLFW_KEY_D) {s_Velocity.x = 1;}
-    }
-    
-    if (action == GLFW_RELEASE)
-    {
-      if (key == GLFW_KEY_W) {s_Velocity.z = 0;}
-      if (key == GLFW_KEY_S) {s_Velocity.z = 0;}
-      if (key == GLFW_KEY_A) {s_Velocity.x = 0;}
-      if(key == GLFW_KEY_D) {s_Velocity.x = 0;}
-    }
-  }
-
-  void Camera::cursor_pos_callback(GLFWwindow* window, double xpos, double ypos)
-  {
-    ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos); 
-        
-    float xOffset = xpos - s_LastMouseX;
-    float yOffset = s_LastMouseY - ypos;
-
-    s_LastMouseX = xpos;
-    s_LastMouseY = ypos;
-  
-    if (s_CursorCaptured)
-    {
-      s_Yaw += xOffset / 200.0f;
-      s_Pitch += yOffset / 200.0f;
-    }
-  }
-  
-  void Camera::mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
-  {
-    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-    
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-    {
-      s_CursorCaptured = true;
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }
-    else
-    {
-      s_CursorCaptured = false;
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
-  }
-
-  void Camera::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-  {
-    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
-
-    float v = s_Speed + yoffset*0.01;
-    s_Speed = std::clamp(v, 0.001f, 2.0f);
   }
 
 } // namespace aurora
