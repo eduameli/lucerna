@@ -135,7 +135,7 @@ void Engine::update_scene()
 
 	mainDrawContext.OpaqueSurfaces.clear();
 
-	loadedNodes["Suzanne"]->draw(glm::mat4{1.f}, mainDrawContext);	
+	//loadedNodes["Suzanne"]->draw(glm::mat4{1.f}, mainDrawContext);	
 
 	sceneData.view = mainCamera.get_view_matrix();
 	// camera projection
@@ -154,12 +154,14 @@ void Engine::update_scene()
 
   loadedScenes["structure"]->draw(glm::mat4{1.0f}, mainDrawContext);
 
+  /*
   for (int x = -3; x< 3; x++)
   {
-       glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2});
+      //glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2});
        glm::mat4 translation = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 1, 0});
-      loadedNodes["Cube"]->draw(translation * scale, mainDrawContext);
+      loadedNodes["Cube"]->draw(translation , mainDrawContext);
   }
+  */
   
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1248,7 +1250,8 @@ void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
   pipelineBuilder.set_shaders(meshVertShader, meshFragShader);
   pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE); // NOTE: backface culling?
+  //pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE); // NOTE: backface culling?
+  pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   pipelineBuilder.set_multisampling_none();
   pipelineBuilder.disable_blending();
   pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);

@@ -246,7 +246,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
     constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
     
-    constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
+
+    constants.metal_rough_factors.x = mat.pbrData.metallicFactor * 10.0f;
     constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
 
     sceneMaterialConstants[data_index] = constants;
