@@ -6,7 +6,7 @@
 #include "vk_device.h"
 #include "vk_swapchain.h"
 #include "camera.h"
-#include "vk_model.h"
+#include "vk_scene.h"
 
 namespace Aurora {
   struct FrameData

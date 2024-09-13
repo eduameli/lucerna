@@ -1,4 +1,4 @@
-#include "vk_model.h"
+#include "vk_scene.h"
 #include "engine.h"
 #include "vk_pipelines.h"
 #include "ar_asserts.h"
