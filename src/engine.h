@@ -43,6 +43,7 @@ namespace Aurora {
     float mesh_draw_time;
   };
 
+  // FIXME: some stuff is public that could be private!
   class Engine
   {
     public:
@@ -75,36 +76,33 @@ namespace Aurora {
         VkPipelineLayout layout;
         ComputePushConstants data;
       };
-
+    
+      DeviceContext m_Device;
+      SwapchainContext m_Swapchain;
+      Camera mainCamera;
+      DrawContext mainDrawContext;
+      std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes; // unused for now...
+      std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes; 
       EngineStats stats;
+      
+      size_t frameNumber = 0;
       bool stopRendering = false;
       bool resizeRequested = false;
-      uint32_t frameNumber = 0;
-      SwapchainContext m_Swapchain;
-      DeviceContext m_Device;
+
       AllocatedImage m_DrawImage;
       AllocatedImage m_DepthImage;
-      MaterialInstance defaultData;
-      GLTFMetallic_Roughness metalRoughMaterial;
-      VkDescriptorSetLayout m_SceneDescriptorLayout;
       AllocatedImage m_WhiteImage;
       AllocatedImage m_BlackImage;
       AllocatedImage m_GreyImage;
       AllocatedImage m_ErrorCheckerboardImage;
-      VkSampler m_DefaultSamplerLinear;
       VkSampler m_DefaultSamplerNearest;
+      VkSampler m_DefaultSamplerLinear;
+      VkDescriptorSetLayout m_SceneDescriptorLayout;
       VkDescriptorSetLayout m_SingleImageDescriptorLayout;
-      DrawContext mainDrawContext;
-      std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
-      Camera mainCamera;
-      std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
+
+      MaterialInstance defaultData;
+      GLTFMetallic_Roughness metalRoughMaterial;
     private:
-      inline bool should_quit();
-      void draw();
-      void draw_imgui(VkCommandBuffer cmd, VkImageView target);
-      void draw_geometry(VkCommandBuffer cmd);
-      void resize_swapchain();
-      void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
       void init_vulkan();
       void init_swapchain();
       void init_commands();
@@ -118,10 +116,18 @@ namespace Aurora {
       void validate_instance_supported();
       void create_instance();
       void create_device();
-      FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
+
+      inline bool should_quit();
+      void draw();
       void draw_background(VkCommandBuffer cmd);
+      void draw_geometry(VkCommandBuffer cmd);
+      void draw_imgui(VkCommandBuffer cmd, VkImageView target);
+      FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
+      void resize_swapchain();
+      void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
       bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
     private:
+      // unwrap DeviceContext and SwapchainContext into individual variables...
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
       VkSurfaceKHR m_Surface;
@@ -158,6 +164,8 @@ namespace Aurora {
       VkCommandPool m_ImmCommandPool;
 
       GPUSceneData sceneData;
+
+      
   };
 
  

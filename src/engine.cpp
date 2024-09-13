@@ -857,7 +857,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   
   // descriptor set for scene data created every frame!
   // we also allocate the uniform buffer to showcase how u can do temporal per frame data that
-  // is dynamically created
+  // is dynamically created skinned mesh?
  
   AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   get_current_frame().deletionQueue.push_function([=, this] {
