@@ -19,13 +19,10 @@ namespace Aurora {
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
 
-
-
   struct RenderObject {
     uint32_t indexCount;
     uint32_t firstIndex;
     VkBuffer indexBuffer;
-
     MaterialInstance* material;
     Bounds bounds;
     glm::mat4 transform;
@@ -52,15 +49,17 @@ namespace Aurora {
       void init();
       void shutdown();
       void run();
-      static Engine& get();
-      GPUMeshBuffers upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
+      
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
-      EngineStats stats; 
+      GPUMeshBuffers upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
       AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       void destroy_image(const AllocatedImage& img);
+    
+      void update_scene();
 
+      static Engine& get();
     public:
       struct ComputePushConstants
       {
@@ -76,6 +75,8 @@ namespace Aurora {
         VkPipelineLayout layout;
         ComputePushConstants data;
       };
+
+      EngineStats stats;
       bool stopRendering = false;
       bool resizeRequested = false;
       uint32_t frameNumber = 0;
@@ -95,7 +96,6 @@ namespace Aurora {
       VkDescriptorSetLayout m_SingleImageDescriptorLayout;
       DrawContext mainDrawContext;
       std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
-      void update_scene();
       Camera mainCamera;
       std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
     private:
