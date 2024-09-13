@@ -6,7 +6,6 @@
 #include "vk_device.h"
 #include "vk_swapchain.h"
 #include "camera.h"
-#include "vk_scene.h"
 
 namespace Aurora {
   struct FrameData
@@ -22,30 +21,30 @@ namespace Aurora {
 
 
 
-struct RenderObject {
-	uint32_t indexCount;
-	uint32_t firstIndex;
-	VkBuffer indexBuffer;
+  struct RenderObject {
+    uint32_t indexCount;
+    uint32_t firstIndex;
+    VkBuffer indexBuffer;
 
-	MaterialInstance* material;
-  Bounds bounds;
-	glm::mat4 transform;
-	VkDeviceAddress vertexBufferAddress;
-};
+    MaterialInstance* material;
+    Bounds bounds;
+    glm::mat4 transform;
+    VkDeviceAddress vertexBufferAddress;
+  };
 
-struct DrawContext {
-	std::vector<RenderObject> OpaqueSurfaces;
-  std::vector<RenderObject> TransparentSurfaces;
-};
+  struct DrawContext {
+    std::vector<RenderObject> OpaqueSurfaces;
+    std::vector<RenderObject> TransparentSurfaces;
+  };
 
-struct EngineStats
-{
-  float frametime;
-  int triangle_count;
-  int drawcall_count;
-  float scene_update_time;
-  float mesh_draw_time;
-};
+  struct EngineStats
+  {
+    float frametime;
+    int triangle_count;
+    int drawcall_count;
+    float scene_update_time;
+    float mesh_draw_time;
+  };
 
   class Engine
   {
@@ -77,13 +76,13 @@ struct EngineStats
         VkPipelineLayout layout;
         ComputePushConstants data;
       };
-      bool stopRendering{false};
-      bool resizeRequested{false};
-      uint32_t frameNumber{0};
+      bool stopRendering = false;
+      bool resizeRequested = false;
+      uint32_t frameNumber = 0;
       SwapchainContext m_Swapchain;
       DeviceContext m_Device;
-      AllocatedImage m_DrawImage{};
-      AllocatedImage m_DepthImage{};
+      AllocatedImage m_DrawImage;
+      AllocatedImage m_DepthImage;
       MaterialInstance defaultData;
       GLTFMetallic_Roughness metalRoughMaterial;
       VkDescriptorSetLayout m_SceneDescriptorLayout;
@@ -121,6 +120,7 @@ struct EngineStats
       void create_device();
       FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
       void draw_background(VkCommandBuffer cmd);
+      bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
@@ -159,6 +159,6 @@ struct EngineStats
 
       GPUSceneData sceneData;
   };
-  bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
+
  
 } // namespace aurora

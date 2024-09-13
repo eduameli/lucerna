@@ -1179,7 +1179,7 @@ void Engine::destroy_image(const AllocatedImage& img)
 
 
 
-bool is_visible(const RenderObject& obj, const glm::mat4& viewproj)
+bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj)
 {
   std::array<glm::vec3, 8> corners {
     glm::vec3 {1, 1, 1},
