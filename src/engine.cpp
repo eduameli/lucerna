@@ -136,7 +136,7 @@ void Engine::update_scene()
 	sceneData.sunlightDirection = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
   
 
-  loadedScenes["structure"]->draw(glm::mat4{1.0f}, mainDrawContext);
+  loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
 
   /*
   for (int x = -3; x< 3; x++)

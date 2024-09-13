@@ -361,11 +361,11 @@ VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter)
   }
 }
 
-void LoadedGLTF::draw(const glm::mat4& topMatrix, DrawContext& ctx)
+void LoadedGLTF::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
   for (auto& n : topNodes)
   {
-    n->draw(topMatrix, ctx);
+    n->queue_draw(topMatrix, ctx);
   }
 }
 
@@ -580,7 +580,7 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
   return matData;
 }
 
-void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
+void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
   glm::mat4 nodeMatrix = topMatrix * worldTransform;
   for (auto& s : mesh->surfaces)
@@ -596,7 +596,7 @@ void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
     ctx.OpaqueSurfaces.push_back(def);
   }
   
-  Node::draw(topMatrix, ctx);
+  Node::queue_draw(topMatrix, ctx);
 
 }
 

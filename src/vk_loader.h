@@ -34,7 +34,7 @@ struct LoadedGLTF : public IRenderable
 
   ~LoadedGLTF() {clearAll();}
   
-  virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx);
+  virtual void queue_draw(const glm::mat4& topMatrix, DrawContext& ctx);
 
 private:
 };
@@ -77,7 +77,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
 
 	std::shared_ptr<MeshAsset> mesh;
 
-	virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+	virtual void queue_draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 };
 
 

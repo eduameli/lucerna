@@ -101,7 +101,7 @@ namespace Aurora
   struct DrawContext;
   class IRenderable
   {
-    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+    virtual void queue_draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
   };
 
   struct Node: public IRenderable
@@ -121,11 +121,11 @@ namespace Aurora
       }
     }
     
-    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx)
+    virtual void queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     {
       for (auto& c : children)
       {
-        c->draw(topMatrix, ctx);
+        c->queue_draw(topMatrix, ctx);
       }
     }
   };
