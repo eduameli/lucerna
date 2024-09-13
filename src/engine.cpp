@@ -39,7 +39,6 @@ Engine& Engine::get()
 
 void Engine::init_default_data()
 {
-  m_TestMeshes = load_gltf_meshes(this, "assets/basicmesh.glb").value();
   uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
   m_WhiteImage = create_image((void*)&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
   
@@ -93,22 +92,6 @@ void Engine::init_default_data()
 
   defaultData = metalRoughMaterial.write_material(m_Device.logical, MaterialPass::MainColour, materialResources, globalDescriptorAllocator);
 
-
-  for (auto& m : m_TestMeshes)
-  {
-    std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
-    newNode->mesh = m;
-
-    newNode->localTransform = glm::mat4{1.0f};
-    newNode->worldTransform = glm::mat4{1.0f};
-
-    for (auto& s : newNode->mesh->surfaces)
-    {
-      s.material = std::make_shared<GLTFMaterial>(defaultData);
-    }
-    loadedNodes[m->name] = std::move(newNode);
-    AR_CORE_TRACE("render obj {}", m->name);
-  }
 
 
 
@@ -219,12 +202,6 @@ void Engine::shutdown()
     m_Frames[i].deletionQueue.flush();
   }
  
-  for (auto& mesh : m_TestMeshes)
-  {
-    destroy_buffer(mesh->meshBuffers.indexBuffer);
-    destroy_buffer(mesh->meshBuffers.vertexBuffer);
-  }
-  
   vkDestroyDescriptorSetLayout(m_Device.logical, m_SceneDescriptorLayout, nullptr);
 
   m_DeletionQueue.flush();

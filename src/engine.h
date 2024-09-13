@@ -134,7 +134,6 @@ struct EngineStats
       DeletionQueue m_DeletionQueue;
       FrameData m_Frames[FRAME_OVERLAP];
       DescriptorAllocatorGrowable globalDescriptorAllocator;
-      std::vector<std::shared_ptr<MeshAsset>> m_TestMeshes;
       int m_BackgroundEffectIndex = 0;
       std::vector<ComputeEffect> m_BackgroundEffects;
       std::vector<const char*> m_InstanceExtensions = {};
