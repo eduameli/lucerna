@@ -37,12 +37,6 @@ struct DrawContext {
 	std::vector<RenderObject> OpaqueSurfaces;
   std::vector<RenderObject> TransparentSurfaces;
 };
-struct MeshNode : public Node {
-
-	std::shared_ptr<MeshAsset> mesh;
-
-	virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
-};
 
 struct EngineStats
 {

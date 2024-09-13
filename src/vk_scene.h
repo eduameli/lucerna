@@ -35,4 +35,11 @@ namespace Aurora {
     void clear_resources(VkDevice device); // FIXME: not implemented??
     MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
   };
+
+  struct MeshNode : public Node {
+
+	std::shared_ptr<MeshAsset> mesh;
+
+	virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+};
 } // namespace aurora

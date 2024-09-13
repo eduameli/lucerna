@@ -1177,25 +1177,7 @@ void Engine::destroy_image(const AllocatedImage& img)
   vmaDestroyImage(m_Allocator, img.image, img.allocation);
 }
 
-void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
-{
-  glm::mat4 nodeMatrix = topMatrix * worldTransform;
-  for (auto& s : mesh->surfaces)
-  {
-    RenderObject def;
-    def.indexCount = s.count;
-    def.firstIndex = s.startIndex;
-    def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
-    def.material = &s.material->data;
-    def.bounds = s.bounds;
-    def.transform = nodeMatrix;
-    def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
-    ctx.OpaqueSurfaces.push_back(def);
-  }
-  
-  Node::draw(topMatrix, ctx);
 
-}
 
 bool is_visible(const RenderObject& obj, const glm::mat4& viewproj)
 {
