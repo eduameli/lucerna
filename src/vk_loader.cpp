@@ -29,8 +29,6 @@
 namespace Aurora
 {
 
-//FIXME: errors print error message -> string
-
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
 {
   AR_CORE_INFO("Loading GLTF File at {}", filepath.c_str());
@@ -88,11 +86,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::vector<std::shared_ptr<Node>> nodes;
   std::vector<AllocatedImage> images;
   std::vector<std::shared_ptr<GLTFMaterial>> materials;
-
-  //for (fastgltf::Image& image : asset->images)
-  //{
-  //  images.push_back(engine->m_ErrorCheckerboardImage);
-  //}
   
   for (fastgltf::Image& image : asset.images)
   {
@@ -105,12 +98,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     else
     {
       images.push_back(engine->m_ErrorCheckerboardImage);
-      AR_CORE_WARN("gltf failed to load a texture!");
+      AR_CORE_WARN("Failed to load a texture from GLTF");
     }
   }
   
-
-
   file.materialDataBuffer = engine->create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * asset.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   int data_index = 0;
   GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = (GLTFMetallic_Roughness::MaterialConstants*) file.materialDataBuffer.info.pMappedData;
@@ -286,29 +277,29 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     nodes.push_back(newNode);
     file.nodes[node.name.c_str()];
 
-    std::visit(fastgltf::visitor {
-    [&](fastgltf::math::fmat4x4 matrix) {
-                                          memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
-                                      },
-                       [&](fastgltf::TRS transform) {
-                           glm::vec3 tl(transform.translation[0], transform.translation[1],
-                               transform.translation[2]);
-                           glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1],
-                               transform.rotation[2]);
-                           glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
+    std::visit(
+      fastgltf::visitor {
+        [&](fastgltf::math::fmat4x4 matrix) {
+          memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
+        },
+        [&](fastgltf::TRS transform) {
+          glm::vec3 tl(transform.translation[0], transform.translation[1], transform.translation[2]);
+          glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1], transform.rotation[2]);
+          glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
 
-                           glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
-                           glm::mat4 rm = glm::toMat4(rot);
-                           glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
+          glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
+          glm::mat4 rm = glm::toMat4(rot);
+          glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
 
-                           newNode->localTransform = tm * rm * sm;
-                       } },
-            node.transform);
+          newNode->localTransform = tm * rm * sm;
+        }
+      },
+      node.transform);
   }
   
   for (int i = 0; i < asset.nodes.size(); i++)
   {
-       fastgltf::Node& node = asset.nodes[i];
+    fastgltf::Node& node = asset.nodes[i];
     std::shared_ptr<Node>& sceneNode = nodes[i];
     
     for (auto& c : node.children)
@@ -327,7 +318,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
   }
 
-  // adapt to new api
   return scene;
 }
 
@@ -402,87 +392,105 @@ void LoadedGLTF::clearAll()
 
 std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
 {
-    AllocatedImage newImage {};
 
-    int width, height, nrChannels;
+  AllocatedImage newImage{};
+  int width, height, nrChannels;
 
-    std::visit(
-        fastgltf::visitor {
-            [](auto& arg) {},
-            [&](fastgltf::sources::URI& filePath) {
-                AR_CORE_ERROR("from filepath!");
-                assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
-                assert(filePath.uri.isLocalPath()); // We're only capable of loading
-                                                    // local files.
+  std::visit(
+    fastgltf::visitor{
+        [](auto &arg) {},
+        [&](fastgltf::sources::URI &filePath) {
+          AR_CORE_ERROR("from filepath!");
+          assert(filePath.fileByteOffset ==
+                 0); // We don't support offsets with stbi.
+          assert(filePath.uri.isLocalPath()); // We're only capable of loading
+                                              // local files.
 
-                const std::string path(filePath.uri.path().begin(),
-                    filePath.uri.path().end()); // Thanks C++.
-                unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
-                if (data) {
-                    VkExtent3D imagesize;
-                    imagesize.width = width;
-                    imagesize.height = height;
-                    imagesize.depth = 1;
+          const std::string path(filePath.uri.path().begin(),
+                                 filePath.uri.path().end()); // Thanks C++.
+          unsigned char *data =
+              stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+          if (data) {
+            VkExtent3D imagesize;
+            imagesize.width = width;
+            imagesize.height = height;
+            imagesize.depth = 1;
 
-                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+            newImage = engine->create_image(
+                data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_SAMPLED_BIT, false);
 
-                    stbi_image_free(data);
-                }
-            },
-            [&](fastgltf::sources::Vector& vector) {
-                AR_CORE_ERROR("vector load");
-                unsigned char* data = stbi_load_from_memory((unsigned char*)vector.bytes.data(), static_cast<int>(vector.bytes.size()),
-                    &width, &height, &nrChannels, 4);
-                if (data) {
-                    VkExtent3D imagesize;
-                    imagesize.width = width;
-                    imagesize.height = height;
-                    imagesize.depth = 1;
-
-                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
-
-                    stbi_image_free(data);
-                }
-            },
-            [&](fastgltf::sources::BufferView& view) {
-                auto& bufferView = asset.bufferViews[view.bufferViewIndex];
-                auto& buffer = asset.buffers[bufferView.bufferIndex];
-                std::visit(fastgltf::visitor { // We only care about VectorWithMime here, because we
-                                               // specify LoadExternalBuffers, meaning all buffers
-                                               // are already loaded into a vector.
-                               [](auto& arg) {
-                                },
-                                // FIXME: in the tutorial this was fastgltf::sources::Vector because they asserted it would be casue of the options
-                                // using fastlgltf::sources::Array works for me now but might cause other problems,, keep in mind!
-                               [&](fastgltf::sources::Array& vector) {
-                                   unsigned char* data = stbi_load_from_memory((unsigned char*)(vector.bytes.data() + bufferView.byteOffset),
-                                       static_cast<int>(bufferView.byteLength),
-                                       &width, &height, &nrChannels, 4);
-                                   if (data) {
-                                       VkExtent3D imagesize;
-                                       imagesize.width = width;
-                                       imagesize.height = height;
-                                       imagesize.depth = 1;
-
-                                       newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                                           VK_IMAGE_USAGE_SAMPLED_BIT,false);
-
-                                       stbi_image_free(data);
-                                   }
-                               } },
-                    buffer.data);
-            },
+            stbi_image_free(data);
+          }
         },
-        image.data);
+        [&](fastgltf::sources::Vector &vector) {
+          AR_CORE_ERROR("vector load");
+          unsigned char *data =
+              stbi_load_from_memory((unsigned char *)vector.bytes.data(),
+                                    static_cast<int>(vector.bytes.size()),
+                                    &width, &height, &nrChannels, 4);
+          if (data) {
+            VkExtent3D imagesize;
+            imagesize.width = width;
+            imagesize.height = height;
+            imagesize.depth = 1;
 
-    // if any of the attempts to load the data failed, we havent written the image
-    // so handle is null
-    if (newImage.image == VK_NULL_HANDLE) {
-      AR_CORE_ERROR("NULL  IMAGE LOADED---");
-        return {};
-    } else {
-        return newImage;
-    }
+            newImage = engine->create_image(
+                data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_SAMPLED_BIT, false);
+
+            stbi_image_free(data);
+          }
+        },
+        [&](fastgltf::sources::BufferView &view) {
+          auto &bufferView = asset.bufferViews[view.bufferViewIndex];
+          auto &buffer = asset.buffers[bufferView.bufferIndex];
+          std::visit(
+              fastgltf::visitor{
+                  // We only care about VectorWithMime here, because we
+                  // specify LoadExternalBuffers, meaning all buffers
+                  // are already loaded into a vector.
+                  [](auto &arg) {
+                    AR_LOG_ASSERT(
+                        false,
+                        "std::visit not using fastgltf::sources::Array? - "
+                        "hint: only .glb supported");
+                  },
+                  // FIXME: in the tutorial this was fastgltf::sources::Vector
+                  // because they asserted it would be casue of the options
+                  // using fastlgltf::sources::Array works for me now but
+                  // might cause other problems,, keep in mind!
+                  [&](fastgltf::sources::Array &vector) {
+                    unsigned char *data = stbi_load_from_memory(
+                        (unsigned char *)(vector.bytes.data() +
+                                          bufferView.byteOffset),
+                        static_cast<int>(bufferView.byteLength), &width,
+                        &height, &nrChannels, 4);
+                    if (data) {
+                      VkExtent3D imagesize;
+                      imagesize.width = width;
+                      imagesize.height = height;
+                      imagesize.depth = 1;
+
+                      newImage = engine->create_image(
+                          data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                          VK_IMAGE_USAGE_SAMPLED_BIT, false);
+
+                      stbi_image_free(data);
+                    }
+                  }},
+              buffer.data);
+        },
+    },
+    image.data
+  );
+
+  if (newImage.image == VK_NULL_HANDLE) {
+    AR_CORE_ERROR("Loaded image is VK_NULL_HANDLE");
+    return {};
+  } else {
+    return newImage;
+  }
 }
 
 

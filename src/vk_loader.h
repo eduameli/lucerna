@@ -81,6 +81,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
 };
 
 
+
 } // namespace aurora
 
 
