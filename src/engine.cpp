@@ -819,6 +819,9 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
+
+  UNWRAP_DEVICE(m_Device);
+
   auto start = std::chrono::system_clock::now();
   stats.drawcall_count = 0;
   stats.triangle_count = 0;

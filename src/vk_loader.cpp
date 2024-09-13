@@ -605,7 +605,6 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
   }
   
   Node::queue_draw(topMatrix, ctx);
-
 }
 
 
