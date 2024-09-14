@@ -29,7 +29,6 @@
 
 
 namespace Aurora {
-
 static Engine* s_Instance = nullptr;
 Engine& Engine::get()
 {
@@ -37,120 +36,6 @@ Engine& Engine::get()
   return *s_Instance;
 }
 
-void Engine::init_default_data()
-{
-  uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-  m_WhiteImage = create_image((void*)&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
-  
-  uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-  m_GreyImage = create_image((void*)&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
-
-  uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 1));
-  m_BlackImage = create_image((void*)&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
-
-  uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
-  std::array<uint32_t, 16*16> pixels;
-  for (int x = 0; x < 16; x++)
-  {
-    for (int y = 0; y < 16; y++)
-    {
-      pixels[y * 16 + x] = ((x%2) ^(y%2)) ? magenta : black;
-    }
-  }
-  
-  m_ErrorCheckerboardImage = create_image(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
-  VkSamplerCreateInfo sampl{};
-  sampl.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  sampl.magFilter = VK_FILTER_NEAREST;
-  sampl.minFilter = VK_FILTER_NEAREST;
-  vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerNearest);
-
-  sampl.magFilter = VK_FILTER_LINEAR;
-  sampl.minFilter = VK_FILTER_LINEAR;
-
-  vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerLinear);
-
-
-
-  GLTFMetallic_Roughness::MaterialResources materialResources;
-  materialResources.colorImage = m_WhiteImage;
-  materialResources.colorSampler = m_DefaultSamplerLinear;
-  materialResources.metalRoughImage = m_WhiteImage;
-  materialResources.metalRoughSampler = m_DefaultSamplerLinear;
-
-  AllocatedBuffer materialConstants = create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = (GLTFMetallic_Roughness::MaterialConstants*) materialConstants.allocation->GetMappedData();
-  sceneUniformData->colorFactors = glm::vec4{1, 1, 1, 1};
-  sceneUniformData->metal_rough_factors = glm::vec4{1, 0.5, 0, 1};
-  
-  m_DeletionQueue.push_function([=, this]{
-    destroy_buffer(materialConstants);
-  });
-  
-  materialResources.dataBuffer = materialConstants.buffer;
-  materialResources.dataBufferOffset = 0;
-
-  defaultData = metalRoughMaterial.write_material(m_Device.logical, MaterialPass::MainColour, materialResources, globalDescriptorAllocator);
-
-
-
-
-  m_DeletionQueue.push_function([&]{
-    vkDestroySampler(m_Device.logical, m_DefaultSamplerLinear, nullptr);
-    vkDestroySampler(m_Device.logical, m_DefaultSamplerNearest, nullptr);
-
-    destroy_image(m_WhiteImage);
-    destroy_image(m_GreyImage);
-    destroy_image(m_BlackImage);
-    destroy_image(m_ErrorCheckerboardImage);
-  });
-}
-
-void Engine::update_scene()
-{
-
-  auto start = std::chrono::system_clock::now();
-
-  mainDrawContext.OpaqueSurfaces.clear();
-  mainDrawContext.TransparentSurfaces.clear();
-
-  mainCamera.update();
-  
-
-	mainDrawContext.OpaqueSurfaces.clear();
-
-	//loadedNodes["Suzanne"]->draw(glm::mat4{1.f}, mainDrawContext);	
-
-	sceneData.view = mainCamera.get_view_matrix();
-	// camera projection
-	sceneData.proj = glm::perspective(glm::radians(70.f), (float)m_Swapchain.extent2d.width / (float)m_Swapchain.extent2d.height, 10000.f, 0.1f);
-
-	// invert the Y direction on projection matrix so that we are more similar
-	// to opengl and gltf axis
-	sceneData.proj[1][1] *= -1;
-	sceneData.viewproj = sceneData.proj * sceneData.view;
-
-	//some default lighting parameters
-	sceneData.ambientColour = glm::vec4(0.1f);
-	sceneData.sunlightColour = glm::vec4(1.0f);
-	sceneData.sunlightDirection = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
-  
-
-  loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
-
-  /*
-  for (int x = -3; x< 3; x++)
-  {
-      //glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2});
-       glm::mat4 translation = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 1, 0});
-      loadedNodes["Cube"]->draw(translation , mainDrawContext);
-  }
-  */
-  
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  stats.scene_update_time = elapsed.count() / 1000.0f;
-}
 void Engine::init()
 {
   AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
@@ -243,6 +128,75 @@ void Engine::run()
   }
 }
 
+void Engine::resize_swapchain()
+{
+  // FIX: build from previous swapchain
+  vkDeviceWaitIdle(m_Device.logical);
+
+  for (int i = 0; i < m_Swapchain.views.size(); i++)
+  {
+    vkDestroyImageView(m_Device.logical, m_Swapchain.views[i], nullptr);
+  }
+  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
+
+  SwapchainContextBuilder builder {m_Device, m_Surface};
+  SwapchainContext context = builder
+    .build();
+  m_Swapchain = context;
+  
+  resizeRequested = false;
+}
+
+void Engine::update_scene()
+{
+
+  auto start = std::chrono::system_clock::now();
+
+  mainDrawContext.OpaqueSurfaces.clear();
+  mainDrawContext.TransparentSurfaces.clear();
+
+  mainCamera.update();
+  
+
+	mainDrawContext.OpaqueSurfaces.clear();
+
+	//loadedNodes["Suzanne"]->draw(glm::mat4{1.f}, mainDrawContext);	
+
+	sceneData.view = mainCamera.get_view_matrix();
+	// camera projection
+	sceneData.proj = glm::perspective(glm::radians(70.f), (float)m_Swapchain.extent2d.width / (float)m_Swapchain.extent2d.height, 10000.f, 0.1f);
+
+	// invert the Y direction on projection matrix so that we are more similar
+	// to opengl and gltf axis
+	sceneData.proj[1][1] *= -1;
+	sceneData.viewproj = sceneData.proj * sceneData.view;
+
+	//some default lighting parameters
+	sceneData.ambientColour = glm::vec4(0.1f);
+	sceneData.sunlightColour = glm::vec4(1.0f);
+	sceneData.sunlightDirection = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
+  
+
+  loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
+
+  /*
+  for (int x = -3; x< 3; x++)
+  {
+      //glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2});
+       glm::mat4 translation = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 1, 0});
+      loadedNodes["Cube"]->draw(translation , mainDrawContext);
+  }
+  */
+  
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  stats.scene_update_time = elapsed.count() / 1000.0f;
+}
+
+
+
+
+
 void Engine::draw()
 {
   update_scene();
@@ -317,6 +271,463 @@ void Engine::draw()
   
   frameNumber++;
 }
+
+void Engine::draw_background(VkCommandBuffer cmd)
+{
+  ComputeEffect effect = m_BackgroundEffects[m_BackgroundEffectIndex]; 
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &m_DrawDescriptors, 0, nullptr);
+  
+  ComputePushConstants pc;
+  vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
+
+  vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
+}
+
+void Engine::draw_geometry(VkCommandBuffer cmd)
+{
+
+  UNWRAP_DEVICE(m_Device);
+
+  auto start = std::chrono::system_clock::now();
+  stats.drawcall_count = 0;
+  stats.triangle_count = 0;
+
+  std::vector<uint32_t> opaque_draws;
+  opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
+
+  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
+  {
+    //if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
+    //{
+      opaque_draws.push_back(i);
+    //}
+  }
+  
+  // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
+  // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
+  std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+    const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
+    const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
+    if(A.material == B.material)
+    {
+      return A.indexBuffer < B.indexBuffer;
+    }
+    else
+    {
+      return A.material < B.material;
+    }
+  });
+
+
+  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
+  VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
+  vkCmdBeginRendering(cmd, &renderInfo);
+  
+  // descriptor set for scene data created every frame!
+  // we also allocate the uniform buffer to showcase how u can do temporal per frame data that
+  // is dynamically created skinned mesh?
+ 
+  AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  get_current_frame().deletionQueue.push_function([=, this] {
+    destroy_buffer(gpuSceneDataBuffer);
+  });
+
+  GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
+  *sceneUniformData = sceneData;
+  
+  VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
+  DescriptorWriter writer;
+  writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  writer.update_set(m_Device.logical, globalDescriptor);
+
+  
+  MaterialPipeline* lastPipeline = nullptr;
+  MaterialInstance* lastMaterial = nullptr;
+  VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+  auto draw = [&](const RenderObject& draw) {
+    if (draw.material != lastMaterial)
+    {
+      lastMaterial = draw.material;
+
+      if (draw.material->pipeline != lastPipeline)
+      {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
+
+        VkViewport viewport{};
+        viewport.x = 0;
+        viewport.y = 0;
+        viewport.width = m_DrawExtent.width;
+        viewport.height = m_DrawExtent.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+        VkRect2D scissor{};
+        scissor.offset.x = 0;
+        scissor.offset.y = 0;
+        scissor.extent.width = m_DrawExtent.width;
+        scissor.extent.height = m_DrawExtent.height;
+        vkCmdSetScissor(cmd , 0, 1, &scissor);
+      }
+      
+      vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
+
+    }
+
+    if (draw.indexBuffer != lastIndexBuffer)
+    {
+      lastIndexBuffer = draw.indexBuffer;
+      vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    }
+
+    GPUDrawPushConstants pcs{};
+    pcs.vertexBuffer = draw.vertexBufferAddress;
+    pcs.worldMatrix = glm::scale(draw.transform, glm::vec3(10.0f));
+    // world matrix is the model matrix??
+
+    vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+
+    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+
+    stats.drawcall_count++;
+    stats.triangle_count += draw.indexCount / 3;
+  };
+
+  for (auto& r : opaque_draws)
+  {
+    draw(mainDrawContext.OpaqueSurfaces[r]);
+  }
+
+  for (auto& r : mainDrawContext.TransparentSurfaces)
+  {
+    draw(r);
+  }
+  
+  vkCmdEndRendering(cmd);
+
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  stats.mesh_draw_time = elapsed.count() / 1000.0f;
+}
+
+
+void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
+{
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+  
+  
+  if (ImGui::Begin("settings"))
+  {
+    ComputeEffect& selected = m_BackgroundEffects[m_BackgroundEffectIndex];
+    ImGui::Text("Selected effect: %s", selected.name);
+    ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1); 
+    ImGui::ColorEdit4("data1", (float*) &selected.data.data1);
+    ImGui::InputFloat4("data1", (float*) &selected.data.data1);
+    ImGui::InputFloat4("data2", (float*) &selected.data.data2);
+    ImGui::InputFloat4("data3", (float*) &selected.data.data3);
+    ImGui::InputFloat4("data4", (float*) &selected.data.data4);
+    ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
+  }
+
+  ImGui::Begin("Stats");
+    ImGui::Text("frametime %f ms", stats.frametime);
+    ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+    ImGui::Text("update time %f ms", stats.scene_update_time);
+    ImGui::Text("triangles %i", stats.triangle_count);
+    ImGui::Text("draws %i", stats.drawcall_count);
+  ImGui::End();
+
+  ImGui::End();
+  ImGui::Render(); 
+
+  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
+  vkCmdBeginRendering(cmd, &renderInfo);
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+  vkCmdEndRendering(cmd);
+}
+
+
+bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj)
+{
+  std::array<glm::vec3, 8> corners {
+    glm::vec3 {1, 1, 1},
+    glm::vec3 {1, 1, -1},
+    glm::vec3 {1, -1, 1},
+    glm::vec3 {1, -1, -1},
+    glm::vec3 {-1, 1, 1},
+    glm::vec3 {-1, 1, -1},
+    glm::vec3 {-1, -1, 1},
+    glm::vec3 {-1, -1, -1}
+  };
+
+  glm::mat4 matrix = viewproj * obj.transform;
+  glm::vec3 min = {1.5, 1.5, 1.5};
+  glm::vec3 max = {-1.5, -1.5, -1.5};
+
+  for (int c = 0; c < 8; c++)
+  {
+    glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.0f);
+
+    v.x = v.x / v.w;
+    v.y = v.y / v.w;
+    v.z = v.z / v.w;
+    
+    min = glm::min(glm::vec3 {v.x, v.y, v.z}, min);
+    max = glm::max(glm::vec3{v.x, v.y, v.z}, max);
+  }
+
+  if (min.z > 1.0f || max.z < 0.0f || min.x > 1.0f ||  max.x < -1.0f || min.y > 1.0f || max.y < -1.0f)
+  {
+    return false;
+  }
+  else {
+    return true;
+  }
+}
+
+void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
+{
+  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &m_ImmFence));
+  VK_CHECK_RESULT(vkResetCommandBuffer(m_ImmCommandBuffer, 0));
+
+  VkCommandBuffer cmd = m_ImmCommandBuffer;
+  VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  
+  VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+  function(cmd);
+
+  VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
+
+  VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
+  VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);
+  VK_CHECK_RESULT(vkQueueSubmit2(m_Device.graphics, 1, &submit, m_ImmFence));
+
+  VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &m_ImmFence, true, 9999999999));
+
+} 
+
+
+AllocatedBuffer Engine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+{
+  VkBufferCreateInfo bufferInfo{};
+  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  bufferInfo.pNext = nullptr;
+  bufferInfo.size = allocSize;
+  bufferInfo.usage = usage;
+
+  VmaAllocationCreateInfo vmaAllocInfo{};
+  vmaAllocInfo.usage = memoryUsage;
+  vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+  
+  AllocatedBuffer newBuffer{};
+  
+  VK_CHECK_RESULT(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info));
+  return newBuffer;
+}
+
+void Engine::destroy_buffer(const AllocatedBuffer& buffer)
+{
+  vmaDestroyBuffer(m_Allocator, buffer.buffer, buffer.allocation);
+}
+
+GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices)
+{
+  const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+  const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+
+  GPUMeshBuffers newSurface;
+
+  newSurface.vertexBuffer = create_buffer(
+    vertexBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY);
+  
+  VkBufferDeviceAddressInfo deviceAddressInfo{};
+  deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+  deviceAddressInfo.buffer = newSurface.vertexBuffer.buffer;
+  newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(m_Device.logical, &deviceAddressInfo);
+  
+  newSurface.indexBuffer = create_buffer(
+    indexBufferSize,
+    VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY);
+  
+
+  //FIXME: compare perf cpu to gpu instead of gpu only! (small gpu/cpu shared mem)
+  AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+  void* data = staging.allocation->GetMappedData();
+
+  memcpy(data, vertices.data(), vertexBufferSize);
+  memcpy((char*) data + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
+
+  immediate_submit([&](VkCommandBuffer cmd){
+    VkBufferCopy vertexCopy{};
+    vertexCopy.dstOffset = 0;
+    vertexCopy.srcOffset = 0;
+    vertexCopy.size = vertexBufferSize;
+
+    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
+    
+    VkBufferCopy indexCopy{};
+    indexCopy.dstOffset = 0;
+    indexCopy.srcOffset = vertexBufferSize;
+    indexCopy.size = indexBufferSize;
+
+    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
+  });
+  destroy_buffer(staging);
+
+  return newSurface;
+}
+
+AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+{
+  AllocatedImage newImage;
+  newImage.imageFormat = format;
+  newImage.imageExtent = size;
+
+  VkImageCreateInfo imgInfo = vkinit::image_create_info(format, usage, size);
+  if (mipmapped)
+  {
+    imgInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
+  }
+
+  VmaAllocationCreateInfo allocInfo{};
+  allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  allocInfo.requiredFlags = VkMemoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
+
+  VK_CHECK_RESULT(vmaCreateImage(m_Allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
+  
+  VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+  if (format == VK_FORMAT_D32_SFLOAT)
+  {
+    aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+  }
+
+  VkImageViewCreateInfo viewInfo = vkinit::imageview_create_info(format, newImage.image, aspectFlags);
+  viewInfo.subresourceRange.levelCount = imgInfo.mipLevels;
+
+  VK_CHECK_RESULT(vkCreateImageView(m_Device.logical, &viewInfo, nullptr, &newImage.imageView));
+
+  return newImage;
+}
+
+AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+{
+  // 4 bytes per pixel RGBA
+  size_t dataSize = size.depth * size.width * size.height * 4;
+  AllocatedBuffer uploadBuffer = create_buffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  
+  memcpy(uploadBuffer.info.pMappedData, data, dataSize);
+  
+  AllocatedImage newImage = create_image(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
+
+  immediate_submit([&](VkCommandBuffer cmd) {
+    vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VkBufferImageCopy copyRegion{};
+    copyRegion.bufferOffset = 0;
+    copyRegion.bufferRowLength = 0;
+    copyRegion.bufferImageHeight = 0;
+    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyRegion.imageSubresource.mipLevel = 0;
+    copyRegion.imageSubresource.baseArrayLayer = 0;
+    copyRegion.imageSubresource.layerCount = 1;
+    copyRegion.imageExtent = size;
+
+    vkCmdCopyBufferToImage(cmd, uploadBuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    
+    vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  });
+  
+  destroy_buffer(uploadBuffer);
+  return newImage;
+}
+
+void Engine::destroy_image(const AllocatedImage& img)
+{
+  vkDestroyImageView(m_Device.logical, img.imageView, nullptr);
+  vmaDestroyImage(m_Allocator, img.image, img.allocation);
+}
+
+void Engine::init_default_data()
+{
+  uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+  m_WhiteImage = create_image((void*)&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+  
+  uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+  m_GreyImage = create_image((void*)&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+  uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 1));
+  m_BlackImage = create_image((void*)&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+  uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+  std::array<uint32_t, 16*16> pixels;
+  for (int x = 0; x < 16; x++)
+  {
+    for (int y = 0; y < 16; y++)
+    {
+      pixels[y * 16 + x] = ((x%2) ^(y%2)) ? magenta : black;
+    }
+  }
+  
+  m_ErrorCheckerboardImage = create_image(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+  VkSamplerCreateInfo sampl{};
+  sampl.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  sampl.magFilter = VK_FILTER_NEAREST;
+  sampl.minFilter = VK_FILTER_NEAREST;
+  vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerNearest);
+
+  sampl.magFilter = VK_FILTER_LINEAR;
+  sampl.minFilter = VK_FILTER_LINEAR;
+
+  vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerLinear);
+
+
+
+  GLTFMetallic_Roughness::MaterialResources materialResources;
+  materialResources.colorImage = m_WhiteImage;
+  materialResources.colorSampler = m_DefaultSamplerLinear;
+  materialResources.metalRoughImage = m_WhiteImage;
+  materialResources.metalRoughSampler = m_DefaultSamplerLinear;
+
+  AllocatedBuffer materialConstants = create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = (GLTFMetallic_Roughness::MaterialConstants*) materialConstants.allocation->GetMappedData();
+  sceneUniformData->colorFactors = glm::vec4{1, 1, 1, 1};
+  sceneUniformData->metal_rough_factors = glm::vec4{1, 0.5, 0, 1};
+  
+  m_DeletionQueue.push_function([=, this]{
+    destroy_buffer(materialConstants);
+  });
+  
+  materialResources.dataBuffer = materialConstants.buffer;
+  materialResources.dataBufferOffset = 0;
+
+  defaultData = metalRoughMaterial.write_material(m_Device.logical, MaterialPass::MainColour, materialResources, globalDescriptorAllocator);
+
+
+
+
+  m_DeletionQueue.push_function([&]{
+    vkDestroySampler(m_Device.logical, m_DefaultSamplerLinear, nullptr);
+    vkDestroySampler(m_Device.logical, m_DefaultSamplerNearest, nullptr);
+
+    destroy_image(m_WhiteImage);
+    destroy_image(m_GreyImage);
+    destroy_image(m_BlackImage);
+    destroy_image(m_ErrorCheckerboardImage);
+  });
+}
+
+
 
 void Engine::validate_instance_supported()
 {
@@ -511,18 +922,7 @@ void Engine::init_swapchain()
   });
 }
 
-void Engine::draw_background(VkCommandBuffer cmd)
-{
-  ComputeEffect effect = m_BackgroundEffects[m_BackgroundEffectIndex]; 
 
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &m_DrawDescriptors, 0, nullptr);
-  
-  ComputePushConstants pc;
-  vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
-
-  vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
-}
 
 
 void Engine::init_descriptors()
@@ -779,268 +1179,9 @@ void Engine::init_imgui()
   }
 }
 
-void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
-{
-  ImGui_ImplVulkan_NewFrame();
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
-  
-  
-  if (ImGui::Begin("settings"))
-  {
-    ComputeEffect& selected = m_BackgroundEffects[m_BackgroundEffectIndex];
-    ImGui::Text("Selected effect: %s", selected.name);
-    ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1); 
-    ImGui::ColorEdit4("data1", (float*) &selected.data.data1);
-    ImGui::InputFloat4("data1", (float*) &selected.data.data1);
-    ImGui::InputFloat4("data2", (float*) &selected.data.data2);
-    ImGui::InputFloat4("data3", (float*) &selected.data.data3);
-    ImGui::InputFloat4("data4", (float*) &selected.data.data4);
-    ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
-  }
-
-  ImGui::Begin("Stats");
-    ImGui::Text("frametime %f ms", stats.frametime);
-    ImGui::Text("draw time %f ms", stats.mesh_draw_time);
-    ImGui::Text("update time %f ms", stats.scene_update_time);
-    ImGui::Text("triangles %i", stats.triangle_count);
-    ImGui::Text("draws %i", stats.drawcall_count);
-  ImGui::End();
-
-  ImGui::End();
-  ImGui::Render(); 
-
-  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
-  vkCmdBeginRendering(cmd, &renderInfo);
-  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-  vkCmdEndRendering(cmd);
-}
-
-void Engine::draw_geometry(VkCommandBuffer cmd)
-{
-
-  UNWRAP_DEVICE(m_Device);
-
-  auto start = std::chrono::system_clock::now();
-  stats.drawcall_count = 0;
-  stats.triangle_count = 0;
-
-  std::vector<uint32_t> opaque_draws;
-  opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
-
-  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
-  {
-    //if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
-    //{
-      opaque_draws.push_back(i);
-    //}
-  }
-  
-  // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
-  // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
-  std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-    const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
-    const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
-    if(A.material == B.material)
-    {
-      return A.indexBuffer < B.indexBuffer;
-    }
-    else
-    {
-      return A.material < B.material;
-    }
-  });
 
 
-  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
-  VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
-  vkCmdBeginRendering(cmd, &renderInfo);
-  
-  // descriptor set for scene data created every frame!
-  // we also allocate the uniform buffer to showcase how u can do temporal per frame data that
-  // is dynamically created skinned mesh?
- 
-  AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  get_current_frame().deletionQueue.push_function([=, this] {
-    destroy_buffer(gpuSceneDataBuffer);
-  });
 
-  GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
-  *sceneUniformData = sceneData;
-  
-  VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
-  DescriptorWriter writer;
-  writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.update_set(m_Device.logical, globalDescriptor);
-
-  
-  MaterialPipeline* lastPipeline = nullptr;
-  MaterialInstance* lastMaterial = nullptr;
-  VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
-  auto draw = [&](const RenderObject& draw) {
-    if (draw.material != lastMaterial)
-    {
-      lastMaterial = draw.material;
-
-      if (draw.material->pipeline != lastPipeline)
-      {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
-
-        VkViewport viewport{};
-        viewport.x = 0;
-        viewport.y = 0;
-        viewport.width = m_DrawExtent.width;
-        viewport.height = m_DrawExtent.height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-        VkRect2D scissor{};
-        scissor.offset.x = 0;
-        scissor.offset.y = 0;
-        scissor.extent.width = m_DrawExtent.width;
-        scissor.extent.height = m_DrawExtent.height;
-        vkCmdSetScissor(cmd , 0, 1, &scissor);
-      }
-      
-      vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
-
-    }
-
-    if (draw.indexBuffer != lastIndexBuffer)
-    {
-      lastIndexBuffer = draw.indexBuffer;
-      vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    }
-
-    GPUDrawPushConstants pcs{};
-    pcs.vertexBuffer = draw.vertexBufferAddress;
-    pcs.worldMatrix = glm::scale(draw.transform, glm::vec3(10.0f));
-    // world matrix is the model matrix??
-
-    vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
-
-    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
-
-    stats.drawcall_count++;
-    stats.triangle_count += draw.indexCount / 3;
-  };
-
-  for (auto& r : opaque_draws)
-  {
-    draw(mainDrawContext.OpaqueSurfaces[r]);
-  }
-
-  for (auto& r : mainDrawContext.TransparentSurfaces)
-  {
-    draw(r);
-  }
-  
-  vkCmdEndRendering(cmd);
-
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  stats.mesh_draw_time = elapsed.count() / 1000.0f;
-}
-
-AllocatedBuffer Engine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
-{
-  VkBufferCreateInfo bufferInfo{};
-  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  bufferInfo.pNext = nullptr;
-  bufferInfo.size = allocSize;
-  bufferInfo.usage = usage;
-
-  VmaAllocationCreateInfo vmaAllocInfo{};
-  vmaAllocInfo.usage = memoryUsage;
-  vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-  
-  AllocatedBuffer newBuffer{};
-  
-  VK_CHECK_RESULT(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info));
-  return newBuffer;
-}
-
-void Engine::destroy_buffer(const AllocatedBuffer& buffer)
-{
-  vmaDestroyBuffer(m_Allocator, buffer.buffer, buffer.allocation);
-}
-
-GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices)
-{
-  const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
-  const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
-
-  GPUMeshBuffers newSurface;
-
-  newSurface.vertexBuffer = create_buffer(
-    vertexBufferSize,
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-    VMA_MEMORY_USAGE_GPU_ONLY);
-  
-  VkBufferDeviceAddressInfo deviceAddressInfo{};
-  deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-  deviceAddressInfo.buffer = newSurface.vertexBuffer.buffer;
-  newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(m_Device.logical, &deviceAddressInfo);
-  
-  newSurface.indexBuffer = create_buffer(
-    indexBufferSize,
-    VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-    VMA_MEMORY_USAGE_GPU_ONLY);
-  
-
-  //FIXME: compare perf cpu to gpu instead of gpu only! (small gpu/cpu shared mem)
-  AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-  void* data = staging.allocation->GetMappedData();
-
-  memcpy(data, vertices.data(), vertexBufferSize);
-  memcpy((char*) data + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
-
-  immediate_submit([&](VkCommandBuffer cmd){
-    VkBufferCopy vertexCopy{};
-    vertexCopy.dstOffset = 0;
-    vertexCopy.srcOffset = 0;
-    vertexCopy.size = vertexBufferSize;
-
-    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
-    
-    VkBufferCopy indexCopy{};
-    indexCopy.dstOffset = 0;
-    indexCopy.srcOffset = vertexBufferSize;
-    indexCopy.size = indexBufferSize;
-
-    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
-  });
-  destroy_buffer(staging);
-
-  return newSurface;
-}
-
-void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
-{
-  VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &m_ImmFence));
-  VK_CHECK_RESULT(vkResetCommandBuffer(m_ImmCommandBuffer, 0));
-
-  VkCommandBuffer cmd = m_ImmCommandBuffer;
-  VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-  
-  VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
-  function(cmd);
-
-  VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
-
-  VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
-  VkSubmitInfo2 submit = vkinit::submit_info(&cmdInfo, nullptr, nullptr);
-  VK_CHECK_RESULT(vkQueueSubmit2(m_Device.graphics, 1, &submit, m_ImmFence));
-
-  VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &m_ImmFence, true, 9999999999));
-
-} 
 
 void Engine::init_mesh_pipeline()
 {
@@ -1090,134 +1231,6 @@ void Engine::init_mesh_pipeline()
     vkDestroyPipelineLayout(m_Device.logical, m_MeshPipelineLayout, nullptr);
     vkDestroyPipeline(m_Device.logical, m_MeshPipeline, nullptr);
   });
-}
-
-void Engine::resize_swapchain()
-{
-  // FIX: build from previous swapchain
-  vkDeviceWaitIdle(m_Device.logical);
-
-  for (int i = 0; i < m_Swapchain.views.size(); i++)
-  {
-    vkDestroyImageView(m_Device.logical, m_Swapchain.views[i], nullptr);
-  }
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
-
-  SwapchainContextBuilder builder {m_Device, m_Surface};
-  SwapchainContext context = builder
-    .build();
-  m_Swapchain = context;
-  
-  resizeRequested = false;
-}
-
-AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
-{
-  AllocatedImage newImage;
-  newImage.imageFormat = format;
-  newImage.imageExtent = size;
-
-  VkImageCreateInfo imgInfo = vkinit::image_create_info(format, usage, size);
-  if (mipmapped)
-  {
-    imgInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
-  }
-
-  VmaAllocationCreateInfo allocInfo{};
-  allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-  allocInfo.requiredFlags = VkMemoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
-
-  VK_CHECK_RESULT(vmaCreateImage(m_Allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
-  
-  VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
-  if (format == VK_FORMAT_D32_SFLOAT)
-  {
-    aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
-  }
-
-  VkImageViewCreateInfo viewInfo = vkinit::imageview_create_info(format, newImage.image, aspectFlags);
-  viewInfo.subresourceRange.levelCount = imgInfo.mipLevels;
-
-  VK_CHECK_RESULT(vkCreateImageView(m_Device.logical, &viewInfo, nullptr, &newImage.imageView));
-
-  return newImage;
-}
-
-AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
-{
-  // 4 bytes per pixel RGBA
-  size_t dataSize = size.depth * size.width * size.height * 4;
-  AllocatedBuffer uploadBuffer = create_buffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  
-  memcpy(uploadBuffer.info.pMappedData, data, dataSize);
-  
-  AllocatedImage newImage = create_image(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
-
-  immediate_submit([&](VkCommandBuffer cmd) {
-    vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    VkBufferImageCopy copyRegion{};
-    copyRegion.bufferOffset = 0;
-    copyRegion.bufferRowLength = 0;
-    copyRegion.bufferImageHeight = 0;
-    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    copyRegion.imageSubresource.mipLevel = 0;
-    copyRegion.imageSubresource.baseArrayLayer = 0;
-    copyRegion.imageSubresource.layerCount = 1;
-    copyRegion.imageExtent = size;
-
-    vkCmdCopyBufferToImage(cmd, uploadBuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
-    
-    vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-  });
-  
-  destroy_buffer(uploadBuffer);
-  return newImage;
-}
-
-void Engine::destroy_image(const AllocatedImage& img)
-{
-  vkDestroyImageView(m_Device.logical, img.imageView, nullptr);
-  vmaDestroyImage(m_Allocator, img.image, img.allocation);
-}
-
-
-
-bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj)
-{
-  std::array<glm::vec3, 8> corners {
-    glm::vec3 {1, 1, 1},
-    glm::vec3 {1, 1, -1},
-    glm::vec3 {1, -1, 1},
-    glm::vec3 {1, -1, -1},
-    glm::vec3 {-1, 1, 1},
-    glm::vec3 {-1, 1, -1},
-    glm::vec3 {-1, -1, 1},
-    glm::vec3 {-1, -1, -1}
-  };
-
-  glm::mat4 matrix = viewproj * obj.transform;
-  glm::vec3 min = {1.5, 1.5, 1.5};
-  glm::vec3 max = {-1.5, -1.5, -1.5};
-
-  for (int c = 0; c < 8; c++)
-  {
-    glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.0f);
-
-    v.x = v.x / v.w;
-    v.y = v.y / v.w;
-    v.z = v.z / v.w;
-    
-    min = glm::min(glm::vec3 {v.x, v.y, v.z}, min);
-    max = glm::max(glm::vec3{v.x, v.y, v.z}, max);
-  }
-
-  if (min.z > 1.0f || max.z < 0.0f || min.x > 1.0f ||  max.x < -1.0f || min.y > 1.0f || max.y < -1.0f)
-  {
-    return false;
-  }
-  else {
-    return true;
-  }
 }
 
 } // namespace aurora
