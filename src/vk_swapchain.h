@@ -29,7 +29,7 @@ namespace Aurora {
       SwapchainContextBuilder& set_preferred_format(VkFormat format);
       SwapchainContextBuilder& set_preferred_colorspace(VkColorSpaceKHR space);
       SwapchainContextBuilder& set_preferred_present(VkPresentModeKHR mode);
-      SwapchainContext build();
+      SwapchainContext build(VkSwapchainKHR oldSwapchain = VK_NULL_HANDLE);
     public:
     private:
       SwapchainSupportDetails query_swapchain_support(VkPhysicalDevice device);

@@ -25,7 +25,7 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include "vk_pipelines.h"
-
+#include "glm/gtx/string_cast.hpp"
 namespace Aurora
 {
 
@@ -167,7 +167,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
     for (auto&& p : mesh.primitives)
     {
-      GeoSurface newSurface;
+      GeoSurface newSurface{};
       newSurface.startIndex = static_cast<uint32_t>(indices.size());
       newSurface.count = static_cast<uint32_t>(asset.accessors[p.indicesAccessor.value()].count);
 
@@ -240,26 +240,49 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
         newSurface.material = materials[0];
       }
       
-      
       glm::vec3 minpos = vertices[initial_vtx].position;
       glm::vec3 maxpos = vertices[initial_vtx].position;
-      for (int i = initial_vtx; i < vertices.size(); i++)
-      {
-        minpos = glm::min(minpos, vertices[i].position);
-        maxpos = glm::max(maxpos, vertices[i].position);
+      for (int i = initial_vtx; i < vertices.size(); i++) {
+          minpos = glm::min(minpos, vertices[i].position);
+          maxpos = glm::max(maxpos, vertices[i].position);
       }
 
-      newSurface.bounds.origin = (maxpos + minpos) / 2.0f;
-      newSurface.bounds.extents = (maxpos-minpos) / 2.0f;
+      newSurface.bounds.origin = (maxpos + minpos) / 2.f;
+      newSurface.bounds.extents = (maxpos - minpos) / 2.f;
       newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
-
+      // calculate origin and extents from the min/max, use extent lenght for radius
+      AR_CORE_WARN("ORIGIN {} EXTENDS {}", glm::to_string(newSurface.bounds.origin), glm::to_string(newSurface.bounds.extents));
       newmesh->surfaces.push_back(newSurface);
+
     }
     newmesh->meshBuffers = engine->upload_mesh(vertices, indices);
+
+
   }
   
   // now we load the nodes?
-  
+  int sceneIndex = asset.scenes.size();
+  //AR_LOG_ASSERT(false, "scene size is {}", sceneIndex);
+  sceneIndex = 0;
+  fastgltf::iterateSceneNodes(asset, sceneIndex, fastgltf::math::fmat4x4(),
+    [&](fastgltf::Node& node, fastgltf::math::fmat4x4 matrix) {
+      std::shared_ptr<Node> newNode;
+      if (node.meshIndex.has_value())
+      {
+        newNode = std::make_shared<MeshNode>();
+        static_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
+        // do something
+      }
+      else
+      {
+        newNode = std::make_shared<Node>();
+      }
+      memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
+      nodes.push_back(newNode);
+      file.nodes[node.name.c_str()];
+  });
+
+  /*
   for (fastgltf::Node& node : asset.nodes)
   {
     std::shared_ptr<Node> newNode;
@@ -296,7 +319,28 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       },
       node.transform);
   }
-  
+*/
+
+/*
+        std::visit(fastgltf::visitor { [&](fastgltf::Node::TransformMatrix matrix) {
+                                          memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
+                                      },
+                       [&](fastgltf::Node::TRS transform) {
+                           glm::vec3 tl(transform.translation[0], transform.translation[1],
+                               transform.translation[2]);
+                           glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1],
+                               transform.rotation[2]);
+                           glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
+
+                           glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
+                           glm::mat4 rm = glm::toMat4(rot);
+                           glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
+
+                           newNode->localTransform = tm * rm * sm;
+                       } },
+            node.transform);
+    }
+  */
   for (int i = 0; i < asset.nodes.size(); i++)
   {
     fastgltf::Node& node = asset.nodes[i];
@@ -599,10 +643,23 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
     def.material = &s.material->data;
     def.bounds = s.bounds;
+
     def.transform = nodeMatrix;
     def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
-    ctx.OpaqueSurfaces.push_back(def);
+    
+    if (s.material->data.passType == MaterialPass::Transparent)
+    {
+      ctx.TransparentSurfaces.push_back(def);
+    }
+    else
+    {
+      ctx.OpaqueSurfaces.push_back(def);
+    }
+
   }
+
+  // queue_draw debug aabb 
+
   
   Node::queue_draw(topMatrix, ctx);
 }

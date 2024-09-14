@@ -27,7 +27,7 @@
 #include <glm/ext/matrix_transform.hpp>
 // NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
 
-
+#include <glm/gtx/string_cast.hpp>
 namespace Aurora {
 static Engine* s_Instance = nullptr;
 Engine& Engine::get()
@@ -52,7 +52,7 @@ void Engine::init()
   init_default_data();
   mainCamera.init();
    
-  std::string structurePath = "assets/sponza.glb";
+  std::string structurePath = "assets/sponza_applied.glb";
   auto structureFile = load_gltf(this, structurePath);
 
   AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
@@ -120,6 +120,8 @@ void Engine::run()
       resize_swapchain();
     }
     
+    update_scene();
+
     draw();
     
     auto end = std::chrono::system_clock::now();
@@ -137,13 +139,16 @@ void Engine::resize_swapchain()
   {
     vkDestroyImageView(m_Device.logical, m_Swapchain.views[i], nullptr);
   }
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
 
-  SwapchainContextBuilder builder {m_Device, m_Surface};
-  SwapchainContext context = builder
-    .build();
-  m_Swapchain = context;
+  SwapchainContextBuilder builder{m_Device, m_Surface};
+  SwapchainContext newSwapchain = builder
+    .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
+    .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_MAILBOX_KHR)
+    .build(m_Swapchain.handle);
   
+  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
+  m_Swapchain = newSwapchain;
   resizeRequested = false;
 }
 
@@ -199,8 +204,6 @@ void Engine::update_scene()
 
 void Engine::draw()
 {
-  update_scene();
-
   VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &get_current_frame().renderFence, true, 1000000000));
   
   get_current_frame().deletionQueue.flush();
@@ -214,8 +217,8 @@ void Engine::draw()
     return;
   }
 
-  m_DrawExtent.height = std::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height) * m_RenderScale;
-  m_DrawExtent.width = std::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width) * m_RenderScale;
+  m_DrawExtent.height = glm::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height) * m_RenderScale;
+  m_DrawExtent.width = glm::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width) * m_RenderScale;
 
   VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &get_current_frame().renderFence));
 
@@ -284,27 +287,25 @@ void Engine::draw_background(VkCommandBuffer cmd)
 
   vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
 }
-
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
-
-  UNWRAP_DEVICE(m_Device);
-
   auto start = std::chrono::system_clock::now();
   stats.drawcall_count = 0;
   stats.triangle_count = 0;
 
   std::vector<uint32_t> opaque_draws;
   opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
-
+  
   for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
   {
-    //if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
-    //{
+    if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
+    {
       opaque_draws.push_back(i);
-    //}
+    }
   }
   
+  AR_CORE_INFO("main {}, cull {}", mainDrawContext.OpaqueSurfaces.size(), opaque_draws.size());
+
   // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
   // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
   std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
@@ -386,8 +387,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     }
 
     GPUDrawPushConstants pcs{};
+    pcs.worldMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
-    pcs.worldMatrix = glm::scale(draw.transform, glm::vec3(10.0f));
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -454,44 +455,47 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   vkCmdEndRendering(cmd);
 }
 
-
-bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj)
-{
-  std::array<glm::vec3, 8> corners {
-    glm::vec3 {1, 1, 1},
-    glm::vec3 {1, 1, -1},
-    glm::vec3 {1, -1, 1},
-    glm::vec3 {1, -1, -1},
-    glm::vec3 {-1, 1, 1},
-    glm::vec3 {-1, 1, -1},
-    glm::vec3 {-1, -1, 1},
-    glm::vec3 {-1, -1, -1}
-  };
-
-  glm::mat4 matrix = viewproj * obj.transform;
-  glm::vec3 min = {1.5, 1.5, 1.5};
-  glm::vec3 max = {-1.5, -1.5, -1.5};
-
-  for (int c = 0; c < 8; c++)
-  {
-    glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.0f);
-
-    v.x = v.x / v.w;
-    v.y = v.y / v.w;
-    v.z = v.z / v.w;
+bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
+    std::array<glm::vec3, 8> corners {
+        glm::vec3 { 1, 1, 1 },
+        glm::vec3 { 1, 1, -1 },
+        glm::vec3 { 1, -1, 1 },
+        glm::vec3 { 1, -1, -1 },
+        glm::vec3 { -1, 1, 1 },
+        glm::vec3 { -1, 1, -1 },
+        glm::vec3 { -1, -1, 1 },
+        glm::vec3 { -1, -1, -1 },
+    };
     
-    min = glm::min(glm::vec3 {v.x, v.y, v.z}, min);
-    max = glm::max(glm::vec3{v.x, v.y, v.z}, max);
-  }
+    AR_CORE_INFO("obj transform {}", glm::to_string(obj.transform));
+    glm::mat4 matrix = viewproj * obj.transform;
 
-  if (min.z > 1.0f || max.z < 0.0f || min.x > 1.0f ||  max.x < -1.0f || min.y > 1.0f || max.y < -1.0f)
-  {
-    return false;
-  }
-  else {
-    return true;
-  }
+    glm::vec3 min = { 1.5, 1.5, 1.5 };
+    glm::vec3 max = { -1.5, -1.5, -1.5 };
+  
+    //AR_CORE_ERROR("origin: {}, extents: {}", glm::to_string(obj.bounds.origin), glm::to_string(obj.bounds.extents));
+    for (int c = 0; c < 8; c++) {
+        // project each corner into clip space
+        glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
+
+        // perspective correction
+        v.x = v.x / v.w;
+        v.y = v.y / v.w;
+        v.z = v.z / v.w;
+
+        min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
+        max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
+    }
+
+    // check the clip space box is within the view
+    if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
+        return false;
+    } else {
+        return true;
+    }
 }
+
+
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
 {
