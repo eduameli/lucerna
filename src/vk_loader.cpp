@@ -157,6 +157,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
+    AR_CORE_FATAL("MESH {}", mesh.name);
     std::shared_ptr<MeshAsset> newmesh = std::make_shared<MeshAsset>();
     meshes.push_back(newmesh);
     file.meshes[mesh.name.c_str()] = newmesh;
@@ -164,7 +165,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     
     indices.clear();
     vertices.clear();
-
+    int i = 0;
     for (auto&& p : mesh.primitives)
     {
       GeoSurface newSurface{};
@@ -239,12 +240,15 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         newSurface.material = materials[0];
       }
-      
+     
+      AR_CORE_FATAL("INDEX {}", i);
       glm::vec3 minpos = vertices[initial_vtx].position;
       glm::vec3 maxpos = vertices[initial_vtx].position;
       for (int i = initial_vtx; i < vertices.size(); i++) {
+          AR_CORE_FATAL("previous {} {}", glm::to_string(minpos), glm::to_string(maxpos));
           minpos = glm::min(minpos, vertices[i].position);
           maxpos = glm::max(maxpos, vertices[i].position);
+          AR_CORE_FATAL("new {} {}", glm::to_string(minpos), glm::to_string(maxpos));
       }
 
       newSurface.bounds.origin = (maxpos + minpos) / 2.f;
@@ -253,10 +257,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       // calculate origin and extents from the min/max, use extent lenght for radius
       AR_CORE_WARN("ORIGIN {} EXTENDS {}", glm::to_string(newSurface.bounds.origin), glm::to_string(newSurface.bounds.extents));
       newmesh->surfaces.push_back(newSurface);
+      
+      i++;
+      if (i == 1)
+        break;
 
     }
     newmesh->meshBuffers = engine->upload_mesh(vertices, indices);
-
 
   }
   
@@ -364,6 +371,34 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
   return scene;
 }
+
+
+std::optional<std::shared_ptr<LoadedGLTF>> load_gltf_asset(Engine* engine, std::filesystem::path path)
+{
+  AR_CORE_INFO("Loading GLTF file located at {}", path.c_str());
+  std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
+  //LoadedGLTF& scene_ptr = *scene.get();
+  // open & load gltf
+  
+  fastgltf::Parser parser;
+  auto data = fastgltf::GltfDataBuffer::FromPath(path);
+  if (data.error() != fastgltf::Error::None)
+  {
+    AR_CORE_ERROR("Failed to load GLTFDataBuffer::FromPath({})", path.c_str());
+    return {};
+  }
+
+  auto asset = parser.loadGltf(data.get(), path.parent_path(), fastgltf::Options::None);
+  if (auto error = asset.error(); error != fastgltf::Error::None)
+  {
+    AR_CORE_ERROR("Some error occurred while reading the buffer, parsing the JSON or validating the data");
+    return {};
+  }
+  
+
+  return {};
+}
+
 
 VkFilter extract_filter(fastgltf::Filter filter)
 {

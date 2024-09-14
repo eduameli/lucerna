@@ -52,7 +52,7 @@ void Engine::init()
   init_default_data();
   mainCamera.init();
    
-  std::string structurePath = "assets/sponza_applied.glb";
+  std::string structurePath = "assets/sponza_simplified.glb";
   auto structureFile = load_gltf(this, structurePath);
 
   AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
@@ -304,7 +304,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     }
   }
   
-  AR_CORE_INFO("main {}, cull {}", mainDrawContext.OpaqueSurfaces.size(), opaque_draws.size());
+  //AR_CORE_INFO("main {}, cull {}", mainDrawContext.OpaqueSurfaces.size(), opaque_draws.size());
 
   // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
   // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
@@ -467,7 +467,7 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         glm::vec3 { -1, -1, -1 },
     };
     
-    AR_CORE_INFO("obj transform {}", glm::to_string(obj.transform));
+    //AR_CORE_INFO("obj transform {}", glm::to_string(obj.transform));
     glm::mat4 matrix = viewproj * obj.transform;
 
     glm::vec3 min = { 1.5, 1.5, 1.5 };
