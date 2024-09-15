@@ -174,42 +174,27 @@ void Engine::update_scene()
 
   auto start = std::chrono::system_clock::now();
 
-  mainDrawContext.OpaqueSurfaces.clear();
-  mainDrawContext.TransparentSurfaces.clear();
+  //mainDrawContext.OpaqueSurfaces.clear();
+  //mainDrawContext.TransparentSurfaces.clear();
 
   mainCamera.update();
+  glm::mat4 view = mainCamera.get_view_matrix();
+  glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_DrawExtent.width / (float) m_DrawExtent.height, 10000.0f, 0.1f);
   
+  projection[1][1] *= -1;
 
-	mainDrawContext.OpaqueSurfaces.clear();
+  sceneData.view = view;
+  sceneData.proj = projection;
+  sceneData.viewproj = projection * view;
 
-	//loadedNodes["Suzanne"]->draw(glm::mat4{1.f}, mainDrawContext);	
 
-	sceneData.view = mainCamera.get_view_matrix();
-	// camera projection
-	sceneData.proj = glm::perspective(glm::radians(70.f), (float)m_Swapchain.extent2d.width / (float)m_Swapchain.extent2d.height, 10000.f, 0.1f);
-
-	// invert the Y direction on projection matrix so that we are more similar
-	// to opengl and gltf axis
-	sceneData.proj[1][1] *= -1;
-	sceneData.viewproj = sceneData.proj * sceneData.view;
-
-	//some default lighting parameters
 	sceneData.ambientColour = glm::vec4(0.1f);
 	sceneData.sunlightColour = glm::vec4(1.0f);
 	sceneData.sunlightDirection = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
   
 
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
-  //loadedScenes["cubes"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
-  /*
-  for (int x = -3; x< 3; x++)
-  {
-      //glm::mat4 scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2});
-       glm::mat4 translation = glm::translate(glm::mat4{1.0f}, glm::vec3{x, 1, 0});
-      loadedNodes["Cube"]->draw(translation , mainDrawContext);
-  }
-  */
-  
+   
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   stats.scene_update_time = elapsed.count() / 1000.0f;
@@ -319,6 +304,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     {
       opaque_draws.push_back(i);
     }
+
   }
    
   // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
@@ -426,6 +412,10 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
 
   vkCmdEndRendering(cmd);
+    
+  mainDrawContext.OpaqueSurfaces.clear();
+  mainDrawContext.TransparentSurfaces.clear();
+
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -491,13 +481,21 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     glm::vec3 min = { 1.5, 1.5, 1.5 };
     glm::vec3 max = { -1.5, -1.5, -1.5 };
     
-    AR_CORE_ERROR("origin: {}",
-    glm::to_string(obj.transform * glm::vec4{obj.bounds.origin, 1.0f}));
-
+    //AR_CORE_ERROR("origin: {}, extents: {}, viewproj: {}",
+    //glm::to_string(obj.transform * glm::vec4{obj.bounds.origin, 1.0f}),
+    //glm::to_string(obj.transform * glm::vec4{obj.bounds.extents, 1.0f}),
+    //glm::to_string(viewproj));
+    
+    //if(obj.indexCount < 100)
+    //{
+    //  return true;
+    //}
     //AR_CORE_ERROR("origin: {}, extents: {}", glm::to_string(obj.bounds.origin), glm::to_string(obj.bounds.extents));
     for (int c = 0; c < 8; c++) {
         // project each corner into clip space
         glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
+        
+        AR_CORE_WARN("OBV POINT {}: {}",c,  glm::to_string(glm::inverse(viewproj) * v));
 
         // perspective correction
         v.x = v.x / v.w;
