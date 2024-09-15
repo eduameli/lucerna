@@ -52,12 +52,29 @@ void Engine::init()
   init_default_data();
   mainCamera.init();
    
-  std::string structurePath = "assets/sponza_simplified.glb";
+  std::string structurePath = "assets/sponza_reduced.glb";
   auto structureFile = load_gltf(this, structurePath);
+  
+  //std::string cube = "assets/cube.glb";
+  //auto cubes = load_gltf(this, cube);
+
+  //update_scene();
+
+  AR_CORE_FATAL(mainDrawContext.DebugLines.size()); 
+  //debugBuffer = create_buffer(
+  //  mainDrawContext.DebugLines.size() * sizeof(glm::vec3),
+  //  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+  //  VMA_MEMORY_USAGE_CPU_TO_GPU
+  //);
+  //void* lines = debugBuffer.allocation->GetMappedData();
+  //memcpy(lines, mainDrawContext.DebugLines.data(), mainDrawContext.DebugLines.size() * sizeof(glm::vec3));
+
+
 
   AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
+  //loadedScenes["cubes"] = *cubes;
 
 } 
 
@@ -183,7 +200,7 @@ void Engine::update_scene()
   
 
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
-
+  //loadedScenes["cubes"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
   /*
   for (int x = -3; x< 3; x++)
   {
@@ -303,9 +320,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
       opaque_draws.push_back(i);
     }
   }
-  
-  //AR_CORE_INFO("main {}, cull {}", mainDrawContext.OpaqueSurfaces.size(), opaque_draws.size());
-
+   
   // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
   // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
   std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
@@ -408,14 +423,14 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   {
     draw(r);
   }
-  
+
+
   vkCmdEndRendering(cmd);
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   stats.mesh_draw_time = elapsed.count() / 1000.0f;
 }
-
 
 void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 {
@@ -444,6 +459,10 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::Text("triangles %i", stats.triangle_count);
     ImGui::Text("draws %i", stats.drawcall_count);
   ImGui::End();
+  
+  ImGui::Begin("Debug");
+    ImGui::Text("Objects Drawn (%i/%i)", stats.drawcall_count, (int) mainDrawContext.OpaqueSurfaces.size());
+  ImGui::End();
 
   ImGui::End();
   ImGui::Render(); 
@@ -467,12 +486,14 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         glm::vec3 { -1, -1, -1 },
     };
     
-    //AR_CORE_INFO("obj transform {}", glm::to_string(obj.transform));
     glm::mat4 matrix = viewproj * obj.transform;
 
     glm::vec3 min = { 1.5, 1.5, 1.5 };
     glm::vec3 max = { -1.5, -1.5, -1.5 };
-  
+    
+    AR_CORE_ERROR("origin: {}",
+    glm::to_string(obj.transform * glm::vec4{obj.bounds.origin, 1.0f}));
+
     //AR_CORE_ERROR("origin: {}, extents: {}", glm::to_string(obj.bounds.origin), glm::to_string(obj.bounds.extents));
     for (int c = 0; c < 8; c++) {
         // project each corner into clip space
@@ -488,6 +509,9 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     }
 
     // check the clip space box is within the view
+    //AR_CORE_INFO("min {}, max {}", glm::to_string(min), glm::to_string(max));
+    
+    // inside cannonical viewing volume 
     if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
         return false;
     } else {
@@ -545,6 +569,7 @@ void Engine::destroy_buffer(const AllocatedBuffer& buffer)
 
 GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices)
 {
+  AR_CORE_FATAL("RUNNING!");
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
 
@@ -554,7 +579,16 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
     vertexBufferSize,
     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY);
+ 
   
+  VkDebugUtilsObjectNameInfoEXT vertexbuffer{};
+  vertexbuffer.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+  vertexbuffer.pNext = nullptr;
+  vertexbuffer.objectType = VK_OBJECT_TYPE_BUFFER;
+  vertexbuffer.objectHandle = (uint64_t) newSurface.vertexBuffer.buffer;
+  vertexbuffer.pObjectName = "Sponza Vertex Buffer";
+  vkSetDebugUtilsObjectNameEXT(m_Device.logical, &vertexbuffer);
+
   VkBufferDeviceAddressInfo deviceAddressInfo{};
   deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
   deviceAddressInfo.buffer = newSurface.vertexBuffer.buffer;
@@ -1227,6 +1261,11 @@ void Engine::init_mesh_pipeline()
   builder.set_color_attachment_format(m_DrawImage.imageFormat);
   builder.set_depth_format(m_DepthImage.imageFormat);
   m_MeshPipeline = builder.build_pipeline(m_Device.logical);
+  
+  builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+  m_DebugLinePipeline = builder.build_pipeline(m_Device.logical);
+
+
 
   vkDestroyShaderModule(m_Device.logical, meshFragShader, nullptr);
   vkDestroyShaderModule(m_Device.logical, meshVertShader, nullptr);

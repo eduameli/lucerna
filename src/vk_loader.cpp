@@ -154,7 +154,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   std::vector<uint32_t> indices;
   std::vector<Vertex> vertices;
-
+  int i = 0;
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
     AR_CORE_FATAL("MESH {}", mesh.name);
@@ -165,7 +165,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     
     indices.clear();
     vertices.clear();
-    int i = 0;
+
     for (auto&& p : mesh.primitives)
     {
       GeoSurface newSurface{};
@@ -240,15 +240,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         newSurface.material = materials[0];
       }
-     
-      AR_CORE_FATAL("INDEX {}", i);
+      AR_CORE_INFO("NAME: {}", mesh.name); 
       glm::vec3 minpos = vertices[initial_vtx].position;
       glm::vec3 maxpos = vertices[initial_vtx].position;
       for (int i = initial_vtx; i < vertices.size(); i++) {
-          AR_CORE_FATAL("previous {} {}", glm::to_string(minpos), glm::to_string(maxpos));
+          AR_CORE_FATAL("MIN {} MAX {}", glm::to_string(minpos), glm::to_string(maxpos));
           minpos = glm::min(minpos, vertices[i].position);
           maxpos = glm::max(maxpos, vertices[i].position);
-          AR_CORE_FATAL("new {} {}", glm::to_string(minpos), glm::to_string(maxpos));
       }
 
       newSurface.bounds.origin = (maxpos + minpos) / 2.f;
@@ -258,13 +256,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       AR_CORE_WARN("ORIGIN {} EXTENDS {}", glm::to_string(newSurface.bounds.origin), glm::to_string(newSurface.bounds.extents));
       newmesh->surfaces.push_back(newSurface);
       
-      i++;
-      if (i == 1)
-        break;
-
     }
     newmesh->meshBuffers = engine->upload_mesh(vertices, indices);
-
   }
   
   // now we load the nodes?
@@ -691,11 +684,9 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
       ctx.OpaqueSurfaces.push_back(def);
     }
 
+    // debug aabb
   }
 
-  // queue_draw debug aabb 
-
-  
   Node::queue_draw(topMatrix, ctx);
 }
 
