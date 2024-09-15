@@ -54,6 +54,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     AR_CORE_ERROR("Error parsing GLTF File!");
     return {};
   }
+
   fastgltf::Asset& asset = asset_exp.get();
   
   std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
@@ -61,7 +62,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
     {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
   };
-
   file.descriptorPool.init(engine->m_Device.logical, asset.materials.size(), sizes);
   
 
@@ -154,7 +154,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   std::vector<uint32_t> indices;
   std::vector<Vertex> vertices;
-  int i = 0;
+
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
     AR_CORE_FATAL("MESH {}", mesh.name);
@@ -262,7 +262,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   // now we load the nodes?
   int sceneIndex = asset.scenes.size();
-  //AR_LOG_ASSERT(false, "scene size is {}", sceneIndex);
+  AR_LOG_ASSERT(sceneIndex == 1, "more than 1 scene?? whats a scene gltf");
   sceneIndex = 0;
   fastgltf::iterateSceneNodes(asset, sceneIndex, fastgltf::math::fmat4x4(),
     [&](fastgltf::Node& node, fastgltf::math::fmat4x4 matrix) {
@@ -271,76 +271,17 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         newNode = std::make_shared<MeshNode>();
         static_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
-        // do something
       }
       else
       {
         newNode = std::make_shared<Node>();
       }
-      memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
+      memcpy(&newNode->worldTransform, matrix.data(), sizeof(matrix));
       nodes.push_back(newNode);
       file.nodes[node.name.c_str()];
   });
 
-  /*
-  for (fastgltf::Node& node : asset.nodes)
-  {
-    std::shared_ptr<Node> newNode;
-    
-    if (node.meshIndex.has_value())
-    {
-      newNode = std::make_shared<MeshNode>();
-      static_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
-    }
-    else
-    {
-      newNode = std::make_shared<Node>();
-    }
-
-    nodes.push_back(newNode);
-    file.nodes[node.name.c_str()];
-
-    std::visit(
-      fastgltf::visitor {
-        [&](fastgltf::math::fmat4x4 matrix) {
-          memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
-        },
-        [&](fastgltf::TRS transform) {
-          glm::vec3 tl(transform.translation[0], transform.translation[1], transform.translation[2]);
-          glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1], transform.rotation[2]);
-          glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
-
-          glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
-          glm::mat4 rm = glm::toMat4(rot);
-          glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
-
-          newNode->localTransform = tm * rm * sm;
-        }
-      },
-      node.transform);
-  }
-*/
-
-/*
-        std::visit(fastgltf::visitor { [&](fastgltf::Node::TransformMatrix matrix) {
-                                          memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
-                                      },
-                       [&](fastgltf::Node::TRS transform) {
-                           glm::vec3 tl(transform.translation[0], transform.translation[1],
-                               transform.translation[2]);
-                           glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1],
-                               transform.rotation[2]);
-                           glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
-
-                           glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
-                           glm::mat4 rm = glm::toMat4(rot);
-                           glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
-
-                           newNode->localTransform = tm * rm * sm;
-                       } },
-            node.transform);
-    }
-  */
+  
   for (int i = 0; i < asset.nodes.size(); i++)
   {
     fastgltf::Node& node = asset.nodes[i];
@@ -352,15 +293,17 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       nodes[c]->parent = sceneNode;
     }
   }
-
+  
   for (auto& node : nodes)
   {
     if (node->parent.lock() == nullptr)
     {
       file.topNodes.push_back(node);
       node->refresh_transform(glm::mat4{1.0f});
+      AR_CORE_INFO("bruh");
     }
   }
+  
 
   return scene;
 }
