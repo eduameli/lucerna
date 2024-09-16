@@ -52,7 +52,7 @@ void Engine::init()
   init_default_data();
   mainCamera.init();
    
-  std::string structurePath = "assets/sponza_reduced.glb";
+  std::string structurePath = "assets/Sponza/Sponza.gltf";
   auto structureFile = load_gltf(this, structurePath);
   
   //std::string cube = "assets/cube.glb";
@@ -475,27 +475,15 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         glm::vec3 { -1, -1, 1 },
         glm::vec3 { -1, -1, -1 },
     };
-    
+
     glm::mat4 matrix = viewproj * obj.transform;
 
     glm::vec3 min = { 1.5, 1.5, 1.5 };
     glm::vec3 max = { -1.5, -1.5, -1.5 };
-    
-    //AR_CORE_ERROR("origin: {}, extents: {}, viewproj: {}",
-    //glm::to_string(obj.transform * glm::vec4{obj.bounds.origin, 1.0f}),
-    //glm::to_string(obj.transform * glm::vec4{obj.bounds.extents, 1.0f}),
-    //glm::to_string(viewproj));
-    
-    //if(obj.indexCount < 100)
-    //{
-    //  return true;
-    //}
-    //AR_CORE_ERROR("origin: {}, extents: {}", glm::to_string(obj.bounds.origin), glm::to_string(obj.bounds.extents));
+
     for (int c = 0; c < 8; c++) {
         // project each corner into clip space
         glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
-        
-        AR_CORE_WARN("OBV POINT {}: {}",c,  glm::to_string(glm::inverse(viewproj) * v));
 
         // perspective correction
         v.x = v.x / v.w;
@@ -507,9 +495,6 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     }
 
     // check the clip space box is within the view
-    //AR_CORE_INFO("min {}, max {}", glm::to_string(min), glm::to_string(max));
-    
-    // inside cannonical viewing volume 
     if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
         return false;
     } else {
@@ -517,6 +502,10 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     }
 }
 
+bool is_visible2(const RenderObject obj)
+{
+
+}
 
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)

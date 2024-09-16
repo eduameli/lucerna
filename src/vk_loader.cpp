@@ -450,7 +450,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
     fastgltf::visitor{
         [](auto &arg) {},
         [&](fastgltf::sources::URI &filePath) {
-          AR_CORE_ERROR("from filepath!");
+          AR_CORE_ERROR("from filepath! {}");
           assert(filePath.fileByteOffset ==
                  0); // We don't support offsets with stbi.
           assert(filePath.uri.isLocalPath()); // We're only capable of loading
