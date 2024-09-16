@@ -19,7 +19,8 @@ namespace Aurora {
 
     s_Instance = new Window();
     auto& win = s_Instance->m_Window;
-
+  
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     win = glfwCreateWindow(width, height, name.data(), nullptr, nullptr);
     glfwSetWindowIconifyCallback(win, iconify_callback);

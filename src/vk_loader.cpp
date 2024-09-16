@@ -24,131 +24,10 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+#include "vk_pipelines.h"
+#include "glm/gtx/string_cast.hpp"
 namespace Aurora
 {
-
-//FIXME: errors print error message -> string
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(Engine* engine, std::filesystem::path filepath)
-{
-  AR_CORE_INFO("Loading Meshes from GLTF File at {}", filepath.c_str());
-  fastgltf::Parser parser;
-  auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
-  
-  if (data.error() != fastgltf::Error::None)
-  {
-    AR_CORE_ERROR("Error loading GLTF File!");
-    return {};
-  }
-
-  auto asset = parser.loadGltf(data.get(), filepath.parent_path(), fastgltf::Options::LoadExternalBuffers);
-  if (auto error = asset.error(); error != fastgltf::Error::None)
-  {
-    AR_CORE_ERROR("Error parsing GLTF File!");
-    return {};
-  }
-
-  std::vector<std::shared_ptr<MeshAsset>> meshes;
-
-  std::vector<uint32_t> indices;
-  std::vector<Vertex> vertices;
-  
-  for (fastgltf::Mesh& mesh : asset->meshes)
-  {
-    MeshAsset newmesh;
-    newmesh.name = mesh.name;
-    
-    indices.clear();
-    vertices.clear();
-    
-    for (auto&& p : mesh.primitives)
-    {
-      GeoSurface newSurface;
-      newSurface.startIndex = static_cast<uint32_t>(indices.size());
-      newSurface.count = static_cast<uint32_t>(asset->accessors[p.indicesAccessor.value()].count);
-      
-      size_t initial_vtx = vertices.size();
-      
-      // load indices
-      {
-        fastgltf::Accessor& indexaccessor = asset->accessors[p.indicesAccessor.value()];
-        indices.reserve(indices.size() + indexaccessor.count);
-
-        fastgltf::iterateAccessor<std::uint32_t>(asset.get(), indexaccessor,
-          [&](std::uint32_t idx) {
-            indices.push_back(idx + initial_vtx);
-        });
-      }
-
-      // load vertices
-      {
-        fastgltf::Accessor& posAccessor = asset->accessors[p.findAttribute("POSITION")->accessorIndex];
-        vertices.resize(vertices.size() + posAccessor.count);
-        
-        // load vertex positions!
-        fastgltf::iterateAccessorWithIndex<glm::vec3>(asset.get(), posAccessor, 
-        [&](glm::vec3 v, size_t index) {
-          Vertex newvtx;
-          newvtx.position = v;
-          newvtx.normal = {1, 0, 0};
-          newvtx.color = glm::vec4 {1.0f};
-          newvtx.uv_y = 0;
-          newvtx.uv_x = 0;
-          vertices[initial_vtx + index] = newvtx;
-        });
-      } 
-        // load vertex normals..
-      auto normals = p.findAttribute("NORMAL");
-      if (normals != p.attributes.end())
-      {
-        //FIXME: do other iterateAccesor like this...
-        auto lambda = [&](glm::vec3 v, size_t index) {
-          vertices[initial_vtx + index].normal = v; 
-        };
-        fastgltf::iterateAccessorWithIndex<glm::vec3>(asset.get(), asset->accessors[(*normals).accessorIndex], lambda);
-      }
-
-        // load uvs
-      auto uv = p.findAttribute("TEXCOORD_0");
-      if (uv != p.attributes.end())
-      {
-        auto lambda = [&](glm::vec2 v, size_t index) {
-          vertices[initial_vtx + index].uv_x = v.x;
-          vertices[initial_vtx + index].uv_y = v.y;
-        };
-        fastgltf::iterateAccessorWithIndex<glm::vec2>(asset.get(), asset->accessors[(*uv).accessorIndex], lambda);
-      }
-
-      auto colors = p.findAttribute("COLOR_O");
-      if (colors != p.attributes.end())
-      {
-        auto lambda = [&](glm::vec4 v, size_t index) {
-          vertices[initial_vtx + index].color = v;
-        };
-
-        fastgltf::iterateAccessorWithIndex<glm::vec4>(asset.get(), asset->accessors[(*colors).accessorIndex], lambda);
-      }
-
-      newmesh.surfaces.push_back(newSurface);
-
-    }
-
-    constexpr bool OverrideColors = false;
-    if (OverrideColors)
-    {
-      for (Vertex& vtx : vertices)
-      {
-        vtx.color = glm::vec4(vtx.normal, 1.0f);
-      }
-    }
-
-    newmesh.meshBuffers = engine->upload_mesh(vertices, indices);
-    meshes.emplace_back(std::make_shared<MeshAsset>(std::move(newmesh)));
-
-  }
-  
-  return meshes;
-}
-
 
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
 {
@@ -175,6 +54,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     AR_CORE_ERROR("Error parsing GLTF File!");
     return {};
   }
+
   fastgltf::Asset& asset = asset_exp.get();
   
   std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
@@ -182,7 +62,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
     {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
   };
-
   file.descriptorPool.init(engine->m_Device.logical, asset.materials.size(), sizes);
   
 
@@ -207,11 +86,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::vector<std::shared_ptr<Node>> nodes;
   std::vector<AllocatedImage> images;
   std::vector<std::shared_ptr<GLTFMaterial>> materials;
-
-  //for (fastgltf::Image& image : asset->images)
-  //{
-  //  images.push_back(engine->m_ErrorCheckerboardImage);
-  //}
   
   for (fastgltf::Image& image : asset.images)
   {
@@ -224,12 +98,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     else
     {
       images.push_back(engine->m_ErrorCheckerboardImage);
-      AR_CORE_WARN("gltf failed to load a texture!");
+      AR_CORE_WARN("Failed to load a texture from GLTF");
     }
   }
   
-
-
   file.materialDataBuffer = engine->create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * asset.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   int data_index = 0;
   GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = (GLTFMetallic_Roughness::MaterialConstants*) file.materialDataBuffer.info.pMappedData;
@@ -285,6 +157,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
+    AR_CORE_FATAL("MESH {}", mesh.name);
     std::shared_ptr<MeshAsset> newmesh = std::make_shared<MeshAsset>();
     meshes.push_back(newmesh);
     file.meshes[mesh.name.c_str()] = newmesh;
@@ -295,7 +168,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
     for (auto&& p : mesh.primitives)
     {
-      GeoSurface newSurface;
+      GeoSurface newSurface{};
       newSurface.startIndex = static_cast<uint32_t>(indices.size());
       newSurface.count = static_cast<uint32_t>(asset.accessors[p.indicesAccessor.value()].count);
 
@@ -367,31 +240,49 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         newSurface.material = materials[0];
       }
-      
-      
       glm::vec3 minpos = vertices[initial_vtx].position;
       glm::vec3 maxpos = vertices[initial_vtx].position;
-      for (int i = initial_vtx; i < vertices.size(); i++)
-      {
-        minpos = glm::min(minpos, vertices[i].position);
-        maxpos = glm::max(maxpos, vertices[i].position);
+      for (int i = initial_vtx; i < vertices.size(); i++) {
+          minpos = glm::min(minpos, vertices[i].position);
+          maxpos = glm::max(maxpos, vertices[i].position);
       }
 
-      newSurface.bounds.origin = (maxpos + minpos) / 2.0f;
-      newSurface.bounds.extents = (maxpos-minpos) / 2.0f;
+      newSurface.bounds.origin = (maxpos + minpos) / 2.f;
+      newSurface.bounds.extents = (maxpos - minpos) / 2.f;
       newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
-
+      // calculate origin and extents from the min/max, use extent lenght for radius
+      AR_CORE_WARN("ORIGIN {} EXTENDS {}", glm::to_string(newSurface.bounds.origin), glm::to_string(newSurface.bounds.extents));
       newmesh->surfaces.push_back(newSurface);
+      
     }
     newmesh->meshBuffers = engine->upload_mesh(vertices, indices);
   }
   
   // now we load the nodes?
-  
+  int sceneIndex = asset.scenes.size();
+  AR_LOG_ASSERT(sceneIndex == 1, "more than 1 scene?? whats a scene gltf");
+  sceneIndex = 0;
+  /*fastgltf::iterateSceneNodes(asset, sceneIndex, fastgltf::math::fmat4x4(),
+    [&](fastgltf::Node& node, fastgltf::math::fmat4x4 matrix) {
+      std::shared_ptr<Node> newNode;
+      if (node.meshIndex.has_value())
+      {
+        newNode = std::make_shared<MeshNode>();
+        static_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
+      }
+      else
+      {
+        newNode = std::make_shared<Node>();
+      }
+      memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
+      nodes.push_back(newNode);
+      file.nodes[node.name.c_str()];
+  });*/
+
   for (fastgltf::Node& node : asset.nodes)
   {
     std::shared_ptr<Node> newNode;
-    
+
     if (node.meshIndex.has_value())
     {
       newNode = std::make_shared<MeshNode>();
@@ -405,29 +296,31 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     nodes.push_back(newNode);
     file.nodes[node.name.c_str()];
 
-    std::visit(fastgltf::visitor {
-    [&](fastgltf::math::fmat4x4 matrix) {
-                                          memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
-                                      },
-                       [&](fastgltf::TRS transform) {
-                           glm::vec3 tl(transform.translation[0], transform.translation[1],
-                               transform.translation[2]);
-                           glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1],
-                               transform.rotation[2]);
-                           glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
 
-                           glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
-                           glm::mat4 rm = glm::toMat4(rot);
-                           glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
+    std::visit(fastgltf::visitor { [&](fastgltf::math::fmat4x4 matrix) {
+                                      memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
+                                  },
+                   [&](fastgltf::TRS transform) {
+                       glm::vec3 tl(transform.translation[0], transform.translation[1],
+                           transform.translation[2]);
+                       glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1],
+                           transform.rotation[2]);
+                       glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
 
-                           newNode->localTransform = tm * rm * sm;
-                       } },
-            node.transform);
+                       glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
+                       glm::mat4 rm = glm::toMat4(rot);
+                       glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
+
+                       newNode->localTransform = tm * rm * sm;
+                   } },
+        node.transform);
+    
   }
-  
+ 
+
   for (int i = 0; i < asset.nodes.size(); i++)
   {
-       fastgltf::Node& node = asset.nodes[i];
+    fastgltf::Node& node = asset.nodes[i];
     std::shared_ptr<Node>& sceneNode = nodes[i];
     
     for (auto& c : node.children)
@@ -436,19 +329,47 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       nodes[c]->parent = sceneNode;
     }
   }
-
+  
   for (auto& node : nodes)
   {
     if (node->parent.lock() == nullptr)
     {
       file.topNodes.push_back(node);
       node->refresh_transform(glm::mat4{1.0f});
+      AR_CORE_INFO("bruh");
     }
   }
-
-  // adapt to new api
+  
   return scene;
 }
+
+
+std::optional<std::shared_ptr<LoadedGLTF>> load_gltf_asset(Engine* engine, std::filesystem::path path)
+{
+  AR_CORE_INFO("Loading GLTF file located at {}", path.c_str());
+  std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
+  //LoadedGLTF& scene_ptr = *scene.get();
+  // open & load gltf
+  
+  fastgltf::Parser parser;
+  auto data = fastgltf::GltfDataBuffer::FromPath(path);
+  if (data.error() != fastgltf::Error::None)
+  {
+    AR_CORE_ERROR("Failed to load GLTFDataBuffer::FromPath({})", path.c_str());
+    return {};
+  }
+
+  auto asset = parser.loadGltf(data.get(), path.parent_path(), fastgltf::Options::None);
+  if (auto error = asset.error(); error != fastgltf::Error::None)
+  {
+    AR_CORE_ERROR("Some error occurred while reading the buffer, parsing the JSON or validating the data");
+    return {};
+  }
+  
+
+  return {};
+}
+
 
 VkFilter extract_filter(fastgltf::Filter filter)
 {
@@ -480,11 +401,11 @@ VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter)
   }
 }
 
-void LoadedGLTF::draw(const glm::mat4& topMatrix, DrawContext& ctx)
+void LoadedGLTF::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
   for (auto& n : topNodes)
   {
-    n->draw(topMatrix, ctx);
+    n->queue_draw(topMatrix, ctx);
   }
 }
 
@@ -521,86 +442,231 @@ void LoadedGLTF::clearAll()
 
 std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
 {
-    AllocatedImage newImage {};
 
-    int width, height, nrChannels;
+  AllocatedImage newImage{};
+  int width, height, nrChannels;
 
-    std::visit(
-        fastgltf::visitor {
-            [](auto& arg) {},
-            [&](fastgltf::sources::URI& filePath) {
-                AR_CORE_ERROR("from filepath!");
-                assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
-                assert(filePath.uri.isLocalPath()); // We're only capable of loading
-                                                    // local files.
+  std::visit(
+    fastgltf::visitor{
+        [](auto &arg) {},
+        [&](fastgltf::sources::URI &filePath) {
+          AR_CORE_ERROR("from filepath! {}");
+          assert(filePath.fileByteOffset ==
+                 0); // We don't support offsets with stbi.
+          assert(filePath.uri.isLocalPath()); // We're only capable of loading
+                                              // local files.
 
-                const std::string path(filePath.uri.path().begin(),
-                    filePath.uri.path().end()); // Thanks C++.
-                unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
-                if (data) {
-                    VkExtent3D imagesize;
-                    imagesize.width = width;
-                    imagesize.height = height;
-                    imagesize.depth = 1;
+          const std::string path(filePath.uri.path().begin(),
+                                 filePath.uri.path().end()); // Thanks C++.
+          unsigned char *data =
+              stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+          if (data) {
+            VkExtent3D imagesize;
+            imagesize.width = width;
+            imagesize.height = height;
+            imagesize.depth = 1;
 
-                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+            newImage = engine->create_image(
+                data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_SAMPLED_BIT, false);
 
-                    stbi_image_free(data);
-                }
-            },
-            [&](fastgltf::sources::Vector& vector) {
-                AR_CORE_ERROR("vector load");
-                unsigned char* data = stbi_load_from_memory((unsigned char*)vector.bytes.data(), static_cast<int>(vector.bytes.size()),
-                    &width, &height, &nrChannels, 4);
-                if (data) {
-                    VkExtent3D imagesize;
-                    imagesize.width = width;
-                    imagesize.height = height;
-                    imagesize.depth = 1;
-
-                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
-
-                    stbi_image_free(data);
-                }
-            },
-            [&](fastgltf::sources::BufferView& view) {
-                auto& bufferView = asset.bufferViews[view.bufferViewIndex];
-                auto& buffer = asset.buffers[bufferView.bufferIndex];
-                std::visit(fastgltf::visitor { // We only care about VectorWithMime here, because we
-                                               // specify LoadExternalBuffers, meaning all buffers
-                                               // are already loaded into a vector.
-                               [](auto& arg) {
-                                },
-                                // FIXME: in the tutorial this was fastgltf::sources::Vector because they asserted it would be casue of the options
-                                // using fastlgltf::sources::Array works for me now but might cause other problems,, keep in mind!
-                               [&](fastgltf::sources::Array& vector) {
-                                   unsigned char* data = stbi_load_from_memory((unsigned char*)(vector.bytes.data() + bufferView.byteOffset),
-                                       static_cast<int>(bufferView.byteLength),
-                                       &width, &height, &nrChannels, 4);
-                                   if (data) {
-                                       VkExtent3D imagesize;
-                                       imagesize.width = width;
-                                       imagesize.height = height;
-                                       imagesize.depth = 1;
-
-                                       newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                                           VK_IMAGE_USAGE_SAMPLED_BIT,false);
-
-                                       stbi_image_free(data);
-                                   }
-                               } },
-                    buffer.data);
-            },
+            stbi_image_free(data);
+          }
         },
-        image.data);
+        [&](fastgltf::sources::Vector &vector) {
+          AR_CORE_ERROR("vector load");
+          unsigned char *data =
+              stbi_load_from_memory((unsigned char *)vector.bytes.data(),
+                                    static_cast<int>(vector.bytes.size()),
+                                    &width, &height, &nrChannels, 4);
+          if (data) {
+            VkExtent3D imagesize;
+            imagesize.width = width;
+            imagesize.height = height;
+            imagesize.depth = 1;
 
-    // if any of the attempts to load the data failed, we havent written the image
-    // so handle is null
-    if (newImage.image == VK_NULL_HANDLE) {
-      AR_CORE_ERROR("NULL  IMAGE LOADED---");
-        return {};
-    } else {
-        return newImage;
-    }
+            newImage = engine->create_image(
+                data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_SAMPLED_BIT, false);
+
+            stbi_image_free(data);
+          }
+        },
+        [&](fastgltf::sources::BufferView &view) {
+          auto &bufferView = asset.bufferViews[view.bufferViewIndex];
+          auto &buffer = asset.buffers[bufferView.bufferIndex];
+          std::visit(
+              fastgltf::visitor{
+                  // We only care about VectorWithMime here, because we
+                  // specify LoadExternalBuffers, meaning all buffers
+                  // are already loaded into a vector.
+                  [](auto &arg) {
+                    AR_LOG_ASSERT(
+                        false,
+                        "std::visit not using fastgltf::sources::Array? - "
+                        "hint: only .glb supported");
+                  },
+                  // FIXME: in the tutorial this was fastgltf::sources::Vector
+                  // because they asserted it would be casue of the options
+                  // using fastlgltf::sources::Array works for me now but
+                  // might cause other problems,, keep in mind!
+                  [&](fastgltf::sources::Array &vector) {
+                    unsigned char *data = stbi_load_from_memory(
+                        (unsigned char *)(vector.bytes.data() +
+                                          bufferView.byteOffset),
+                        static_cast<int>(bufferView.byteLength), &width,
+                        &height, &nrChannels, 4);
+                    if (data) {
+                      VkExtent3D imagesize;
+                      imagesize.width = width;
+                      imagesize.height = height;
+                      imagesize.depth = 1;
+
+                      newImage = engine->create_image(
+                          data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                          VK_IMAGE_USAGE_SAMPLED_BIT, false);
+
+                      stbi_image_free(data);
+                    }
+                  }},
+              buffer.data);
+        },
+    },
+    image.data
+  );
+
+  if (newImage.image == VK_NULL_HANDLE) {
+    AR_CORE_ERROR("Loaded image is VK_NULL_HANDLE");
+    return {};
+  } else {
+    return newImage;
+  }
 }
+
+
+void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
+{
+  VkDevice device = engine->m_Device.logical;
+
+  VkShaderModule meshFragShader;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/meshes/mesh.frag.spv", device, &meshFragShader),
+    "Error when building the triangle fragment shader module"
+  );
+
+  VkShaderModule meshVertShader;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/meshes/mesh.vert.spv", device, &meshVertShader),
+    "Error when building the triangle vertex shader module"
+  );
+
+  VkPushConstantRange matrixRange{};
+  matrixRange.offset = 0;
+  matrixRange.size = sizeof(GPUDrawPushConstants);
+  matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  
+  DescriptorLayoutBuilder layoutBuilder;
+  layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+  materialLayout = layoutBuilder.build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+ 
+  VkDescriptorSetLayout layouts[] = {
+    engine->m_SceneDescriptorLayout,
+    materialLayout,
+  };
+
+  VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+  mesh_layout_info.setLayoutCount = 2;
+  mesh_layout_info.pSetLayouts = layouts;
+  mesh_layout_info.pPushConstantRanges = &matrixRange;
+  mesh_layout_info.pushConstantRangeCount = 1;
+
+  VkPipelineLayout newLayout;
+  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &mesh_layout_info, nullptr, &newLayout));
+
+  opaquePipeline.layout = newLayout;
+  transparentPipeline.layout = newLayout;
+
+  PipelineBuilder pipelineBuilder;
+  pipelineBuilder.set_shaders(meshVertShader, meshFragShader);
+  pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  //pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE); // NOTE: backface culling?
+  pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  pipelineBuilder.set_multisampling_none();
+  pipelineBuilder.disable_blending();
+  pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+  pipelineBuilder.set_color_attachment_format(engine->m_DrawImage.imageFormat);
+  pipelineBuilder.set_depth_format(engine->m_DepthImage.imageFormat);
+
+  pipelineBuilder.PipelineLayout = newLayout;
+
+  opaquePipeline.pipeline = pipelineBuilder.build_pipeline(device);
+
+  pipelineBuilder.enable_blending_additive();
+  pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+  transparentPipeline.pipeline = pipelineBuilder.build_pipeline(device);
+
+  vkDestroyShaderModule(device, meshFragShader, nullptr);
+  vkDestroyShaderModule(device, meshVertShader, nullptr);
+}
+
+MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+{
+  MaterialInstance matData;
+  matData.passType = pass;
+  if (pass == MaterialPass::Transparent)
+  {
+    matData.pipeline = &transparentPipeline;
+  }
+  else
+  {
+    matData.pipeline = &opaquePipeline;
+  }
+
+  matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
+
+  writer.clear();
+  writer.write_buffer(0, resources.dataBuffer, sizeof(MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  writer.update_set(device, matData.materialSet);
+  return matData;
+}
+
+void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
+{
+  glm::mat4 nodeMatrix = topMatrix * worldTransform;
+  for (auto& s : mesh->surfaces)
+  {
+    RenderObject def;
+    def.indexCount = s.count;
+    def.firstIndex = s.startIndex;
+    def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
+    def.material = &s.material->data;
+    def.bounds = s.bounds;
+
+    def.transform = nodeMatrix;
+    def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
+    
+    if (s.material->data.passType == MaterialPass::Transparent)
+    {
+      ctx.TransparentSurfaces.push_back(def);
+    }
+    else
+    {
+      ctx.OpaqueSurfaces.push_back(def);
+    }
+
+    // debug aabb
+  }
+
+  Node::queue_draw(topMatrix, ctx);
+}
+
+
 } // namespace aurora

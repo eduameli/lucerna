@@ -101,7 +101,7 @@ namespace Aurora
   struct DrawContext;
   class IRenderable
   {
-    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+    virtual void queue_draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
   };
 
   struct Node: public IRenderable
@@ -109,8 +109,8 @@ namespace Aurora
     std::weak_ptr<Node> parent;
     std::vector<std::shared_ptr<Node>> children;
     
-    glm::mat4 localTransform;
-    glm::mat4 worldTransform;
+    glm::mat4 localTransform{};
+    glm::mat4 worldTransform{};
 
     void refresh_transform(const glm::mat4& parentMatrix)
     {
@@ -121,16 +121,41 @@ namespace Aurora
       }
     }
     
-    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx)
+    virtual void queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     {
       for (auto& c : children)
       {
-        c->draw(topMatrix, ctx);
+        c->queue_draw(topMatrix, ctx);
       }
     }
   };
 
 
+struct GLTFMaterial
+{
+  MaterialInstance data;
+};
 
+struct Bounds
+{
+  glm::vec3 origin{};
+  float sphereRadius{};
+  glm::vec3 extents{};
+};
+
+struct GeoSurface
+{
+  uint32_t startIndex;
+  uint32_t count;
+  Bounds bounds{};
+  std::shared_ptr<GLTFMaterial> material;
+};
+
+struct MeshAsset
+{
+  std::string name;
+  std::vector<GeoSurface> surfaces;
+  GPUMeshBuffers meshBuffers;
+};
 } // namespace aurora
 

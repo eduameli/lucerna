@@ -27,7 +27,7 @@ SwapchainContextBuilder& SwapchainContextBuilder::set_preferred_present(VkPresen
   return *this;
 }
 
-SwapchainContext SwapchainContextBuilder::build()
+SwapchainContext SwapchainContextBuilder::build(VkSwapchainKHR oldSwapchain)
 {
   SwapchainSupportDetails details = query_swapchain_support(m_Device.physical);
   VkPresentModeKHR presentMode = choose_present_mode(details.presentModes);
@@ -67,7 +67,7 @@ SwapchainContext SwapchainContextBuilder::build()
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
-  createInfo.oldSwapchain = VK_NULL_HANDLE;
+  createInfo.oldSwapchain = oldSwapchain;
   
   VkSwapchainKHR swapchain;
   VK_CHECK_RESULT(vkCreateSwapchainKHR(m_Device.logical, &createInfo, nullptr, &swapchain))
