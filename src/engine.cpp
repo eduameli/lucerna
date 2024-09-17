@@ -52,29 +52,12 @@ void Engine::init()
   init_default_data();
   mainCamera.init();
    
-  std::string structurePath = "assets/Sponza/Sponza.gltf";
+  std::string structurePath = "assets/structure.glb";
   auto structureFile = load_gltf(this, structurePath);
-  
-  //std::string cube = "assets/cube.glb";
-  //auto cubes = load_gltf(this, cube);
-
-  //update_scene();
-
-  AR_CORE_FATAL(mainDrawContext.DebugLines.size()); 
-  //debugBuffer = create_buffer(
-  //  mainDrawContext.DebugLines.size() * sizeof(glm::vec3),
-  //  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-  //  VMA_MEMORY_USAGE_CPU_TO_GPU
-  //);
-  //void* lines = debugBuffer.allocation->GetMappedData();
-  //memcpy(lines, mainDrawContext.DebugLines.data(), mainDrawContext.DebugLines.size() * sizeof(glm::vec3));
-
-
 
   AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
-  //loadedScenes["cubes"] = *cubes;
 
 } 
 
@@ -450,9 +433,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::Text("draws %i", stats.drawcall_count);
   ImGui::End();
   
-  ImGui::Begin("Debug");
-    ImGui::Text("Objects Drawn (%i/%i)", stats.drawcall_count, (int) mainDrawContext.OpaqueSurfaces.size());
-  ImGui::End();
 
   ImGui::End();
   ImGui::Render(); 
@@ -502,12 +482,6 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     }
 }
 
-bool is_visible2(const RenderObject obj)
-{
-
-}
-
-
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
 {
   VK_CHECK_RESULT(vkResetFences(m_Device.logical, 1, &m_ImmFence));
@@ -556,7 +530,6 @@ void Engine::destroy_buffer(const AllocatedBuffer& buffer)
 
 GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices)
 {
-  AR_CORE_FATAL("RUNNING!");
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
 

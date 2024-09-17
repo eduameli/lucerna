@@ -157,7 +157,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
-    AR_CORE_FATAL("MESH {}", mesh.name);
     std::shared_ptr<MeshAsset> newmesh = std::make_shared<MeshAsset>();
     meshes.push_back(newmesh);
     file.meshes[mesh.name.c_str()] = newmesh;
@@ -251,34 +250,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       newSurface.bounds.extents = (maxpos - minpos) / 2.f;
       newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
       // calculate origin and extents from the min/max, use extent lenght for radius
-      AR_CORE_WARN("ORIGIN {} EXTENDS {}", glm::to_string(newSurface.bounds.origin), glm::to_string(newSurface.bounds.extents));
       newmesh->surfaces.push_back(newSurface);
       
     }
     newmesh->meshBuffers = engine->upload_mesh(vertices, indices);
   }
   
-  // now we load the nodes?
-  int sceneIndex = asset.scenes.size();
-  AR_LOG_ASSERT(sceneIndex == 1, "more than 1 scene?? whats a scene gltf");
-  sceneIndex = 0;
-  /*fastgltf::iterateSceneNodes(asset, sceneIndex, fastgltf::math::fmat4x4(),
-    [&](fastgltf::Node& node, fastgltf::math::fmat4x4 matrix) {
-      std::shared_ptr<Node> newNode;
-      if (node.meshIndex.has_value())
-      {
-        newNode = std::make_shared<MeshNode>();
-        static_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
-      }
-      else
-      {
-        newNode = std::make_shared<Node>();
-      }
-      memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
-      nodes.push_back(newNode);
-      file.nodes[node.name.c_str()];
-  });*/
-
   for (fastgltf::Node& node : asset.nodes)
   {
     std::shared_ptr<Node> newNode;
@@ -336,7 +313,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     {
       file.topNodes.push_back(node);
       node->refresh_transform(glm::mat4{1.0f});
-      AR_CORE_INFO("bruh");
     }
   }
   
