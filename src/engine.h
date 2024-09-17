@@ -165,10 +165,6 @@ namespace Aurora {
       VkPipeline m_MeshPipeline;
       VkPipelineLayout m_MeshPipelineLayout;
 
-      VkPipeline m_DebugLinePipeline;
-      VkPipelineLayout m_DebugPipelineLayout;
-      AllocatedBuffer debugBuffer;
-      
       #ifdef USE_VALIDATION_LAYERS
       constexpr static bool m_UseValidationLayers = true;
       #else

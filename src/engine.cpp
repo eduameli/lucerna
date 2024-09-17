@@ -717,6 +717,10 @@ void Engine::init_default_data()
   m_DeletionQueue.push_function([&]{
     vkDestroySampler(m_Device.logical, m_DefaultSamplerLinear, nullptr);
     vkDestroySampler(m_Device.logical, m_DefaultSamplerNearest, nullptr);
+   
+    // FIXME: metalRoughnessMaterial.clear_resources() instead!
+    
+    metalRoughMaterial.clear_resources(m_Device.logical);
 
     destroy_image(m_WhiteImage);
     destroy_image(m_GreyImage);
@@ -980,6 +984,7 @@ void Engine::init_descriptors()
     vkDestroyDescriptorSetLayout(m_Device.logical, m_DrawDescriptorLayout, nullptr);
     vkDestroyDescriptorSetLayout(m_Device.logical, m_SingleImageDescriptorLayout, nullptr);
   });
+
 }
 
 void Engine::init_pipelines()
@@ -1222,11 +1227,6 @@ void Engine::init_mesh_pipeline()
   builder.set_depth_format(m_DepthImage.imageFormat);
   m_MeshPipeline = builder.build_pipeline(m_Device.logical);
   
-  builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
-  m_DebugLinePipeline = builder.build_pipeline(m_Device.logical);
-
-
-
   vkDestroyShaderModule(m_Device.logical, meshFragShader, nullptr);
   vkDestroyShaderModule(m_Device.logical, meshVertShader, nullptr);
   

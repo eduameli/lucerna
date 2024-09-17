@@ -6,5 +6,7 @@ int main(int argc, char* argv[])
 
   Aurora::Application app;
   app.run();
+  
+  AR_CORE_INFO("goodbye world :(");
 }
 

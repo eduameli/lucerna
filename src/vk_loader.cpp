@@ -591,6 +591,20 @@ void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
   vkDestroyShaderModule(device, meshVertShader, nullptr);
 }
 
+void GLTFMetallic_Roughness::clear_resources(VkDevice device)
+{
+  vkDestroyPipeline(device, transparentPipeline.pipeline, nullptr);
+  vkDestroyPipeline(device, opaquePipeline.pipeline, nullptr);
+
+  vkDestroyPipelineLayout(device, opaquePipeline.layout, nullptr);
+  if (opaquePipeline.layout != transparentPipeline.layout) 
+  {
+    vkDestroyPipelineLayout(device, transparentPipeline.layout, nullptr);
+  }
+
+  vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
+}
+
 MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
   MaterialInstance matData;
