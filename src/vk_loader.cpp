@@ -444,7 +444,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
 
             newImage = engine->create_image(
                 data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_SAMPLED_BIT, false);
+                VK_IMAGE_USAGE_SAMPLED_BIT, true);
 
             stbi_image_free(data);
           }
@@ -463,7 +463,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
 
             newImage = engine->create_image(
                 data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_SAMPLED_BIT, false);
+                VK_IMAGE_USAGE_SAMPLED_BIT, true);
 
             stbi_image_free(data);
           }
@@ -500,7 +500,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
 
                       newImage = engine->create_image(
                           data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                          VK_IMAGE_USAGE_SAMPLED_BIT, false);
+                          VK_IMAGE_USAGE_SAMPLED_BIT, true);
 
                       stbi_image_free(data);
                     }
