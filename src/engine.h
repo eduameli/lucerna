@@ -162,9 +162,6 @@ namespace Aurora {
       VkExtent2D m_WindowExtent{};
       float m_RenderScale = 1.0f;
 
-      VkPipeline m_MeshPipeline;
-      VkPipelineLayout m_MeshPipelineLayout;
-
       #ifdef USE_VALIDATION_LAYERS
       constexpr static bool m_UseValidationLayers = true;
       #else

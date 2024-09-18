@@ -540,15 +540,6 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY);
  
-  
-  VkDebugUtilsObjectNameInfoEXT vertexbuffer{};
-  vertexbuffer.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-  vertexbuffer.pNext = nullptr;
-  vertexbuffer.objectType = VK_OBJECT_TYPE_BUFFER;
-  vertexbuffer.objectHandle = (uint64_t) newSurface.vertexBuffer.buffer;
-  vertexbuffer.pObjectName = "Sponza Vertex Buffer";
-  vkSetDebugUtilsObjectNameEXT(m_Device.logical, &vertexbuffer);
-
   VkBufferDeviceAddressInfo deviceAddressInfo{};
   deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
   deviceAddressInfo.buffer = newSurface.vertexBuffer.buffer;
@@ -998,8 +989,6 @@ void Engine::init_descriptors()
 void Engine::init_pipelines()
 {
   init_background_pipelines();
-  init_mesh_pipeline();
-
   metalRoughMaterial.build_pipelines(this);
 }
 
@@ -1188,60 +1177,6 @@ void Engine::init_imgui()
     colour.z = powf(colour.z, 2.2f);
     colour.w = colour.w;
   }
-}
-
-
-
-
-
-void Engine::init_mesh_pipeline()
-{
-  VkShaderModule meshFragShader;
-  if (!vkutil::load_shader_module("shaders/textures/tex_image.frag.spv", m_Device.logical, &meshFragShader))
-  {
-    AR_CORE_ERROR("Error when building mesh fragment shader!");
-  }
-
-  VkShaderModule meshVertShader;
-  if (!vkutil::load_shader_module("shaders/textures/colored_triangle_mesh.vert.spv", m_Device.logical, &meshVertShader))
-  {
-    AR_CORE_ERROR("Error when building mesh vertex shader...");
-  }
-
-  VkPushConstantRange bufferRange{};
-  bufferRange.offset = 0;
-  bufferRange.size = sizeof(GPUDrawPushConstants);
-  bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  
-  VkPipelineLayoutCreateInfo pipelineInfo = vkinit::pipeline_layout_create_info();
-  pipelineInfo.pPushConstantRanges = &bufferRange;
-  pipelineInfo.pushConstantRangeCount = 1;
-  pipelineInfo.pSetLayouts = &m_SingleImageDescriptorLayout;
-  pipelineInfo.setLayoutCount = 1;
-  
-  VK_CHECK_RESULT(vkCreatePipelineLayout(m_Device.logical, &pipelineInfo, nullptr, &m_MeshPipelineLayout));
-
-  PipelineBuilder builder;
-  builder.PipelineLayout = m_MeshPipelineLayout;
-  builder.set_shaders(meshVertShader, meshFragShader);
-  builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-  builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-  builder.set_multisampling_none();
-  //builder.disable_blending();
-  builder.enable_blending_additive();
-  builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-  builder.set_color_attachment_format(m_DrawImage.imageFormat);
-  builder.set_depth_format(m_DepthImage.imageFormat);
-  m_MeshPipeline = builder.build_pipeline(m_Device.logical);
-  
-  vkDestroyShaderModule(m_Device.logical, meshFragShader, nullptr);
-  vkDestroyShaderModule(m_Device.logical, meshVertShader, nullptr);
-  
-  m_DeletionQueue.push_function([&]() {
-    vkDestroyPipelineLayout(m_Device.logical, m_MeshPipelineLayout, nullptr);
-    vkDestroyPipeline(m_Device.logical, m_MeshPipeline, nullptr);
-  });
 }
 
 } // namespace aurora
