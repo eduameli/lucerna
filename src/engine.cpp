@@ -326,7 +326,6 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
   ShadowPassUBO* shadowPassUniform = (ShadowPassUBO*) shadowPass.allocation->GetMappedData();
   *shadowPassUniform = data;
-  AR_CORE_INFO("light mat {}", glm::to_string(data.viewproj));
 
   VkDescriptorSet shadowDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_ShadowSetLayout);
   DescriptorWriter writer;
@@ -374,7 +373,6 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
   for (auto& r : opaque_draws)
   {
-    AR_CORE_INFO("Opaque Shadow Pass Draw");
     draw(mainDrawContext.OpaqueSurfaces[r]);
   }
 
