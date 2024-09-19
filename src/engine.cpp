@@ -304,19 +304,22 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     glm::mat4 viewproj{1.0f};
   } data;
 
-  glm::mat4 proj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 100.0f, 1.0f); //FIXME: arbritary znear zfar planes
+  
+  glm::mat4 proj = glm::ortho(-50.0f, 50.0f, -50.0f, 50.0f, 10000.0f, 0.1f); //FIXME: arbritary znear zfar planes
   proj[1][1] *= -1;
   //proj = sceneData.proj;
   glm::mat4 lightView = glm::lookAt(
-    glm::vec3{5.0f, 5.0f, 5.0f},
+    glm::vec3{0.0f, 10.0f, 0.0f},
     glm::vec3{0.0f, 0.0f, 0.0f},
     glm::vec3{0.0f, 1.0f, 0.0f}
   );
-
+  
   data.viewproj = proj * lightView; 
-
-
-
+  sceneData.lightViewProj = proj * lightView;
+  
+  //sceneData.lightViewProj = glm::mat4{1.0f};
+  //data.viewproj = glm::mat4{1.0f};
+  
   AllocatedBuffer shadowPass = create_buffer(sizeof(ShadowPassUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   get_current_frame().deletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass);
@@ -371,6 +374,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
   for (auto& r : opaque_draws)
   {
+    AR_CORE_INFO("Opaque Shadow Pass Draw");
     draw(mainDrawContext.OpaqueSurfaces[r]);
   }
 
@@ -1102,6 +1106,7 @@ void Engine::init_pipelines()
   layoutInfo.pSetLayouts = &m_ShadowSetLayout;
   layoutInfo.pPushConstantRanges = &range;
   layoutInfo.pushConstantRangeCount = 1;
+
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &m_ShadowPipelineLayout));
 
   PipelineBuilder builder;
