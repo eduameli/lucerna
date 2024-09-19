@@ -52,7 +52,7 @@ void Engine::init()
   init_default_data();
   mainCamera.init();
    
-  std::string structurePath = "assets/structure.glb";
+  std::string structurePath = "assets/shadows_demo.glb";
   auto structureFile = load_gltf(this, structurePath);
 
   AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
@@ -173,7 +173,7 @@ void Engine::update_scene()
 
 	sceneData.ambientColour = glm::vec4(0.1f);
 	sceneData.sunlightColour = glm::vec4(1.0f);
-	sceneData.sunlightDirection = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
+	sceneData.sunlightDirection = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
   
 
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
@@ -211,7 +211,7 @@ void Engine::draw()
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
   
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-  VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+  VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo))
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
@@ -220,10 +220,11 @@ void Engine::draw()
   
   vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   draw_shadow_pass(cmd);
+  vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-   
+  
   draw_geometry(cmd);
   
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -290,20 +291,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     }
   }
 
-  std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-    const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
-    const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
-    if(A.material == B.material)
-    {
-      return A.indexBuffer < B.indexBuffer;
-    }
-    else
-    {
-      return A.material < B.material;
-    }
-  });
-
-  VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+  VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_ShadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
@@ -316,6 +304,19 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     glm::mat4 viewproj{1.0f};
   } data;
 
+  glm::mat4 proj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 100.0f, 1.0f); //FIXME: arbritary znear zfar planes
+  proj[1][1] *= -1;
+  //proj = sceneData.proj;
+  glm::mat4 lightView = glm::lookAt(
+    glm::vec3{5.0f, 5.0f, 5.0f},
+    glm::vec3{0.0f, 0.0f, 0.0f},
+    glm::vec3{0.0f, 1.0f, 0.0f}
+  );
+
+  data.viewproj = proj * lightView; 
+
+
+
   AllocatedBuffer shadowPass = create_buffer(sizeof(ShadowPassUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   get_current_frame().deletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass);
@@ -324,7 +325,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   ShadowPassUBO* shadowPassUniform = (ShadowPassUBO*) shadowPass.allocation->GetMappedData();
   *shadowPassUniform = data;
 
-  VkDescriptorSet shadowDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
+  VkDescriptorSet shadowDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_ShadowSetLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, shadowPass.buffer, sizeof(ShadowPassUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.update_set(m_Device.logical, shadowDescriptor);
@@ -349,8 +350,15 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipelineLayout, 0, 1, &shadowDescriptor, 0, nullptr);
-
+  
+  VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
   auto draw = [&](const RenderObject& draw) {
+    if (draw.indexBuffer != lastIndexBuffer)
+    {
+      lastIndexBuffer = draw.indexBuffer;
+      vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    }
+
     GPUDrawPushConstants pcs{};
     pcs.worldMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.vertexBuffer = draw.vertexBufferAddress;
@@ -359,6 +367,12 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
 
   };
+  
+
+  for (auto& r : opaque_draws)
+  {
+    draw(mainDrawContext.OpaqueSurfaces[r]);
+  }
 
   vkCmdEndRendering(cmd);
 }
@@ -415,9 +429,9 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  writer.write_image(1, m_ShadowDepthImage.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   writer.update_set(m_Device.logical, globalDescriptor);
 
-  
   MaterialPipeline* lastPipeline = nullptr;
   MaterialInstance* lastMaterial = nullptr;
   VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
@@ -530,6 +544,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   vkCmdEndRendering(cmd);
 }
 
+//FIXME: a simple flat plane 50x50 breaks it :sob: maybe it needs volume to work or smth??
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     std::array<glm::vec3, 8> corners {
         glm::vec3 { 1, 1, 1 },
@@ -972,6 +987,7 @@ void Engine::init_swapchain()
 
   VkImageUsageFlags depthImageUsages{};
   depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  depthImageUsages |= VK_IMAGE_USAGE_SAMPLED_BIT;
   
   m_DrawImage = create_image(drawImageExtent, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, false);
   m_DepthImage = create_image(drawImageExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
@@ -1008,6 +1024,7 @@ void Engine::init_descriptors()
   {
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     m_SceneDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT); 
   } 
   
@@ -1085,7 +1102,6 @@ void Engine::init_pipelines()
   layoutInfo.pSetLayouts = &m_ShadowSetLayout;
   layoutInfo.pPushConstantRanges = &range;
   layoutInfo.pushConstantRangeCount = 1;
-
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &m_ShadowPipelineLayout));
 
   PipelineBuilder builder;
@@ -1154,9 +1170,9 @@ void Engine::init_background_pipelines()
   gradient.name = "gradient";
   gradient.data = {};
 
-  gradient.data.data1[0] = 1;
-  gradient.data.data1[1] = 0;
-  gradient.data.data1[2] = 0;
+  gradient.data.data1[0] = 0.1;
+  gradient.data.data1[1] = 0.2;
+  gradient.data.data1[2] = 0.25;
   gradient.data.data1[3] = 1;
 
   gradient.data.data2[0] = 0;

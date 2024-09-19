@@ -45,6 +45,7 @@ namespace Aurora
   struct GPUDrawPushConstants
   {
     glm::mat4 worldMatrix;
+    float bias;
     VkDeviceAddress vertexBuffer;
   };
   
@@ -53,6 +54,7 @@ namespace Aurora
     glm::mat4 view;
     glm::mat4 proj;
     glm::mat4 viewproj;
+    glm::mat4 lightViewProj;
     glm::vec4 ambientColour;
     glm::vec4 sunlightDirection;
     glm::vec4 sunlightColour;

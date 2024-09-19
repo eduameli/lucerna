@@ -115,6 +115,8 @@ namespace Aurora {
 
       MaterialInstance defaultData;
       GLTFMetallic_Roughness metalRoughMaterial;
+
+      float bias{ 0.01 };
     private:
       void init_vulkan();
       void init_swapchain();
@@ -179,8 +181,8 @@ namespace Aurora {
       VkPipeline m_ShadowPipeline;
       VkPipelineLayout m_ShadowPipelineLayout;
       VkDescriptorSetLayout m_ShadowSetLayout;
-
-  };
+      
+};
 
  
 } // namespace aurora

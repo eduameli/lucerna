@@ -14,12 +14,13 @@ namespace Aurora
       void update();
       glm::mat4 get_view_matrix();
       glm::mat4 get_rotation_matrix();
+    public:
+      static inline glm::vec3 s_Position{0.0f};
     private:
       // NOTE: right now they are static for convenience, multiple cameras or windows would break this!
       // a proper input system that subscribes to the callbacks and forwards inputs to any specific camera would work better 
       static inline glm::vec3 s_Velocity{0.0f};
       static inline float s_Speed{0.2f};
-      static inline glm::vec3 s_Position{0.0f};
       static inline float s_Pitch{0.0f};
       static inline float s_Yaw{0.0f};
       static inline float s_LastMouseX{0.0f};
