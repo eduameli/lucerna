@@ -217,10 +217,13 @@ void Engine::draw()
 
   // draw compute
   draw_background(cmd);
+  
+  vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+  draw_shadow_pass(cmd);
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-  
+   
   draw_geometry(cmd);
   
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -272,6 +275,94 @@ void Engine::draw_background(VkCommandBuffer cmd)
 
   vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
 }
+
+// FIXME: vertex buffer should be separated for better cache when doing shadow pass
+void Engine::draw_shadow_pass(VkCommandBuffer cmd)
+{
+  std::vector<uint32_t> opaque_draws;
+  opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
+  
+  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
+  {
+    if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
+    {
+      opaque_draws.push_back(i);
+    }
+  }
+
+  std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+    const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
+    const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
+    if(A.material == B.material)
+    {
+      return A.indexBuffer < B.indexBuffer;
+    }
+    else
+    {
+      return A.material < B.material;
+    }
+  });
+
+  VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
+  vkCmdBeginRendering(cmd, &renderInfo);
+  
+  // update sceneData to have light pos  
+  // pcs has model matrix, mat4 in ubo? :sob:
+  // filtering is done when shading? so do u rlly need anything else? (idk).
+  
+  struct ShadowPassUBO
+  {
+    glm::mat4 viewproj{1.0f};
+  } data;
+
+  AllocatedBuffer shadowPass = create_buffer(sizeof(ShadowPassUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  get_current_frame().deletionQueue.push_function([=, this] {
+    destroy_buffer(shadowPass);
+  });
+
+  ShadowPassUBO* shadowPassUniform = (ShadowPassUBO*) shadowPass.allocation->GetMappedData();
+  *shadowPassUniform = data;
+
+  VkDescriptorSet shadowDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
+  DescriptorWriter writer;
+  writer.write_buffer(0, shadowPass.buffer, sizeof(ShadowPassUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  writer.update_set(m_Device.logical, shadowDescriptor);
+  
+
+  // use m_ShadowPipeline
+  VkViewport viewport{};
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.width = m_DrawExtent.width;
+  viewport.height = m_DrawExtent.height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset.x = 0;
+  scissor.offset.y = 0;
+  scissor.extent.width = m_DrawExtent.width;
+  scissor.extent.height = m_DrawExtent.height;
+  vkCmdSetScissor(cmd , 0, 1, &scissor);
+  
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipeline);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipelineLayout, 0, 1, &shadowDescriptor, 0, nullptr);
+
+  auto draw = [&](const RenderObject& draw) {
+    GPUDrawPushConstants pcs{};
+    pcs.worldMatrix = draw.transform; // worldMatrix == modelMatrix
+    pcs.vertexBuffer = draw.vertexBufferAddress;
+
+    vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+
+  };
+
+  vkCmdEndRendering(cmd);
+}
+
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
   auto start = std::chrono::system_clock::now();
@@ -311,10 +402,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
-  // descriptor set for scene data created every frame!
-  // we also allocate the uniform buffer to showcase how u can do temporal per frame data that
-  // is dynamically created skinned mesh?
- 
+  // descriptor set for scene data created every frame! temporal per frame data - skinned mesh? (UBO)
+  
   AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   get_current_frame().deletionQueue.push_function([=, this] {
     destroy_buffer(gpuSceneDataBuffer);
@@ -341,7 +430,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
       if (draw.material->pipeline != lastPipeline)
       {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr); // NOTE: why inside the loop & not at the start
 
         VkViewport viewport{};
         viewport.x = 0;
@@ -393,12 +482,9 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     draw(r);
   }
 
-
-  vkCmdEndRendering(cmd);
-    
+  vkCmdEndRendering(cmd);  
   mainDrawContext.OpaqueSurfaces.clear();
   mainDrawContext.TransparentSurfaces.clear();
-
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -726,6 +812,7 @@ void Engine::init_default_data()
     destroy_image(m_BlackImage);
     destroy_image(m_ErrorCheckerboardImage);
   });
+
 }
 
 
@@ -874,57 +961,32 @@ void Engine::init_swapchain()
     
   AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
   
-  // create draw image
+  //FIXME: why swapchain? it should be based on the native res 
   VkExtent3D drawImageExtent = {m_Swapchain.extent2d.width, m_Swapchain.extent2d.height, 1}; 
-	m_DrawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-	m_DrawImage.imageExtent = drawImageExtent;
-
+  m_DrawExtent = {drawImageExtent.width, drawImageExtent.height};
 	VkImageUsageFlags drawImageUsages{};
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	VkImageCreateInfo rimg_info = vkinit::image_create_info(m_DrawImage.imageFormat, drawImageUsages, drawImageExtent);
-
-	//for the draw image, we want to allocate it from gpu local memory
-	VmaAllocationCreateInfo rimg_allocinfo = {};
-	rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	//allocate and create the image
-	vmaCreateImage(m_Allocator, &rimg_info, &rimg_allocinfo, &m_DrawImage.image, &m_DrawImage.allocation, nullptr);
-
-  VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(m_DrawImage.imageFormat, m_DrawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
-  VK_CHECK_RESULT(vkCreateImageView(m_Device.logical, &rview_info, nullptr, &m_DrawImage.imageView));
-  
-  // NOTE: depth image creation!!!
-  m_DepthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
-  m_DepthImage.imageExtent = drawImageExtent;
-  m_DrawImage.imageExtent = drawImageExtent;
-  m_DrawExtent = {drawImageExtent.width, drawImageExtent.height};
-
   VkImageUsageFlags depthImageUsages{};
   depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
   
-  VkImageCreateInfo dimg_info = vkinit::image_create_info(m_DepthImage.imageFormat, depthImageUsages, drawImageExtent);
-  vmaCreateImage(m_Allocator, &dimg_info, &rimg_allocinfo, &m_DepthImage.image, &m_DepthImage.allocation, nullptr);
-  VkImageViewCreateInfo dviewinfo = vkinit::imageview_create_info(m_DepthImage.imageFormat, m_DepthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+  m_DrawImage = create_image(drawImageExtent, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, false);
+  m_DepthImage = create_image(drawImageExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
+  m_ShadowDepthImage = create_image(drawImageExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
+  
+  vkutil::set_debug_object_name(m_Device.logical, m_DrawImage.image, "draw image");
+  vkutil::set_debug_object_name(m_Device.logical, m_DepthImage.image, "depth image");
+  vkutil::set_debug_object_name(m_Device.logical, m_ShadowDepthImage.image, "shadow mapping depth img");
 
-  VK_CHECK_RESULT(vkCreateImageView(m_Device.logical, &dviewinfo, nullptr, &m_DepthImage.imageView));
-
-
-  m_DeletionQueue.push_function([=, this]() { 
-    vkDestroyImageView(m_Device.logical, m_DrawImage.imageView, nullptr);
-    vmaDestroyImage(m_Allocator, m_DrawImage.image, m_DrawImage.allocation);
-
-    vkDestroyImageView(m_Device.logical, m_DepthImage.imageView, nullptr);
-    vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
+  m_DeletionQueue.push_function([=, this]() {
+    destroy_image(m_DrawImage);
+    destroy_image(m_DepthImage);
+    destroy_image(m_ShadowDepthImage);
   });
 }
-
-
-
 
 void Engine::init_descriptors()
 {
@@ -990,6 +1052,61 @@ void Engine::init_pipelines()
 {
   init_background_pipelines();
   metalRoughMaterial.build_pipelines(this);
+
+  // shadow pipelines
+  VkDevice device = m_Device.logical;
+
+  VkShaderModule shadowFrag;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/shadow_pass/shadow.frag.spv", device, &shadowFrag),
+    "Error when building the shadow pass fragment shader module"
+  );
+
+  VkShaderModule shadowVert;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/shadow_pass/shadow.vert.spv", device, &shadowVert),
+    "Error when building the shadow pass vertex shader module"
+  );
+
+  { 
+    DescriptorLayoutBuilder builder;
+    builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    m_ShadowSetLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_VERTEX_BIT);
+  }
+
+
+  VkPushConstantRange range{};
+  range.offset = 0;
+  range.size = sizeof(GPUDrawPushConstants);
+  range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  
+  VkPipelineLayoutCreateInfo layoutInfo = vkinit::pipeline_layout_create_info();
+  layoutInfo.setLayoutCount = 1;
+  layoutInfo.pSetLayouts = &m_ShadowSetLayout;
+  layoutInfo.pPushConstantRanges = &range;
+  layoutInfo.pushConstantRangeCount = 1;
+
+  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &m_ShadowPipelineLayout));
+
+  PipelineBuilder builder;
+  builder.set_shaders(shadowVert, shadowFrag);
+  builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  builder.set_multisampling_none();
+  builder.disable_blending();
+  builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+  builder.set_depth_format(VK_FORMAT_D32_SFLOAT);
+  
+  builder.PipelineLayout = m_ShadowPipelineLayout;
+
+  m_ShadowPipeline = builder.build_pipeline(device);
+  
+  m_DeletionQueue.push_function([&](){
+    vkDestroyDescriptorSetLayout(device, m_ShadowSetLayout, nullptr);
+    vkDestroyPipelineLayout(device, m_ShadowPipelineLayout, nullptr);
+    vkDestroyPipeline(device, m_ShadowPipeline, nullptr);
+  });
 }
 
 void Engine::init_background_pipelines()

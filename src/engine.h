@@ -107,6 +107,7 @@ namespace Aurora {
       AllocatedImage m_BlackImage;
       AllocatedImage m_GreyImage;
       AllocatedImage m_ErrorCheckerboardImage;
+      AllocatedImage m_ShadowDepthImage; // used for shadow mapping!
       VkSampler m_DefaultSamplerNearest;
       VkSampler m_DefaultSamplerLinear;
       VkDescriptorSetLayout m_SceneDescriptorLayout;
@@ -133,6 +134,7 @@ namespace Aurora {
       void draw();
       void draw_background(VkCommandBuffer cmd);
       void draw_geometry(VkCommandBuffer cmd);
+      void draw_shadow_pass(VkCommandBuffer cmd);
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
       FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
       void resize_swapchain();
@@ -174,7 +176,10 @@ namespace Aurora {
 
       GPUSceneData sceneData;
 
-      
+      VkPipeline m_ShadowPipeline;
+      VkPipelineLayout m_ShadowPipelineLayout;
+      VkDescriptorSetLayout m_ShadowSetLayout;
+
   };
 
  
