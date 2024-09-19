@@ -18,15 +18,12 @@ float shadow_mapping_calc(vec4 fragLightSpace)
   float currentDepth = projCoords.z;
   
   float visibility = 1.0f;
-  if (closestDepth < currentDepth)
+  if (closestDepth < currentDepth + 0.0005)
   {
-    visibility = 0.0f;
+    visibility = 0.5f;
   }
-
-  float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
   
   return visibility;
-
 }
 
 void main() 
