@@ -301,24 +301,23 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   struct ShadowPassUBO
   {
-    glm::mat4 viewproj{1.0f};
+    glm::mat4 viewproj;
   } data;
 
   
-  glm::mat4 proj = glm::ortho(-50.0f, 50.0f, -50.0f, 50.0f, 10000.0f, 0.1f); //FIXME: arbritary znear zfar planes
-  proj[1][1] *= -1;
+  glm::mat4 proj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 10000.0f, 0.001f); //FIXME: arbritary znear zfar planes
+  //proj[1][1] *= -1;
   //proj = sceneData.proj;
   glm::mat4 lightView = glm::lookAt(
-    glm::vec3{0.0f, 10.0f, 0.0f},
+    glm::vec3{1.0f, 1.0f, 1.0f},
     glm::vec3{0.0f, 0.0f, 0.0f},
     glm::vec3{0.0f, 1.0f, 0.0f}
   );
   
+
   data.viewproj = proj * lightView; 
   sceneData.lightViewProj = proj * lightView;
   
-  //sceneData.lightViewProj = glm::mat4{1.0f};
-  //data.viewproj = glm::mat4{1.0f};
   
   AllocatedBuffer shadowPass = create_buffer(sizeof(ShadowPassUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   get_current_frame().deletionQueue.push_function([=, this] {
@@ -327,6 +326,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
   ShadowPassUBO* shadowPassUniform = (ShadowPassUBO*) shadowPass.allocation->GetMappedData();
   *shadowPassUniform = data;
+  AR_CORE_INFO("light mat {}", glm::to_string(data.viewproj));
 
   VkDescriptorSet shadowDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_ShadowSetLayout);
   DescriptorWriter writer;
