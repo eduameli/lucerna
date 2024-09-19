@@ -305,11 +305,15 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   } data;
 
   
-  glm::mat4 proj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 10000.0f, 0.001f); //FIXME: arbritary znear zfar planes
+  glm::mat4 proj = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, 10.0f, 0.1f); //FIXME: arbritary znear zfar planes
   //proj[1][1] *= -1;
   //proj = sceneData.proj;
+  
+  float x_value = glm::sin(frameNumber/100.0f);
+  float z_value = glm::cos(frameNumber/100.0f);
+
   glm::mat4 lightView = glm::lookAt(
-    glm::vec3{1.0f, 1.0f, 1.0f},
+    glm::vec3{x_value, 1.0f, z_value},
     glm::vec3{0.0f, 0.0f, 0.0f},
     glm::vec3{0.0f, 1.0f, 0.0f}
   );
