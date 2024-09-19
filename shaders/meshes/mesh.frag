@@ -7,8 +7,6 @@ layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inColor;
 layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec4 inlightSpace;
-layout (location = 4) in float bias;
-
 layout (location = 0) out vec4 outFragColor;
 
 float shadow_mapping_calc(vec4 fragLightSpace)
@@ -27,7 +25,7 @@ float shadow_mapping_calc(vec4 fragLightSpace)
 
   float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
   
-  return shadow;
+  return visibility;
 
 }
 
@@ -39,7 +37,6 @@ void main()
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
   
   float shadow_value = (1.0 - shadow_mapping_calc(inlightSpace));
-  
   lightValue *= shadow_value;
 
 	outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);

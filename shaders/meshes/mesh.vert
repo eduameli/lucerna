@@ -9,7 +9,7 @@ layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec2 outUV;
 layout (location = 3) out vec4 outlightSpace;
-layout (location = 4) out float outbias;
+
 struct Vertex {
 
 	vec3 position;
@@ -27,7 +27,6 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
-  float bias;
 	VertexBuffer vertexBuffer;
 } PushConstants;
 
@@ -45,7 +44,5 @@ void main()
 	outUV.y = v.uv_y;
 
   outlightSpace = sceneData.lightViewProj * (PushConstants.render_matrix * position);
-
-  outbias = PushConstants.bias;
 }
 
