@@ -1138,10 +1138,13 @@ void Engine::init_pipelines()
 
   m_ShadowPipeline = builder.build_pipeline(device);
   
+  vkDestroyShaderModule(device, shadowFrag, nullptr);
+  vkDestroyShaderModule(device, shadowVert, nullptr);
+
   m_DeletionQueue.push_function([&](){
-    vkDestroyDescriptorSetLayout(device, m_ShadowSetLayout, nullptr);
-    vkDestroyPipelineLayout(device, m_ShadowPipelineLayout, nullptr);
-    vkDestroyPipeline(device, m_ShadowPipeline, nullptr);
+    vkDestroyDescriptorSetLayout(m_Device.logical, m_ShadowSetLayout, nullptr);
+    vkDestroyPipelineLayout(m_Device.logical, m_ShadowPipelineLayout, nullptr);
+    vkDestroyPipeline(m_Device.logical, m_ShadowPipeline, nullptr);
   });
 }
 
