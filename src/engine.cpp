@@ -311,11 +311,11 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   } data;
 
   
-  lightProj = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, 20.0f, 0.1f); //FIXME: arbritary znear zfar planes
+  lightProj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 20.0f, 0.1f); //FIXME: arbritary znear zfar planes
   lightProj[1][1] *= -1;  //FIXME: do i need this??
   
-  float x_value = glm::sin(frameNumber/1000.0f)* 5.0;
-  float z_value = glm::cos(frameNumber/1000.0f)* 5.0;
+  float x_value = glm::sin(frameNumber * spinSpeed)* 5.0;
+  float z_value = glm::cos(frameNumber * spinSpeed)* 5.0;
 
   lView = glm::lookAt(
     glm::vec3{x_value, 5.0f, z_value},
@@ -442,7 +442,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.write_image(1, m_ShadowDepthImage.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  writer.write_image(1, m_ShadowDepthImage.imageView, m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   writer.update_set(m_Device.logical, globalDescriptor);
 
   MaterialPipeline* lastPipeline = nullptr;
@@ -548,6 +548,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
   ImGui::Begin("Shadow Mapping Settings");
     ImGui::Checkbox("Follow Sun", &lightView);
+    ImGui::SliderFloat("Spin Speed %.6f", &spinSpeed, 0.0f, 0.01f);
   ImGui::End();
   
 
@@ -563,6 +564,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 //FIXME: a simple flat plane 50x50 breaks it :sob: maybe it needs volume to work or smth??
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
+  return true;
     std::array<glm::vec3, 8> corners {
         glm::vec3 { 1, 1, 1 },
         glm::vec3 { 1, 1, -1 },

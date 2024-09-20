@@ -18,7 +18,22 @@ float shadow_mapping_calc(vec4 fragLightSpace)
   float currentDepth = projCoords.z;
   
   float bias = max(0.005 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.0005);
-  //float bias = 0.005 * tan(acos(clamp(dot(inNormal, sceneData.sunlightDirection.xyz), 0, 1)));
+
+  float shadow = 0.0f;
+  vec2 texelSize = 1.0 / textureSize(shadowDepth, 0);
+
+  for (int x = -1; x <= 1; ++x)
+  {
+    for (int y = -1; y <= 1; ++y)
+    {
+      float pcfDepth = texture(shadowDepth, projCoords.xy + vec2(x, y) * texelSize).r;
+      shadow += pcfDepth < currentDepth + bias ? 1.0 : 0.0;
+    }
+  }
+
+  return shadow /= 9.0;
+
+  /*
   float visibility = 1.0f;
   //if (closestDepth < currentDepth + 0.0005)
   if (closestDepth < currentDepth + bias)
@@ -27,6 +42,7 @@ float shadow_mapping_calc(vec4 fragLightSpace)
   }
   
   return visibility;
+  */
 }
 
 void main() 
@@ -36,7 +52,7 @@ void main()
 	vec3 color = inColor * texture(colorTex,inUV).xyz;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
   
-  float shadow_value = (1.0 - shadow_mapping_calc(inlightSpace));
+  float shadow_value = shadow_mapping_calc(inlightSpace);
   lightValue *= shadow_value;
 
 	outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);

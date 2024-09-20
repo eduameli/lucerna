@@ -117,6 +117,7 @@ namespace Aurora {
       GLTFMetallic_Roughness metalRoughMaterial;
 
       bool lightView{ false };
+      float spinSpeed{0.01};
       glm::mat4 lView{1.0f};
       glm::mat4 lightProj{1.0f};
       glm::mat4 lightViewProj{1.0f};
