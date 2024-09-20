@@ -9,7 +9,6 @@ layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec2 outUV;
 layout (location = 3) out vec4 outlightSpace;
-
 struct Vertex {
 
 	vec3 position;

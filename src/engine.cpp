@@ -179,7 +179,7 @@ void Engine::update_scene()
   
 	sceneData.ambientColour = glm::vec4(0.1f);
 	sceneData.sunlightColour = glm::vec4(1.0f);
-	sceneData.sunlightDirection = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+	sceneData.sunlightDirection = glm::vec4(0.0f, 1.0f, 0.0f, 0.01f);
   
 
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
