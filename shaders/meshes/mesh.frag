@@ -17,8 +17,11 @@ float shadow_mapping_calc(vec4 fragLightSpace)
   float closestDepth = texture(shadowDepth, projCoords.xy).r;
   float currentDepth = projCoords.z;
   
+  float bias = max(0.005 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.0005);
+  //float bias = 0.005 * tan(acos(clamp(dot(inNormal, sceneData.sunlightDirection.xyz), 0, 1)));
   float visibility = 1.0f;
-  if (closestDepth < currentDepth + 0.0005)
+  //if (closestDepth < currentDepth + 0.0005)
+  if (closestDepth < currentDepth + bias)
   {
     visibility = 0.5f;
   }
