@@ -170,7 +170,13 @@ void Engine::update_scene()
   sceneData.proj = projection;
   sceneData.viewproj = projection * view;
 
-
+  if (lightView)
+  {
+    sceneData.viewproj = lightProj * lView;
+    sceneData.view = lView;
+    sceneData.proj = lightProj;
+  }
+  
 	sceneData.ambientColour = glm::vec4(0.1f);
 	sceneData.sunlightColour = glm::vec4(1.0f);
 	sceneData.sunlightDirection = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
@@ -305,22 +311,23 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   } data;
 
   
-  glm::mat4 proj = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, 10.0f, 0.1f); //FIXME: arbritary znear zfar planes
-  //proj[1][1] *= -1;
-  //proj = sceneData.proj;
+  lightProj = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, 20.0f, 0.1f); //FIXME: arbritary znear zfar planes
+  lightProj[1][1] *= -1;  //FIXME: do i need this??
   
-  float x_value = glm::sin(frameNumber/100.0f);
-  float z_value = glm::cos(frameNumber/100.0f);
+  float x_value = glm::sin(frameNumber/1000.0f)* 5.0;
+  float z_value = glm::cos(frameNumber/1000.0f)* 5.0;
 
-  glm::mat4 lightView = glm::lookAt(
-    glm::vec3{x_value, 1.0f, z_value},
+  lView = glm::lookAt(
+    glm::vec3{x_value, 5.0f, z_value},
     glm::vec3{0.0f, 0.0f, 0.0f},
     glm::vec3{0.0f, 1.0f, 0.0f}
   );
+
+  sceneData.sunlightDirection = glm::vec4{x_value, 1.0f, z_value, 1.0f}; // .w for sun power
   
 
-  data.viewproj = proj * lightView; 
-  sceneData.lightViewProj = proj * lightView;
+  data.viewproj = lightProj * lView; 
+  sceneData.lightViewProj = lightProj * lView;
   
   
   AllocatedBuffer shadowPass = create_buffer(sizeof(ShadowPassUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -537,6 +544,10 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::Text("update time %f ms", stats.scene_update_time);
     ImGui::Text("triangles %i", stats.triangle_count);
     ImGui::Text("draws %i", stats.drawcall_count);
+  ImGui::End();
+
+  ImGui::Begin("Shadow Mapping Settings");
+    ImGui::Checkbox("Follow Sun", &lightView);
   ImGui::End();
   
 
@@ -1115,7 +1126,7 @@ void Engine::init_pipelines()
   builder.set_shaders(shadowVert, shadowFrag);
   builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  builder.set_cull_mode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE);
   builder.set_multisampling_none();
   builder.disable_blending();
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);

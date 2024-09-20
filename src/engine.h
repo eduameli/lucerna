@@ -116,7 +116,10 @@ namespace Aurora {
       MaterialInstance defaultData;
       GLTFMetallic_Roughness metalRoughMaterial;
 
-      float bias{ 0.01 };
+      bool lightView{ false };
+      glm::mat4 lView{1.0f};
+      glm::mat4 lightProj{1.0f};
+      glm::mat4 lightViewProj{1.0f};
     private:
       void init_vulkan();
       void init_swapchain();
