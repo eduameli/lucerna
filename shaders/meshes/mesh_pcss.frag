@@ -10,6 +10,11 @@ layout (location = 1) in vec3 inColor;
 layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec4 inlightSpace;
 layout (location = 0) out vec4 outFragColor;
+
+#define NEAR 0.1
+#define LIGHT_SIZE 0.2
+
+
 /*
 FIX:
 - bias is random
@@ -96,15 +101,32 @@ blue noise stochastic selecting SEED - early bailing
 2) w_penumbra = (distance_reciever - distance_blocker) * light_size /  distance_blocker (?)
 3) variable pcf - carry out pcf with a kernel size dependant on w_penumbra
 */
-
-float search_radius()
+float search_radius(float zReceiver)
 {
-  return 0.01;
+  return LIGHT_SIZE * (zReceiver - NEAR) / zReceiver; 
 }
 
-float occluder_avg_dist()
+float occluder_avg_dist(vec3 projCoords)
 {
-  return 0.0;
+  float radius = search_radius(projCoords.z);
+  float bias = max(0.05 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.005);
+
+
+  float blockerSum = 0;
+  int numBlockers = 0;
+  
+  for (int i = 0; i < 16; i++)
+  {
+    float shadowDepth = texture(shadowDepth, projCoords.xy + poissonDisk[i] * radius).r;
+    if (shadowDepth > projCoords.z - bias)
+    {
+      blockerSum += shadowDepth;
+      numBlockers++;
+
+    }
+  }
+  
+  return blockerSum / numBlockers;
 }
 
 float shadow_pcf(vec3 projCoords, float radius)
@@ -141,24 +163,23 @@ float shadow_map_pcss(vec4 fragCoord)
   projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
 
   // find blocker (avg) dist
-  float mapDepth = texture(shadowDepth, projCoords.xy).r;
-  float bias = max(0.05 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.005);
+
+  float mapDepth = occluder_avg_dist(projCoords);
+  mapDepth = texture(shadowDepth, projCoords.xy).r;
   // NO BLOCKER SEARCH JUST USE ONE SAMPLE FOR NOW  
   //if (mapDepth < projCoords.z + bias)
   //{
   //  return 0.0;
   //}
 
+
   float penumbraRatio = (mapDepth - projCoords.z) / mapDepth;
 
-  float NEAR = 0.1;
-  float LIGHT_SIZE_UV = 0.2;
-  float filterRadiusUV = penumbraRatio * LIGHT_SIZE_UV * NEAR / projCoords.z;
+  float filterRadiusUV = penumbraRatio * LIGHT_SIZE * NEAR / projCoords.z;
   
   float shadow = shadow_pcf(projCoords, filterRadiusUV);
   //outFragColor = vec4(penumbraRatio, penumbraRatio, penumbraRatio, 1.0f);
   // pcf variable radius
-  //return penumbraRatio;
   return shadow_pcf(projCoords, filterRadiusUV);
 }
 
