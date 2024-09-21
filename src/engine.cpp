@@ -311,7 +311,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   } data;
 
   
-  lightProj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 20.0f, 0.1f); //FIXME: arbritary znear zfar planes
+  lightProj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 20.0f, 0.1f); //FIXME: arbritary znear zfar planes
   lightProj[1][1] *= -1;  //FIXME: do i need this??
   
   float x_value = glm::sin(frameNumber * spinSpeed)* 5.0;
@@ -964,10 +964,17 @@ void Engine::create_instance()
   instance.enabledExtensionCount = static_cast<uint32_t>(m_InstanceExtensions.size());
   instance.ppEnabledExtensionNames = m_InstanceExtensions.data();
   
+  VkValidationFeatureEnableEXT vfeat = VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT;
+  VkValidationFeaturesEXT feats{ .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT, .pNext = nullptr};
+  feats.enabledValidationFeatureCount = 1;
+  feats.pEnabledValidationFeatures = &vfeat;
+
   if (m_UseValidationLayers)
   {
     instance.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
     instance.ppEnabledLayerNames = m_ValidationLayers.data();
+    instance.pNext = &feats;
+
   }
   
   VK_CHECK_RESULT(vkCreateInstance(&instance, nullptr, &m_Instance));
