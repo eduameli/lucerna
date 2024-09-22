@@ -12,7 +12,7 @@ layout (location = 3) in vec4 inlightSpace;
 layout (location = 0) out vec4 outFragColor;
 
 #define NEAR 0.1
-#define LIGHT_SIZE 0.2
+#define LIGHT_SIZE 0.1
 
 
 /*
@@ -56,44 +56,6 @@ const vec2 poissonDisk[32] = vec2[](
     vec2(0.865413, 0.763726),
     vec2(0.872005, -0.927));
 
-float shadow_map(vec4 fragLightCoord)
-{
-  vec3 projCoords = fragLightCoord.xyz / fragLightCoord.w;
-  projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0);
-
-  float mapDepth = texture(shadowDepth, projCoords.xy).r;
-  float currentDepth = projCoords.z;
-
-  float bias = max(0.005 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.0005);
-  
-  return mapDepth < currentDepth + bias ? 1.0 : 0.0;
-}
-
-float shadow_map_pcf(vec4 fragLightSpace)
-{
-  vec3 projCoords = fragLightSpace.xyz / fragLightSpace.w;
-  projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
-  
-  float closestDepth = texture(shadowDepth, projCoords.xy).r;
-  float currentDepth = projCoords.z;
-  
-  float bias = max(0.005 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.0005);
-
-  float shadow = 0.0f;
-  vec2 texelSize = 1.0 / textureSize(shadowDepth, 0);
-
-  for (int x = -1; x <= 1; ++x)
-  {
-    for (int y = -1; y <= 1; ++y)
-    {
-      float pcfDepth = texture(shadowDepth, projCoords.xy + vec2(x, y) * texelSize).r;
-      shadow += pcfDepth < currentDepth + bias ? 1.0 : 0.0;
-    }
-  }
-
-  return shadow /= 9.0;
-}
-
 /*
 percentage closer soft shadows (https://developer.download.nvidia.com/shaderlibrary/docs/shadow_PCSS.pdf)
 1) blocker finder - sample around each fragment dependant on light size(sceneData.sunlightDirection.w) and recievers distance from light source -
@@ -106,7 +68,7 @@ float search_radius(float zReceiver)
   return LIGHT_SIZE * (zReceiver - NEAR) / zReceiver; 
 }
 
-float occluder_avg_dist(vec3 projCoords)
+float find_blocker_avg_dist(vec3 projCoords)
 {
   float radius = search_radius(projCoords.z);
   float bias = max(0.05 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.005);
@@ -115,10 +77,10 @@ float occluder_avg_dist(vec3 projCoords)
   float blockerSum = 0;
   int numBlockers = 0;
   
-  for (int i = 0; i < 16; i++)
+  for (int i = 0; i < 32; i++)
   {
-    float shadowDepth = texture(shadowDepth, projCoords.xy + poissonDisk[i] * radius).r;
-    if (shadowDepth > projCoords.z - bias)
+    float shadowDepth = texture(shadowDepth, projCoords.xy + (poissonDisk[i] * radius)).r;
+    if (shadowDepth > projCoords.z + bias)
     {
       blockerSum += shadowDepth;
       numBlockers++;
@@ -126,6 +88,11 @@ float occluder_avg_dist(vec3 projCoords)
     }
   }
   
+  if (numBlockers == 0)
+  {
+    return -1;
+  }
+
   return blockerSum / numBlockers;
 }
 
@@ -137,22 +104,13 @@ float shadow_pcf(vec3 projCoords, float radius)
   float currentDepth = projCoords.z;
   vec2 texelSize = 1.0 / textureSize(shadowDepth, 0);
 
-  if (radius == 0)
-  {
-    // hard shadow / pixelated
-    float mapDepth = texture(shadowDepth, projCoords.xy).r;
-    return mapDepth < currentDepth + bias ? 1.0 : 0.0;
-  }
-  
-
   for (int i = 0; i < 32; i++)
   {
-    float pcfDepth = texture(shadowDepth, projCoords.xy + radius * poissonDisk[i]).r;
-    shadow += pcfDepth < currentDepth + bias ? 1.0 : 0.0;
+    float pcfDepth = texture(shadowDepth, projCoords.xy + (poissonDisk[i]*radius)).r;
+    shadow += pcfDepth > currentDepth + bias ? 1.0 : 0.0;
   }
 
   return shadow /= 32;
-
 }
 
 // FIXME: use hardware to sample many at the same time, billinear?? sampler2DShadow, etc
@@ -162,24 +120,16 @@ float shadow_map_pcss(vec4 fragCoord)
   vec3 projCoords = fragCoord.xyz / fragCoord.w;
   projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
 
-  // find blocker (avg) dist
+  float blockerDepth = find_blocker_avg_dist(projCoords);
 
-  float mapDepth = occluder_avg_dist(projCoords);
-  mapDepth = texture(shadowDepth, projCoords.xy).r;
-  // NO BLOCKER SEARCH JUST USE ONE SAMPLE FOR NOW  
-  //if (mapDepth < projCoords.z + bias)
-  //{
-  //  return 0.0;
-  //}
+  if (blockerDepth < 0)
+  {
+    return 0.0;
+  }
 
-
-  float penumbraRatio = (mapDepth - projCoords.z) / mapDepth;
-
+  float penumbraRatio = (blockerDepth - projCoords.z) / blockerDepth;
   float filterRadiusUV = penumbraRatio * LIGHT_SIZE * NEAR / projCoords.z;
   
-  float shadow = shadow_pcf(projCoords, filterRadiusUV);
-  //outFragColor = vec4(penumbraRatio, penumbraRatio, penumbraRatio, 1.0f);
-  // pcf variable radius
   return shadow_pcf(projCoords, filterRadiusUV);
 }
 
@@ -195,7 +145,7 @@ void main()
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
   
   float shadow_value = shadow_map_pcss(inlightSpace);
-  lightValue *= shadow_value;
-  //outFragColor = vec4(shadow_value, shadow_value, shadow_value, 1.0);
+  lightValue *= (1.0 - shadow_value);
+
 	outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);
 }
