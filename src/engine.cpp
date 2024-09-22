@@ -296,9 +296,9 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
       opaque_draws.push_back(i);
     }
   }
-
+  
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_ShadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-  VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
+  VkRenderingInfo renderInfo = vkinit::rendering_info({m_ShadowExtent.width, m_ShadowExtent.height}, nullptr, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
   // update sceneData to have light pos  
@@ -348,8 +348,8 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   VkViewport viewport{};
   viewport.x = 0;
   viewport.y = 0;
-  viewport.width = m_DrawExtent.width;
-  viewport.height = m_DrawExtent.height;
+  viewport.width = m_ShadowExtent.width;
+  viewport.height = m_ShadowExtent.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -357,8 +357,8 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   VkRect2D scissor{};
   scissor.offset.x = 0;
   scissor.offset.y = 0;
-  scissor.extent.width = m_DrawExtent.width;
-  scissor.extent.height = m_DrawExtent.height;
+  scissor.extent.width = m_ShadowExtent.width;
+  scissor.extent.height = m_ShadowExtent.height;
   vkCmdSetScissor(cmd , 0, 1, &scissor);
   
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipeline);
@@ -1017,7 +1017,7 @@ void Engine::init_swapchain()
   
   m_DrawImage = create_image(drawImageExtent, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, false);
   m_DepthImage = create_image(drawImageExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
-  m_ShadowDepthImage = create_image(drawImageExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
+  m_ShadowDepthImage = create_image(m_ShadowExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
   
   vkutil::set_debug_object_name(m_Device.logical, m_DrawImage.image, "draw image");
   vkutil::set_debug_object_name(m_Device.logical, m_DepthImage.image, "depth image");
