@@ -7,17 +7,6 @@
 #include "vk_swapchain.h"
 #include "camera.h"
 
-#define UNWRAP_DEVICE(ctx) \
-do { \
-  [[maybe_unused]] VkDevice device = ctx.logical; \
-  [[maybe_unused]] VkPhysicalDevice gpu = ctx.physical; \
-  [[maybe_unused]] QueueFamilyIndices indices = ctx.indices; \
-  [[maybe_unused]] VkQueue graphics = ctx.graphics;\
-  [[maybe_unused]] VkQueue present = ctx.present; \
-  [[maybe_unused]] uint32_t graphicsIndex = graphicsIndex; \
-  [[maybe_unused]] uint32_t presentIndex = presentIndex;\
-} while (false)
-
 namespace Aurora {
   struct FrameData
   {
@@ -188,6 +177,7 @@ namespace Aurora {
       VkExtent3D m_ShadowExtent{ 1024*4, 1024*4, 1 };
       struct ShadowMappingSettings
       {
+        bool rotate{ false };
         float light_size_uv = 0.25;
         float ortho_size = 10.0;
         float near = 0.1;

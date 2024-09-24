@@ -320,8 +320,14 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
   lightProj[1][1] *= -1;  //FIXME: do i need this??
   
-  float x_value = 5.0;
-  float z_value = 5.0;
+  float x_value = sin(frameNumber/200.0) * 5.0;
+  float z_value = cos(frameNumber/200.0) * 5.0;
+  
+  if (pcss_settings.rotate == false)
+  {
+    x_value = 0.0;
+    z_value = 5.0;
+  }
 
   lView = glm::lookAt(
     glm::vec3{x_value, 5.0f, z_value},
@@ -558,6 +564,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui::End();
 
   ImGui::Begin("Shadow Mapping Settings");
+    ImGui::Checkbox("Pause", &pcss_settings.rotate);
     ImGui::Checkbox("Camera View", &lightView);
     ImGui::InputFloat("NEAR", &pcss_settings.near);
     ImGui::InputFloat("FAR", &pcss_settings.far);
@@ -976,17 +983,10 @@ void Engine::create_instance()
   instance.enabledExtensionCount = static_cast<uint32_t>(m_InstanceExtensions.size());
   instance.ppEnabledExtensionNames = m_InstanceExtensions.data();
   
-  VkValidationFeatureEnableEXT vfeat = VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT;
-  VkValidationFeaturesEXT feats{ .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT, .pNext = nullptr};
-  feats.enabledValidationFeatureCount = 1;
-  feats.pEnabledValidationFeatures = &vfeat;
-
   if (m_UseValidationLayers)
   {
     instance.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
     instance.ppEnabledLayerNames = m_ValidationLayers.data();
-    instance.pNext = &feats;
-
   }
   
   VK_CHECK_RESULT(vkCreateInstance(&instance, nullptr, &m_Instance));
@@ -999,7 +999,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
     .build();
 }
 
