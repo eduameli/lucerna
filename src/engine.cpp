@@ -20,6 +20,7 @@
 #include "logger.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
+
 #include <volk.h>
 
 #include <glm/packing.hpp>
@@ -66,7 +67,7 @@ void Engine::shutdown()
 {
   vkDeviceWaitIdle(m_Device.logical);
   s_Instance = nullptr;
-  
+  std::cout << "hello" << std::endl; 
   loadedScenes.clear();
 
   vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
@@ -86,7 +87,7 @@ void Engine::shutdown()
     vkDestroySemaphore(m_Device.logical, m_Frames[i].swapchainSemaphore, nullptr);
     m_Frames[i].deletionQueue.flush();
   }
- 
+
   vkDestroyDescriptorSetLayout(m_Device.logical, m_SceneDescriptorLayout, nullptr);
 
   m_DeletionQueue.flush();
