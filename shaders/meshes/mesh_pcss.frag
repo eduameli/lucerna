@@ -218,13 +218,14 @@ float shadow_map_pcss(vec4 fragCoord)
 // missing specular (blinn-phong) & pbr normal roughness etc
 void main() 
 {
-	float lightValue = max(dot(normalize(inNormal), sceneData.sunlightDirection.xyz), 0.1f);
+	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
 	vec3 color = inColor * texture(colorTex,inUV).xyz;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
   
   float shadow_value = shadow_map_pcss(inlightSpace);
   lightValue *= (1.0 - shadow_value);
+  lightValue += 0.25;
 
 	outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);
 }
