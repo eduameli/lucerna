@@ -67,7 +67,6 @@ void Engine::shutdown()
 {
   vkDeviceWaitIdle(m_Device.logical);
   s_Instance = nullptr;
-  std::cout << "hello" << std::endl; 
   loadedScenes.clear();
 
   vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);

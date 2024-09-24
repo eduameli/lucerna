@@ -225,7 +225,6 @@ void main()
   
   float shadow_value = shadow_map_pcss(inlightSpace);
   lightValue *= (1.0 - shadow_value);
-  lightValue += 0.25;
 
 	outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);
 }
