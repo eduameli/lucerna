@@ -9,6 +9,10 @@ layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec2 outUV;
 layout (location = 3) out vec4 outlightSpace;
+
+layout (location = 4) out float LIGHT_SIZE;
+layout (location = 5) out float NEAR;
+
 struct Vertex {
 
 	vec3 position;
@@ -27,6 +31,8 @@ layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
 	VertexBuffer vertexBuffer;
+  float LIGHT_SIZE;
+  float NEAR;
 } PushConstants;
 
 void main() 
@@ -43,5 +49,8 @@ void main()
 	outUV.y = v.uv_y;
 
   outlightSpace = sceneData.lightViewProj * (PushConstants.render_matrix * position);
+
+  NEAR = PushConstants.NEAR;
+  LIGHT_SIZE = PushConstants.LIGHT_SIZE;
 }
 

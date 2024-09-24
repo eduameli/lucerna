@@ -311,11 +311,17 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   } data;
 
   
-  lightProj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 20.0f, 0.1f); //FIXME: arbritary znear zfar planes
+  lightProj = glm::ortho(
+    -pcss_settings.ortho_size,
+    pcss_settings.ortho_size,
+    -pcss_settings.ortho_size,
+    pcss_settings.ortho_size,
+    pcss_settings.far, pcss_settings.near); //FIXME: arbritary znear zfar planes
+
   lightProj[1][1] *= -1;  //FIXME: do i need this??
   
-  float x_value = glm::sin(frameNumber * spinSpeed)* 5.0;
-  float z_value = glm::cos(frameNumber * spinSpeed)* 5.0;
+  float x_value = 5.0;
+  float z_value = 5.0;
 
   lView = glm::lookAt(
     glm::vec3{x_value, 5.0f, z_value},
@@ -375,10 +381,13 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.worldMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.vertexBuffer = draw.vertexBufferAddress;
-
-    vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
-    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
-
+   
+    // scuffed way to not render ground plane to shadow map
+    if (draw.indexCount > 50)
+    {
+      vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+      vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+    }
   };
   
 
@@ -489,6 +498,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.worldMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
+    pcs.LIGHT_SIZE = pcss_settings.light_size_uv;
+    pcs.NEAR = pcss_settings.near;
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -547,8 +558,11 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui::End();
 
   ImGui::Begin("Shadow Mapping Settings");
-    ImGui::Checkbox("Follow Sun", &lightView);
-    ImGui::SliderFloat("Spin Speed %.6f", &spinSpeed, 0.0f, 0.01f);
+    ImGui::Checkbox("Camera View", &lightView);
+    ImGui::InputFloat("NEAR", &pcss_settings.near);
+    ImGui::InputFloat("FAR", &pcss_settings.far);
+    ImGui::InputFloat("LIGHT SIZE", &pcss_settings.light_size_uv);
+    ImGui::InputFloat("ORTHO SIZE", &pcss_settings.ortho_size);
   ImGui::End();
   
 
@@ -807,9 +821,7 @@ void Engine::init_default_data()
   sampl.minFilter = VK_FILTER_LINEAR;
 
   vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerLinear);
-
-
-
+  
   GLTFMetallic_Roughness::MaterialResources materialResources;
   materialResources.colorImage = m_WhiteImage;
   materialResources.colorSampler = m_DefaultSamplerLinear;
@@ -1135,7 +1147,8 @@ void Engine::init_pipelines()
   builder.set_shaders(shadowVert, shadowFrag);
   builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  builder.set_cull_mode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE);
+  builder.set_cull_mode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   builder.set_multisampling_none();
   builder.disable_blending();
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);

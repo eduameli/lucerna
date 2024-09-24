@@ -60,8 +60,7 @@ float shadow_map(vec4 fragLightCoord)
   float mapDepth = texture(shadowDepth, projCoords.xy).r;
   float currentDepth = projCoords.z;
 
-  float bias = max(0.005 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.0005);
-  
+  float bias = max(0.05 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.005);  
   return mapDepth < currentDepth + bias ? 1.0 : 0.0;
 }
 

@@ -46,6 +46,8 @@ namespace Aurora
   {
     glm::mat4 worldMatrix;
     VkDeviceAddress vertexBuffer;
+    float LIGHT_SIZE;
+    float NEAR;
   };
   
   struct GPUSceneData
