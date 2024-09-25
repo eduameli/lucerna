@@ -32,7 +32,6 @@ namespace Aurora {
   struct DrawContext {
     std::vector<RenderObject> OpaqueSurfaces;
     std::vector<RenderObject> TransparentSurfaces;
-    std::vector<glm::vec3> DebugLines;
   };
 
   struct EngineStats
@@ -86,9 +85,9 @@ namespace Aurora {
       std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes; 
       EngineStats stats;
       
-      size_t frameNumber = 0;
-      bool stopRendering = false;
-      bool resizeRequested = false;
+      size_t frameNumber{ 0 };
+      bool stopRendering{ false };
+      bool resizeRequested{ false };
 
       AllocatedImage m_DrawImage;
       AllocatedImage m_DepthImage;
@@ -104,12 +103,13 @@ namespace Aurora {
 
       MaterialInstance defaultData;
       GLTFMetallic_Roughness metalRoughMaterial;
-
+      
+      // NOTE move to pcss_settings & add hard shadow setting
       bool lightView{ false };
-      float spinSpeed{0.0f};
-      glm::mat4 lView{1.0f};
-      glm::mat4 lightProj{1.0f};
-      glm::mat4 lightViewProj{1.0f};
+      float spinSpeed{ 0.0f };
+      glm::mat4 lView{ 1.0f };
+      glm::mat4 lightProj{ 1.0f };
+      glm::mat4 lightViewProj{ 1.0f };
     private:
       void init_vulkan();
       void init_swapchain();
@@ -136,14 +136,14 @@ namespace Aurora {
       void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
       bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
     private:
-      // unwrap DeviceContext and SwapchainContext into individual variables...
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
       VkSurfaceKHR m_Surface;
       DeletionQueue m_DeletionQueue;
       FrameData m_Frames[FRAME_OVERLAP];
       DescriptorAllocatorGrowable globalDescriptorAllocator;
-      int m_BackgroundEffectIndex = 0;
+
+      int m_BackgroundEffectIndex{ 0 };
       std::vector<ComputeEffect> m_BackgroundEffects;
       std::vector<const char*> m_InstanceExtensions = {};
       std::vector<const char*> m_DeviceExtensions = {
@@ -168,22 +168,20 @@ namespace Aurora {
       VkFence m_ImmFence;
       VkCommandBuffer m_ImmCommandBuffer;
       VkCommandPool m_ImmCommandPool;
-
       GPUSceneData sceneData;
 
       VkPipeline m_ShadowPipeline;
       VkPipelineLayout m_ShadowPipelineLayout;
       VkDescriptorSetLayout m_ShadowSetLayout;
       VkExtent3D m_ShadowExtent{ 1024, 1024, 1 };
+
       struct ShadowMappingSettings
       {
         bool rotate{ false };
-        float light_size_uv = 0.25;
-        float ortho_size = 10.0;
-        float near = 0.1;
-        float far = 20.0;
+        float light_size_uv{ 0.25 };
+        float ortho_size{ 10.0 };
+        float near{ 0.1 };
+        float far{ 20.0 };
       } pcss_settings;
-};
-
- 
+  };
 } // namespace aurora

@@ -13,29 +13,30 @@ namespace Aurora
     }
   };
   
+  // low usage could be removed??
   struct Features
+  {
+    VkPhysicalDeviceFeatures2 features{};
+    VkPhysicalDeviceFeatures f1{};
+    VkPhysicalDeviceVulkan11Features f11{};
+    VkPhysicalDeviceVulkan12Features f12{};
+    VkPhysicalDeviceVulkan13Features f13{};
+
+    VkPhysicalDeviceFeatures2& get()
     {
-      VkPhysicalDeviceFeatures2 features{};
-      VkPhysicalDeviceFeatures f1{};
-      VkPhysicalDeviceVulkan11Features f11{};
-      VkPhysicalDeviceVulkan12Features f12{};
-      VkPhysicalDeviceVulkan13Features f13{};
+      f11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+      f12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+      f13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
 
-      VkPhysicalDeviceFeatures2& get()
-      {
-        f11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-        f12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-        f13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+      f11.pNext = &f12;
+      f12.pNext = &f13;
 
-        f11.pNext = &f12;
-        f12.pNext = &f13;
+      features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+      features.pNext = &f11;
+      features.features = f1;
 
-        features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-        features.pNext = &f11;
-        features.features = f1;
-
-        return features;
-      }
+      return features;
+    }
   };
 
   struct DeviceContext

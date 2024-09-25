@@ -55,14 +55,14 @@ namespace Aurora
     glm::mat4 view;
     glm::mat4 proj;
     glm::mat4 viewproj;
-    glm::mat4 lightViewProj;
+    glm::mat4 lightViewProj; // bruh
     glm::vec4 ambientColour;
     glm::vec4 sunlightDirection;
     glm::vec4 sunlightColour;
   };
 
-
-  // FIXME: only needed in egine?? or maybe only types that are referenced multiple times, created many times
+  // FIXME: only needed in engine?? or maybe only types that are referenced multiple times, created many times
+  // for now keep here as improved deletion queue could go here! one array per type of deletion to store less data / overhead
   struct DeletionQueue
   {
     std::deque<std::function<void()>> deletors;
@@ -141,16 +141,16 @@ struct GLTFMaterial
 
 struct Bounds
 {
-  glm::vec3 origin{};
-  float sphereRadius{};
-  glm::vec3 extents{};
+  glm::vec3 origin;
+  float sphereRadius;
+  glm::vec3 extents;
 };
 
 struct GeoSurface
 {
   uint32_t startIndex;
   uint32_t count;
-  Bounds bounds{};
+  Bounds bounds;
   std::shared_ptr<GLTFMaterial> material;
 };
 
