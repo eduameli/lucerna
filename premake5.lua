@@ -2,6 +2,7 @@
 workspace "aurora"
     configurations { "debug", "release" }
     architecture "x86_64"
+    toolset "clang"
     linkoptions {"-fuse-ld=mold"}
 
 project "aurora"

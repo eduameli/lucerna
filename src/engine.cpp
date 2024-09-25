@@ -56,7 +56,7 @@ void Engine::init()
   std::string structurePath = "assets/shadows_demo.glb";
   auto structureFile = load_gltf(this, structurePath);
 
-  AR_LOG_ASSERT(structureFile.has_value(), "structure.glb loaded correctly!");
+  AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
 
@@ -154,7 +154,6 @@ void Engine::resize_swapchain()
 
 void Engine::update_scene()
 {
-
   auto start = std::chrono::system_clock::now();
 
   //mainDrawContext.OpaqueSurfaces.clear();
