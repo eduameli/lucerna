@@ -174,7 +174,7 @@ namespace Aurora {
       VkPipeline m_ShadowPipeline;
       VkPipelineLayout m_ShadowPipelineLayout;
       VkDescriptorSetLayout m_ShadowSetLayout;
-      VkExtent3D m_ShadowExtent{ 1024*4, 1024*4, 1 };
+      VkExtent3D m_ShadowExtent{ 1024, 1024, 1 };
       struct ShadowMappingSettings
       {
         bool rotate{ false };

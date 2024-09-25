@@ -85,7 +85,7 @@ blue noise stochastic selecting SEED - early bailing
 */
 float search_radius(float zReceiver)
 {
-  return LIGHT_SIZE * (zReceiver - NEAR) / zReceiver; 
+  return LIGHT_SIZE * ((1.0 -zReceiver) - NEAR) / (1.0 - zReceiver); 
 }
 
 float find_blocker_avg_dist(vec3 projCoords)
@@ -161,8 +161,8 @@ float shadow_map_pcss(vec4 fragCoord)
   {
     return 0.0;
   }
-  float penumbraRatio = LIGHT_SIZE * (blockerDepth - projCoords.z) / blockerDepth;
-  float filterRadiusUV = penumbraRatio * LIGHT_SIZE * NEAR / projCoords.z;
+  float penumbraRatio = LIGHT_SIZE * ((1.0-blockerDepth) - (1.0-projCoords.z)) / (1.0 - blockerDepth);
+  float filterRadiusUV = penumbraRatio * LIGHT_SIZE * NEAR / (1.0 - projCoords.z);
   
   return shadow_pcf(projCoords, filterRadiusUV);
 }
