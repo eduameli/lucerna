@@ -9,10 +9,7 @@
 
 void vkutil::transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
 {
-    VkImageMemoryBarrier2 imageBarrier{};
-    imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    imageBarrier.pNext = nullptr;
-
+    VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr };
     imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
     imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
     imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
@@ -38,9 +35,7 @@ void vkutil::transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout 
 
 void vkutil::copy_image_to_image(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcSize, VkExtent2D dstSize)
 {
-  VkImageBlit2 blitRegion{};
-  blitRegion.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2;
-  blitRegion.pNext = nullptr;
+  VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
 
   blitRegion.srcOffsets[1].x = srcSize.width;
   blitRegion.srcOffsets[1].y = srcSize.height;
@@ -60,9 +55,7 @@ void vkutil::copy_image_to_image(VkCommandBuffer cmd, VkImage source, VkImage de
   blitRegion.dstSubresource.layerCount = 1;
   blitRegion.dstSubresource.mipLevel = 0;
 
-  VkBlitImageInfo2 info{};
-  info.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2;
-  info.pNext = nullptr;
+  VkBlitImageInfo2 info{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr };
   info.dstImage = destination;
   info.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 
@@ -81,8 +74,7 @@ std::vector<VkImageView> vkutil::get_image_views(VkDevice device, VkFormat forma
 
   for (size_t i = 0; i < images.size(); i++)
   {
-    VkImageViewCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    VkImageViewCreateInfo createInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, .pNext = nullptr};
     createInfo.image = images[i];
     createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     createInfo.format = format;

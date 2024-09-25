@@ -17,8 +17,7 @@ namespace Aurora
     public:
       static inline glm::vec3 s_Position{0.0f};
     private:
-      // NOTE: right now they are static for convenience, multiple cameras or windows would break this!
-      // a proper input system that subscribes to the callbacks and forwards inputs to any specific camera would work better 
+      // NOTE: no input system multi window support 
       static inline glm::vec3 s_Velocity{0.0f};
       static inline float s_Speed{0.2f};
       static inline float s_Pitch{0.0f};

@@ -1,9 +1,12 @@
 #include "camera.h"
+
 #include "window.h"
+
 #include <GLFW/glfw3.h>
 
 #include <glm/mat4x4.hpp>
 #include <glm/gtx/quaternion.hpp>
+
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 

@@ -26,10 +26,10 @@
 #include <glm/packing.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
-// NOTE: needs to create instance ... contains device ... surface swapchain logic .. frame drawing
-
 #include <glm/gtx/string_cast.hpp>
+
 namespace Aurora {
+
 static Engine* s_Instance = nullptr;
 Engine& Engine::get()
 {
@@ -48,9 +48,9 @@ void Engine::init()
   init_sync_structures();
   init_descriptors();
   init_pipelines();
-  init_imgui();
-  
+  init_imgui(); 
   init_default_data();
+  
   mainCamera.init();
    
   std::string structurePath = "assets/shadows_demo.glb";
@@ -59,7 +59,6 @@ void Engine::init()
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
-
 } 
 
 
@@ -84,15 +83,12 @@ void Engine::shutdown()
     vkDestroyFence(m_Device.logical, m_Frames[i].renderFence, nullptr);
     vkDestroySemaphore(m_Device.logical, m_Frames[i].renderSemaphore, nullptr);
     vkDestroySemaphore(m_Device.logical, m_Frames[i].swapchainSemaphore, nullptr);
+    
     m_Frames[i].deletionQueue.flush();
   }
 
-  vkDestroyDescriptorSetLayout(m_Device.logical, m_SceneDescriptorLayout, nullptr);
-
   m_DeletionQueue.flush();
   
-  vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
-
   vkDestroyDevice(m_Device.logical, nullptr);
   vkDestroyInstance(m_Instance, nullptr);
 }
@@ -965,6 +961,7 @@ void Engine::init_vulkan()
 
   m_DeletionQueue.push_function([&]() {
     vmaDestroyAllocator(m_Allocator);
+    vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
   });
 }
 
@@ -1098,6 +1095,7 @@ void Engine::init_descriptors()
     globalDescriptorAllocator.destroy_pools(m_Device.logical);
     vkDestroyDescriptorSetLayout(m_Device.logical, m_DrawDescriptorLayout, nullptr);
     vkDestroyDescriptorSetLayout(m_Device.logical, m_SingleImageDescriptorLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_Device.logical, m_SceneDescriptorLayout, nullptr);
   });
 
 }
