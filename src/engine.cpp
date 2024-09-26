@@ -967,14 +967,12 @@ void Engine::init_vulkan()
 
 void Engine::create_instance()
 {
-  VkApplicationInfo app;
-  app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+  VkApplicationInfo app{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .pNext = nullptr};
   app.pEngineName = "Aurora";
   app.engineVersion = VK_MAKE_VERSION(0, 0, 1);
   app.apiVersion = VK_API_VERSION_1_3;
 
-  VkInstanceCreateInfo instance{};
-  instance.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+  VkInstanceCreateInfo instance{.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pNext = nullptr};
   instance.pApplicationInfo = &app;
   instance.enabledExtensionCount = static_cast<uint32_t>(m_InstanceExtensions.size());
   instance.ppEnabledExtensionNames = m_InstanceExtensions.data();

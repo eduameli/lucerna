@@ -83,7 +83,7 @@ namespace Aurora {
       DrawContext mainDrawContext;
       std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes; // unused for now...
       std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes; 
-      EngineStats stats;
+      EngineStats stats{};
       
       size_t frameNumber{ 0 };
       bool stopRendering{ false };
