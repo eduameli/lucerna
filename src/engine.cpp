@@ -330,7 +330,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     glm::vec3{0.0f, 1.0f, 0.0f}
   );
 
-  sceneData.sunlightDirection = glm::vec4{x_value, 1.0f, z_value, 1.0f}; // .w for sun power
+  sceneData.sunlightDirection = glm::normalize(glm::vec4{x_value, 1.0f, z_value, 1.0f}); // .w for sun power
   
 
   data.viewproj = lightProj * lView; 
@@ -580,42 +580,43 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 //FIXME: a simple flat plane 50x50 breaks it :sob: maybe it needs volume to work or smth??
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
-  return true;
-    std::array<glm::vec3, 8> corners {
-        glm::vec3 { 1, 1, 1 },
-        glm::vec3 { 1, 1, -1 },
-        glm::vec3 { 1, -1, 1 },
-        glm::vec3 { 1, -1, -1 },
-        glm::vec3 { -1, 1, 1 },
-        glm::vec3 { -1, 1, -1 },
-        glm::vec3 { -1, -1, 1 },
-        glm::vec3 { -1, -1, -1 },
-    };
+  return true; // FIXME: not working
 
-    glm::mat4 matrix = viewproj * obj.transform;
+  std::array<glm::vec3, 8> corners {
+      glm::vec3 { 1, 1, 1 },
+      glm::vec3 { 1, 1, -1 },
+      glm::vec3 { 1, -1, 1 },
+      glm::vec3 { 1, -1, -1 },
+      glm::vec3 { -1, 1, 1 },
+      glm::vec3 { -1, 1, -1 },
+      glm::vec3 { -1, -1, 1 },
+      glm::vec3 { -1, -1, -1 },
+  };
 
-    glm::vec3 min = { 1.5, 1.5, 1.5 };
-    glm::vec3 max = { -1.5, -1.5, -1.5 };
+  glm::mat4 matrix = viewproj * obj.transform;
 
-    for (int c = 0; c < 8; c++) {
-        // project each corner into clip space
-        glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
+  glm::vec3 min = { 1.5, 1.5, 1.5 };
+  glm::vec3 max = { -1.5, -1.5, -1.5 };
 
-        // perspective correction
-        v.x = v.x / v.w;
-        v.y = v.y / v.w;
-        v.z = v.z / v.w;
+  for (int c = 0; c < 8; c++) {
+      // project each corner into clip space
+      glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
 
-        min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
-        max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
-    }
+      // perspective correction
+      v.x = v.x / v.w;
+      v.y = v.y / v.w;
+      v.z = v.z / v.w;
 
-    // check the clip space box is within the view
-    if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
-        return false;
-    } else {
-        return true;
-    }
+      min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
+      max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
+  }
+
+  // check the clip space box is within the view
+  if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
+      return false;
+  } else {
+      return true;
+  }
 }
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
@@ -813,15 +814,14 @@ void Engine::init_default_data()
   }
   
   m_ErrorCheckerboardImage = create_image(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
-  VkSamplerCreateInfo sampl{};
-  sampl.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+  VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
   sampl.magFilter = VK_FILTER_NEAREST;
   sampl.minFilter = VK_FILTER_NEAREST;
   vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerNearest);
 
   sampl.magFilter = VK_FILTER_LINEAR;
   sampl.minFilter = VK_FILTER_LINEAR;
-
   vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerLinear);
   
   GLTFMetallic_Roughness::MaterialResources materialResources;
@@ -968,7 +968,7 @@ void Engine::init_vulkan()
 void Engine::create_instance()
 {
   VkApplicationInfo app{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .pNext = nullptr};
-  app.pEngineName = "Aurora";
+  app.pEngineName = "aurora renderer";
   app.engineVersion = VK_MAKE_VERSION(0, 0, 1);
   app.apiVersion = VK_API_VERSION_1_3;
 
@@ -1143,7 +1143,6 @@ void Engine::init_pipelines()
   builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
   builder.set_cull_mode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-  builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   builder.set_multisampling_none();
   builder.disable_blending();
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);

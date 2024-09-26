@@ -20,6 +20,12 @@ FIX:
 - self shadowing
 */
 
+/*
+FIXME:
+- subtracted 1.0 - depth for every equation to carry out similar triangles and other stuff correctly??
+- add regular pcf instead of pcss toggle uniform- looks good enough 99% of the time and much faster
+*/
+
 float random(vec3 seed, int i)
 {
   vec4 seed4 = vec4(seed, i);
@@ -90,7 +96,7 @@ float search_radius(float zReceiver)
 
 float find_blocker_avg_dist(vec3 projCoords)
 {
-  float radius = search_radius(projCoords.z);
+  float radius = search_radius(1.0 - projCoords.z);
   float blockerSum = 0;
   int numBlockers = 0;
   
@@ -120,7 +126,7 @@ float shadow_pcf(vec3 projCoords, float radius)
   float shadow = 0.0f;
   float currentDepth = projCoords.z;
 
-  float bias = max(0.05 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.005);  
+  //float bias = max(0.05 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.005);  
 
   for (int i = 0; i < 6; i++)
   {
@@ -128,7 +134,7 @@ float shadow_pcf(vec3 projCoords, float radius)
     dir = rotate(dir, random(gl_FragCoord.xyz, i));
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
-    shadow += pcfDepth > currentDepth + bias? 1.0 : 0.0;
+    shadow += pcfDepth > currentDepth /*+ bias*/? 1.0 : 0.0;
   }
 
   if (shadow < 0.01  || shadow > 5.99)
@@ -143,7 +149,7 @@ float shadow_pcf(vec3 projCoords, float radius)
     dir = rotate(dir, random(gl_FragCoord.xyz, i));
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
-    shadow += pcfDepth > currentDepth + bias ? 1.0 : 0.0;
+    shadow += pcfDepth > currentDepth /*+ bias*/ ? 1.0 : 0.0;
   }
 
   return shadow /= 36;
@@ -161,8 +167,9 @@ float shadow_map_pcss(vec4 fragCoord)
   {
     return 0.0;
   }
-  float penumbraRatio = LIGHT_SIZE * (blockerDepth - projCoords.z) / blockerDepth;
-  float filterRadiusUV = penumbraRatio * LIGHT_SIZE * NEAR / projCoords.z;
+
+  float penumbraRatio = LIGHT_SIZE * ((1.0 -blockerDepth) - (1.0 -projCoords.z)) / (1.0-blockerDepth);
+  float filterRadiusUV = penumbraRatio * LIGHT_SIZE * (1.0-NEAR) / (1.0-projCoords.z);
   
   return shadow_pcf(projCoords, filterRadiusUV);
 }
@@ -173,13 +180,16 @@ float shadow_map_pcss(vec4 fragCoord)
 // missing specular (blinn-phong) & pbr normal roughness etc
 void main() 
 {
-	float lightValue = max(dot(normalize(inNormal), normalize(sceneData.sunlightDirection.xyz)), 0.1f);
+	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
 	vec3 color = inColor * texture(colorTex,inUV).xyz;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
   
-  float shadow_value = shadow_map_pcss(inlightSpace);
-  lightValue *= (1.0 - shadow_value);
+  float shadow_value = 1.0 - shadow_map_pcss(inlightSpace);
+  // 0 to 1 
+  lightValue = max(lightValue * shadow_value, 0.1f);
+  (1.0 - shadow_value);
 
 	outFragColor = vec4(color * lightValue *  1.0  + ambient ,1.0f);
+
 }

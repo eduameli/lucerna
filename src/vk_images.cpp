@@ -124,7 +124,7 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D ext
 
     vkCmdPipelineBarrier2(cmd, &depInfo);
 
-    if (mip < mipLevels -1)
+    if (mip < mipLevels - 1)
     {
       VkImageBlit2 blitRegion {.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr};
       blitRegion.srcOffsets[1].x = extent.width;
