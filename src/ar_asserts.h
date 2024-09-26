@@ -5,7 +5,6 @@
 
 #if AR_ENABLE_ASSERTS == 1
 #include <signal.h>
-
 #define AR_STOP raise(SIGTRAP)
 
 #define AR_ASSERT(condition) \
