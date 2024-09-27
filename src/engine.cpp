@@ -20,7 +20,7 @@
 #include "logger.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
-
+#include "post_effects.h"
 #include <volk.h>
 
 #include <glm/packing.hpp>
@@ -59,6 +59,9 @@ void Engine::init()
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
+  
+  BloomEffect::prepare();
+
 } 
 
 
@@ -228,7 +231,11 @@ void Engine::draw()
   
   draw_geometry(cmd);
   
-  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+  BloomEffect::run(cmd, m_DrawImage.imageView);
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+  //vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
   vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
@@ -993,7 +1000,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
     .build();
 }
 
@@ -1011,6 +1018,7 @@ void Engine::init_swapchain()
   //FIXME: why swapchain? it should be based on the native res 
   VkExtent3D drawImageExtent = {m_Swapchain.extent2d.width, m_Swapchain.extent2d.height, 1}; 
   m_DrawExtent = {drawImageExtent.width, drawImageExtent.height};
+
 	VkImageUsageFlags drawImageUsages{};
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -1025,9 +1033,9 @@ void Engine::init_swapchain()
   m_DepthImage = create_image(drawImageExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
   m_ShadowDepthImage = create_image(m_ShadowExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
   
-  vkutil::set_debug_object_name(m_Device.logical, m_DrawImage.image, "draw image");
-  vkutil::set_debug_object_name(m_Device.logical, m_DepthImage.image, "depth image");
-  vkutil::set_debug_object_name(m_Device.logical, m_ShadowDepthImage.image, "shadow mapping depth img");
+  vkutil::set_debug_object_name(m_Device.logical, m_DrawImage.image, "Draw Image");
+  vkutil::set_debug_object_name(m_Device.logical, m_DepthImage.image, "Depth Image");
+  vkutil::set_debug_object_name(m_Device.logical, m_ShadowDepthImage.image, "Shadow Mapping Image");
 
   m_DeletionQueue.push_function([=, this]() {
     destroy_image(m_DrawImage);
@@ -1051,7 +1059,11 @@ void Engine::init_descriptors()
     m_DrawDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_COMPUTE_BIT);
   }
   m_DrawDescriptors = globalDescriptorAllocator.allocate(m_Device.logical, m_DrawDescriptorLayout);
-  
+  // links the draw image to the descriptor for the compute shader in the pipeline!
+  DescriptorWriter writer;
+  writer.write_image(0, m_DrawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+  writer.update_set(m_Device.logical, m_DrawDescriptors);
+
   // scene data descriptor layout
   {
     DescriptorLayoutBuilder builder;
@@ -1066,10 +1078,6 @@ void Engine::init_descriptors()
     m_SingleImageDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_FRAGMENT_BIT);
   }
 
-  // links the draw image to the descriptor for the compute shader in the pipeline!
-  DescriptorWriter writer;
-  writer.write_image(0, m_DrawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-  writer.update_set(m_Device.logical, m_DrawDescriptors);
   
   // creates global frame descriptor set
   for (int i = 0; i < FRAME_OVERLAP; i++)
