@@ -651,8 +651,6 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     {
       ctx.OpaqueSurfaces.push_back(def);
     }
-
-    // debug aabb
   }
 
   Node::queue_draw(topMatrix, ctx);

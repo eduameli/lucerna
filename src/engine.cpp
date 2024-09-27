@@ -1015,15 +1015,17 @@ void Engine::init_swapchain()
     
   AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
   
-  //FIXME: why swapchain? it should be based on the native res 
+  //FIXME: why swapchain? it should be based on the native res -- and stored!! internalExtent 
   VkExtent3D drawImageExtent = {m_Swapchain.extent2d.width, m_Swapchain.extent2d.height, 1}; 
   m_DrawExtent = {drawImageExtent.width, drawImageExtent.height};
+  internalExtent = m_DrawExtent;
 
 	VkImageUsageFlags drawImageUsages{};
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  drawImageUsages |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
   VkImageUsageFlags depthImageUsages{};
   depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;

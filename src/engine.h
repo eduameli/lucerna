@@ -131,9 +131,13 @@ namespace Aurora {
       void draw_geometry(VkCommandBuffer cmd);
       void draw_shadow_pass(VkCommandBuffer cmd);
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
+    public:
       FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
+    private:
       void resize_swapchain();
+    public:
       void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+    private:
       bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
     private:
       VkInstance m_Instance;
@@ -143,6 +147,7 @@ namespace Aurora {
       FrameData m_Frames[FRAME_OVERLAP];
     public:
       DescriptorAllocatorGrowable globalDescriptorAllocator;
+      VkExtent2D internalExtent{};
     private:
       int m_BackgroundEffectIndex{ 0 };
       std::vector<ComputeEffect> m_BackgroundEffects;
