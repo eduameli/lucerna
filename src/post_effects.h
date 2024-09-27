@@ -14,15 +14,16 @@ namespace Aurora
     public:
       struct BloomPushConstants
       {
-        float mipmap;
+        glm::vec2 srcResolution; 
       };
     public:
     private:
-      static inline AllocatedImage blurredMipmaps{}; 
+      static inline std::vector<AllocatedImage> blurredMips{};
       static inline VkPipelineLayout pipelineLayout{};
       static inline VkPipeline upsamplePipeline{};
       static inline VkPipeline downsamplePipeline{};
-      static inline VkDescriptorSet descriptorSet{}; // just use one img 
+      static inline VkDescriptorSet descriptorSet{}; // just use one img
+      static inline VkSampler sampler{};
       static inline VkDescriptorSetLayout descriptorLayout{};
       static inline VkShaderModule downsample{};
       static inline VkShaderModule upsample{};
