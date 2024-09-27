@@ -141,8 +141,9 @@ namespace Aurora {
       VkSurfaceKHR m_Surface;
       DeletionQueue m_DeletionQueue;
       FrameData m_Frames[FRAME_OVERLAP];
+    public:
       DescriptorAllocatorGrowable globalDescriptorAllocator;
-
+    private:
       int m_BackgroundEffectIndex{ 0 };
       std::vector<ComputeEffect> m_BackgroundEffects;
       std::vector<const char*> m_InstanceExtensions = {};
@@ -152,10 +153,14 @@ namespace Aurora {
       std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",
       };
+    public:
       VmaAllocator m_Allocator{};
+    private:
       VkDescriptorSet m_DrawDescriptors{};
       VkDescriptorSetLayout m_DrawDescriptorLayout{};
+    public:
       VkExtent2D m_DrawExtent{};
+    private:
       VkExtent2D m_WindowExtent{};
       float m_RenderScale = 1.0f;
 
