@@ -12,6 +12,7 @@ layout (location = 3) out vec4 outlightSpace;
 
 layout (location = 4) out float LIGHT_SIZE;
 layout (location = 5) out float NEAR;
+layout (location = 6) out float EMISSION;
 
 struct Vertex {
 
@@ -31,8 +32,9 @@ layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
 	VertexBuffer vertexBuffer;
-  float LIGHT_SIZE;
-  float NEAR;
+	float LIGHT_SIZE;
+	float NEAR;
+	float emission;
 } PushConstants;
 
 void main() 
@@ -52,5 +54,6 @@ void main()
 
   NEAR = PushConstants.NEAR;
   LIGHT_SIZE = PushConstants.LIGHT_SIZE;
+  EMISSION = PushConstants.emission;
 }
 

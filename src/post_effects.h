@@ -16,6 +16,7 @@ namespace Aurora
       {
         glm::vec2 srcResolution;
         float filterRadius;
+        int finalPass{0};
       };
     public:
     private:

@@ -6,6 +6,7 @@ layout( push_constant ) uniform constants
 {	
 	vec2 srcResolution;
 	float filterRadius;
+	int finalPass;
 } pcs;
 
 layout(set = 0, binding = 0) uniform sampler2D srcTexture;
@@ -44,7 +45,15 @@ void main()
     
     vec4 color = imageLoad(dstImage, texelCoord);
     
-    imageStore(dstImage, texelCoord, vec4(upsample, 1.0));
+    //FIXME: wh not mix color from small into big?? u downsample using big 
+    if (pcs.finalPass == 1)
+    {
+      imageStore(dstImage, texelCoord, vec4(upsample, 1.0)*0.04 + color*0.96);
+    }
+    else
+    {
+      imageStore(dstImage, texelCoord, vec4(upsample, 1.0));
+    }
     //imageStore(dstImage, texelCoord, color);
   }
 }

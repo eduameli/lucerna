@@ -53,7 +53,8 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/shadows_demo.glb";
+  //std::string structurePath = "assets/shadows_demo.glb";
+  std::string structurePath = "assets/bloom_demo.glb";
   auto structureFile = load_gltf(this, structurePath);
 
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
@@ -231,7 +232,7 @@ void Engine::draw()
   
   draw_geometry(cmd);
   
-  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
   BloomEffect::run(cmd, m_DrawImage.imageView);
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
@@ -508,6 +509,10 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     pcs.vertexBuffer = draw.vertexBufferAddress;
     pcs.LIGHT_SIZE = pcss_settings.light_size_uv;
     pcs.NEAR = pcss_settings.near;
+
+    
+    pcs.emission = 50.0;
+
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
