@@ -12,6 +12,7 @@ layout (location = 3) in vec4 inlightSpace;
 layout (location = 0) out vec4 outFragColor;
 layout (location = 4) in float LIGHT_SIZE;
 layout (location = 5) in float NEAR;
+layout (location = 6) in float EMISSION;
 
 /*
 FIX:
@@ -181,9 +182,8 @@ float shadow_map_pcss(vec4 fragCoord)
 void main() 
 {
 	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
-
-	vec3 color = inColor * texture(colorTex,inUV).xyz;
-	vec3 ambient = color *  sceneData.ambientColor.xyz;
+	vec3 color = inColor * texture(colorTex,inUV).xyz * EMISSION;
+	vec3 ambient = color *  sceneData.ambientColor.xyz * EMISSION;
   
   float shadow_value = 1.0 - shadow_map_pcss(inlightSpace);
   // 0 to 1 

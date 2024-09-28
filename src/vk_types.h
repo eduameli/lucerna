@@ -48,6 +48,7 @@ namespace Aurora
     VkDeviceAddress vertexBuffer;
     float LIGHT_SIZE;
     float NEAR;
+    float emission{0.0f};
   };
   
   struct GPUSceneData
