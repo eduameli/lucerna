@@ -125,10 +125,11 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
 
   
   // not freed?
+  // draw texture to mip0
   VkDescriptorSet firstSet = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
   {
     DescriptorWriter writer;
-    writer.write_image(0, engine.m_DrawImage.imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(0, engine.m_DrawImage.imageView, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.write_image(1, blurredMips[0].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     writer.update_set(engine.m_Device.logical, firstSet);
   }
@@ -138,8 +139,10 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
-
-  // mip to mip
+  // barrier until its finished
+  vkutil::transition_image(cmd, blurredMips[0].image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  vkutil::transition_image(cmd, engine.m_DrawImage.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+  // mip to mip downsample
    
   for (uint32_t i = 1; i < 5; i++)
   {
@@ -165,7 +168,88 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
 
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
     vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+
+    // barrier until compute dispatch is finished
   }
+  
+  // next - mip reverse
+  /*size =
+  {
+    size.width * 2,
+    size.height *2,
+    1
+  };*/
+  
+  //vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsamplePipeline);
+  // single testing 
+  /* NOTE: WORKS??
+  VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
+  {
+    DescriptorWriter writer;
+    writer.write_image(0, blurredMips[4].imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(1, blurredMips[3].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    writer.update_set(engine.m_Device.logical, set);
+  }
+
+  pcs.filterRadius = 0.05;
+
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
+  vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+  vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+  */
+  // next
+  
+  /*
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsamplePipeline); 
+  for (uint32_t i = 4; i > 0; i--)
+  {
+    size = 
+    {
+      size.width * 2,
+      size.height * 2, 
+      1
+    };
+    
+    VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
+    {
+      DescriptorWriter writer;
+      writer.write_image(0, blurredMips[i].imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+      writer.write_image(1, blurredMips[i-1].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+      writer.update_set(engine.m_Device.logical, set);
+    }
+
+    pcs.filterRadius = 0.05;
+    
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
+    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+    vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+
+
+    //AR_CORE_INFO("texture {} image {}", i, i-1);
+  }
+  */
+  
+  
+  // mip0 to draw texture 
+  /* 
+  size =
+  {
+    size.width * 2,
+    size.height * 2,
+  };
+
+  VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
+  {
+    DescriptorWriter writer;
+    writer.write_image(0, blurredMips[0].imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(1, engine.m_DrawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    writer.update_set(engine.m_Device.logical, set);
+  }
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
+  vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+  vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+  */
+
 
 }
 

@@ -14,7 +14,8 @@ namespace Aurora
     public:
       struct BloomPushConstants
       {
-        glm::vec2 srcResolution; 
+        glm::vec2 srcResolution;
+        float filterRadius;
       };
     public:
     private:
