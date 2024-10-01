@@ -20,7 +20,7 @@ void main()
   if (texelCoord.x < size.x && texelCoord.y < size.y)
   {
 
-    vec2 texCoord = vec2(float(texelCoord.x) / float(size.x), float(texelCoord.y) / float(size.y));
+    vec2 texCoord = vec2((float(texelCoord.x) + 0.5) / float(size.x), (float(texelCoord.y) + 0.5) / float(size.y));
     
     float x = pcs.filterRadius;
     float y = pcs.filterRadius;
@@ -45,7 +45,6 @@ void main()
     
     vec4 color = imageLoad(dstImage, texelCoord);
     
-    //FIXME: wh not mix color from small into big?? u downsample using big 
     if (pcs.finalPass == 1)
     {
       imageStore(dstImage, texelCoord, mix(color, vec4(upsample, 1.0), 0.04));
