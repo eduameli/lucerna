@@ -109,16 +109,15 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   // run compute downsample
   // run compute upsample
   // mix with target img
+  
+  AR_CORE_WARN("BLOOM BEGIN");
 
   Engine& engine = Engine::get();
   VkExtent3D size = {engine.internalExtent.width, engine.internalExtent.height, 1};
 
   BloomPushConstants pcs{};
   pcs.srcResolution = {size.width, size.height};
-
-  size.width *= 0.5;
-  size.height *= 0.5;
-  
+  pcs.filterRadius = 0.005; 
   
   // draw img to mip
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsamplePipeline);
@@ -137,6 +136,11 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &firstSet, 0, nullptr);
 
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+
+  size.width *= 0.5;
+  size.height *= 0.5;
+
+  AR_CORE_INFO("SRC {}x{}, DISPATCH {}x{}", pcs.srcResolution.x, pcs.srcResolution.y, size.width, size.height);
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
   // barrier
@@ -169,13 +173,6 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     pcs.srcResolution = {size.width, size.height};
 
 
-    size = 
-    {
-      size.width / 2,
-      size.height / 2, 
-      1
-    };
-   
     //FIXME : per frame descriptor set allocs not freed :/
     VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
     {
@@ -189,6 +186,13 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
 
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+
+
+    size.width *= 0.5;
+    size.height *= 0.5;
+    
+
+    AR_CORE_INFO("SRC {}x{}, DISPATCH {}x{}", pcs.srcResolution.x, pcs.srcResolution.y, size.width, size.height);
     vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
     
 
@@ -211,49 +215,10 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     // barrier until compute dispatch is finished
   }
   
-  // next - mip reverse
-  /*
-  size =
-  {
-    size.width * 2,
-    size.height *2,
-    1
-  };
-  
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsamplePipeline);
-  // single testing 
-  // NOTE: WORKS??
-  VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
-  {
-    DescriptorWriter writer;
-    writer.write_image(0, blurredMips[4].imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    writer.write_image(1, blurredMips[3].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    writer.update_set(engine.m_Device.logical, set);
-  }
-
-  pcs.filterRadius = 0.05;
-
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
-  vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
-  vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
-
-
-  */
-  // next
-   
-  
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, upsamplePipeline); 
-  pcs.filterRadius = 0.01;
   
   for (uint32_t i = 4; i > 0; i--)
   {
-    size = 
-    {
-      size.width * 2,
-      size.height * 2, 
-      1
-    };
-    
     VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
     {
       DescriptorWriter writer;
@@ -261,9 +226,19 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
       writer.write_image(1, blurredMips[i-1].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
       writer.update_set(engine.m_Device.logical, set);
     }
-
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
+
+    size = 
+    {
+      size.width * 2,
+      size.height * 2, 
+      1
+    };
+  
+    pcs.srcResolution = {size.width, size.height};
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+    AR_CORE_INFO("SRC {}x{}, DISPATCH {}x{}", pcs.srcResolution.x, pcs.srcResolution.y, size.width, size.height);
+
     vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
     VkImageMemoryBarrier2 imgBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -289,11 +264,12 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   
   // mip0 to draw texture 
   pcs.finalPass = 1; 
-  size =
+  /*size =
   {
     size.width * 2,
     size.height * 2,
   };
+  */
 
   VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
   {
@@ -304,10 +280,20 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   }
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+  
+  pcs.srcResolution = {size.width, size.height};
+  size = 
+  {
+    size.width * 2,
+    size.height * 2
+  };
+  
+
+  AR_CORE_INFO("SRC {}x{}, DISPATCH {}x{}", pcs.srcResolution.x, pcs.srcResolution.y, size.width, size.height);
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
   
 
-
+  AR_CORE_WARN("BLOOM END");
 }
 
 void BloomEffect::cleanup()
