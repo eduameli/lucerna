@@ -6,6 +6,7 @@ layout( push_constant ) uniform constants
 {	
 	vec2 srcResolution;
 	float filterRadius;
+  int finalPass;
 } pcs;
 
 layout(set = 0, binding = 0) uniform sampler2D srcTexture;

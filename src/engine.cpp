@@ -178,7 +178,7 @@ void Engine::update_scene()
   
 	sceneData.ambientColour = glm::vec4(0.1f);
 	sceneData.sunlightColour = glm::vec4(1.0f);
-	sceneData.sunlightDirection = glm::vec4(0.0f, 1.0f, 0.0f, 0.01f);
+	//sceneData.sunlightDirection = glm::vec4(0.0f, 1.0f, 0.0f, 0.01f);
   
 
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
@@ -511,8 +511,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     pcs.NEAR = pcss_settings.near;
 
     
-    pcs.emission = 50.0;
-
+    //pcs.emission = 50.0;
+    pcs.emission = 20.0;
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -559,6 +559,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::InputFloat4("data2", (float*) &selected.data.data2);
     ImGui::InputFloat4("data3", (float*) &selected.data.data3);
     ImGui::InputFloat4("data4", (float*) &selected.data.data4);
+    ImGui::InputFloat4("Light Rotation Y", &sceneData.sunlightDirection.x);
     ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
   }
 

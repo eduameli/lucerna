@@ -182,14 +182,14 @@ float shadow_map_pcss(vec4 fragCoord)
 void main() 
 {
 	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
-	vec3 color = inColor * texture(colorTex,inUV).xyz * EMISSION;
-	vec3 ambient = color *  sceneData.ambientColor.xyz * EMISSION;
+	vec3 color = inColor * texture(colorTex,inUV).xyz;
+	vec3 ambient = color *  sceneData.ambientColor.xyz;
   
   float shadow_value = 1.0 - shadow_map_pcss(inlightSpace);
   // 0 to 1 
   lightValue = max(lightValue * shadow_value, 0.1f);
   (1.0 - shadow_value);
 
-	outFragColor = vec4(color * lightValue *  1.0  + ambient ,1.0f);
+	outFragColor = vec4(color * lightValue *  1.0  + ambient + vec3(1, 0, 0)*EMISSION ,1.0f);
 
 }
