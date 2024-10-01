@@ -87,12 +87,11 @@ void main()
     
     if (pcs.finalPass == 1)
     {
-      vec3 final = aces_fitted(mix(color.xyz, upsample, 0.04));
-
-      imageStore(dstImage, texelCoord, mix(vec4(final, color.a), vec4(final, 1.0), 0.04));
+      vec4 final = mix(color, vec4(upsample, 1.0), 0.04);
+      vec4 f = vec4(aces_fitted(final.xyz), final.w);
+      imageStore(dstImage, texelCoord, f);
       return; 
     }
-    
     imageStore(dstImage, texelCoord, color + vec4(upsample, 1.0));
   }
 }

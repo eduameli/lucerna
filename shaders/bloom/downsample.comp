@@ -21,7 +21,7 @@ void main()
   {
     vec2 texCoord = vec2((float(texelCoord.x) + 0.5) / float(size.x), (float(texelCoord.y) + 0.5) / float(size.y));
 
-    vec2 srcTexelSize = 1.0 / vec2(textureSize(srcTexture, 0));
+    vec2 srcTexelSize = 1.0 / vec2(pcs.srcResolution);
     float x = srcTexelSize.x;
     float y = srcTexelSize.y;
     
@@ -47,7 +47,8 @@ void main()
     downsample += (a+c+g+i)*0.03125;
     downsample += (b+d+f+h)*0.0625;
     downsample += (j+k+l+m)*0.125;
-    
+    // is this wrong cus no blending??
+
     imageStore(dstImage, texelCoord, vec4(downsample, 1.0));
   }
 }
