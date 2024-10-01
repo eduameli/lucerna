@@ -94,10 +94,19 @@ void BloomEffect::prepare()
   descriptorSet = engine.globalDescriptorAllocator.allocate(engine.m_Device.logical, descriptorLayout);
   
   VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
+  sampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  sampl.minLod = 0.0f;
+  sampl.maxLod = 0.0f;
+  sampl.mipLodBias = 0.0f;
+
+
   sampl.magFilter = VK_FILTER_LINEAR;
   sampl.minFilter = VK_FILTER_LINEAR;
   sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
   sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  sampl.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  sampl.unnormalizedCoordinates = VK_FALSE;
+
   vkCreateSampler(engine.m_Device.logical, &sampl, nullptr, &sampler);
 
   // memory not cleaned!

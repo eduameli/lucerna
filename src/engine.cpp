@@ -512,7 +512,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
     
     //pcs.emission = 50.0;
-    pcs.emission = 20.0;
+    pcs.emission = 100.0;
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
