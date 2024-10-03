@@ -4,13 +4,15 @@
 namespace Aurora
 {
 
+  class Engine;
+
 //should it be a singleton?
   class BloomEffect 
   {
     public:
       static void prepare();
       static void run(VkCommandBuffer cmd, VkImageView targetImage);
-      static void cleanup();
+      static void cleanup(Engine* engine);
     public:
       struct BloomPushConstants
       {

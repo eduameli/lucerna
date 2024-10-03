@@ -20,8 +20,7 @@ namespace Aurora {
   constexpr uint32_t FRAME_OVERLAP = 2;
 
   struct RenderObject {
-    uint32_t indexCount;
-    uint32_t firstIndex;
+    uint32_t indexCount, firstIndex;
     VkBuffer indexBuffer;
     MaterialInstance* material;
     Bounds bounds;
@@ -143,11 +142,13 @@ namespace Aurora {
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
       VkSurfaceKHR m_Surface;
+    public:
       DeletionQueue m_DeletionQueue;
+    private:
       FrameData m_Frames[FRAME_OVERLAP];
     public:
       DescriptorAllocatorGrowable globalDescriptorAllocator;
-      VkExtent2D internalExtent{};
+      VkExtent3D internalExtent{};
     private:
       int m_BackgroundEffectIndex{ 0 };
       std::vector<ComputeEffect> m_BackgroundEffects;

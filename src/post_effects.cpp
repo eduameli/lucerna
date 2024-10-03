@@ -108,9 +108,9 @@ void BloomEffect::prepare()
   sampl.unnormalizedCoordinates = VK_FALSE;
 
   vkCreateSampler(engine.m_Device.logical, &sampl, nullptr, &sampler);
-
-  // memory not cleaned!
-  // shader module / mipchain img / pipelines
+  
+  vkDestroyShaderModule(engine.m_Device.logical, downsample, nullptr);
+  vkDestroyShaderModule(engine.m_Device.logical, upsample, nullptr);
 }
 
 void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
@@ -118,8 +118,6 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   // run compute downsample
   // run compute upsample
   // mix with target img
-  
-  //AR_CORE_WARN("BLOOM BEGIN");
 
   Engine& engine = Engine::get();
   VkExtent3D size = {engine.internalExtent.width, engine.internalExtent.height, 1};
@@ -129,12 +127,9 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   pcs.filterRadius = 0.005;
   pcs.finalPass = 0;
   
-  // draw img to mip
+  // draw img to mip0
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsamplePipeline);
 
-  
-  // not freed?
-  // draw texture to mip0
   VkDescriptorSet firstSet = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
   {
     DescriptorWriter writer;
@@ -142,19 +137,13 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     writer.write_image(1, blurredMips[0].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     writer.update_set(engine.m_Device.logical, firstSet);
   }
-
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &firstSet, 0, nullptr);
 
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
-
   size.width *= 0.5;
   size.height *= 0.5;
-
-  //AR_CORE_INFO("SRC {}x{}, DISPATCH {}x{}", pcs.srcResolution.x, pcs.srcResolution.y, size.width, size.height);
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
-  // barrier
-  
   VkImageMemoryBarrier2 imgBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr};
   imgBarrier.srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
   imgBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
@@ -171,11 +160,6 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
 
   vkCmdPipelineBarrier2(cmd, &depInfo);
 
-  // end barrier
-
-
-
-
   // mip to mip downsample
    
   for (uint32_t i = 1; i < 6; i++)
@@ -191,18 +175,11 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
       writer.write_image(1, blurredMips[i].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
       writer.update_set(engine.m_Device.logical, set);
     }
-    
-
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
 
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
-
-
     size.width *= 0.5;
     size.height *= 0.5;
-    
-
-    //AR_CORE_INFO("SRC {}x{}, DISPATCH {}x{}", pcs.srcResolution.x, pcs.srcResolution.y, size.width, size.height);
     vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
     
 
@@ -239,17 +216,13 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
     
     pcs.srcResolution = {size.width, size.height};
-
     size = 
     {
       size.width * 2,
       size.height * 2, 
       1
     };
-  
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
-    //AR_CORE_INFO("SRC {}x{}, DISPATCH {}x{}", pcs.srcResolution.x, pcs.srcResolution.y, size.width, size.height);
-
     vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
     VkImageMemoryBarrier2 imgBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -267,20 +240,12 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     depInfo.pImageMemoryBarriers = &imgBarrier;
 
     vkCmdPipelineBarrier2(cmd, &depInfo);
-
-    //AR_CORE_INFO("texture {} image {}", i, i-1);
   }
   
   
   
   // mip0 to draw texture 
   pcs.finalPass = 1; 
-  /*size =
-  {
-    size.width * 2,
-    size.height * 2,
-  };
-  */
 
   VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
   {
@@ -299,17 +264,22 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     size.height * 2
   };
   
-
-  //AR_CORE_INFO("SRC {}x{}, DISPATCH {}x{}", pcs.srcResolution.x, pcs.srcResolution.y, size.width, size.height);
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
-  
-
-  //AR_CORE_WARN("BLOOM END");
 }
 
-void BloomEffect::cleanup()
+void BloomEffect::cleanup(Engine* engine)
 {
+  for (auto img : blurredMips)
+  {
+    engine->destroy_image(img);
+  }
 
+  VkDevice dv = engine->m_Device.logical;
+  vkDestroySampler(dv, sampler, nullptr);
+  vkDestroyPipelineLayout(dv, pipelineLayout, nullptr);
+  vkDestroyPipeline(dv, upsamplePipeline, nullptr);
+  vkDestroyPipeline(dv, downsamplePipeline, nullptr);
+  vkDestroyDescriptorSetLayout(dv, descriptorLayout, nullptr);
 }
 
 } // aurora namespace
