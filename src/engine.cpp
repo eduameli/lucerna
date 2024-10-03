@@ -42,6 +42,8 @@ void Engine::init()
   AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
   s_Instance = this;
   
+  internalExtent = {1280, 800, 1};
+
   init_vulkan();
   init_swapchain();
   init_commands();
@@ -70,8 +72,9 @@ void Engine::shutdown()
 {
   vkDeviceWaitIdle(m_Device.logical);
   s_Instance = nullptr;
-  loadedScenes.clear();
 
+  loadedScenes.clear();
+  
   vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
   vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
   
@@ -93,6 +96,9 @@ void Engine::shutdown()
 
   m_DeletionQueue.flush();
   
+  BloomEffect::cleanup(this);
+
+  vmaDestroyAllocator(m_Allocator);
   vkDestroyDevice(m_Device.logical, nullptr);
   vkDestroyInstance(m_Instance, nullptr);
 }
@@ -127,7 +133,6 @@ void Engine::run()
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     stats.frametime = elapsed.count() / 1000.0f;
-    AR_CORE_INFO("FRAME TIEM {}", stats.frametime);
   }
 }
 
@@ -145,7 +150,7 @@ void Engine::resize_swapchain()
   SwapchainContext newSwapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_MAILBOX_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
     .build(m_Swapchain.handle);
   
   vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
@@ -233,11 +238,11 @@ void Engine::draw()
   
   draw_geometry(cmd);
   
-  //vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-  //BloomEffect::run(cmd, m_DrawImage.imageView);
-  //vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+  BloomEffect::run(cmd, m_DrawImage.imageView);
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  //vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
@@ -975,7 +980,6 @@ void Engine::init_vulkan()
   vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
   m_DeletionQueue.push_function([&]() {
-    vmaDestroyAllocator(m_Allocator);
     vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
   });
 }
@@ -983,7 +987,7 @@ void Engine::init_vulkan()
 void Engine::create_instance()
 {
   VkApplicationInfo app{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .pNext = nullptr};
-  app.pEngineName = "aurora renderer";
+  app.pEngineName = "aurora";
   app.engineVersion = VK_MAKE_VERSION(0, 0, 1);
   app.apiVersion = VK_API_VERSION_1_3;
 
@@ -1024,9 +1028,7 @@ void Engine::init_swapchain()
   AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
   
   //FIXME: why swapchain? it should be based on the native res -- and stored!! internalExtent 
-  VkExtent3D drawImageExtent = {m_Swapchain.extent2d.width, m_Swapchain.extent2d.height, 1}; 
-  m_DrawExtent = {drawImageExtent.width, drawImageExtent.height};
-  internalExtent = {1280, 800};
+  m_DrawExtent = {internalExtent.width, internalExtent.height};
   // FIXME: bruh ^^
 
 	VkImageUsageFlags drawImageUsages{};
@@ -1040,8 +1042,8 @@ void Engine::init_swapchain()
   depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
   depthImageUsages |= VK_IMAGE_USAGE_SAMPLED_BIT;
   
-  m_DrawImage = create_image(drawImageExtent, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, false);
-  m_DepthImage = create_image(drawImageExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
+  m_DrawImage = create_image(internalExtent, VK_FORMAT_R16G16B16A16_SFLOAT, drawImageUsages, false);
+  m_DepthImage = create_image(internalExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
   m_ShadowDepthImage = create_image(m_ShadowExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
   
   vkutil::set_debug_object_name(m_Device.logical, m_DrawImage.image, "Draw Image");
