@@ -961,6 +961,9 @@ void Engine::init_vulkan()
   if (m_UseValidationLayers)
   {
     Logger::setup_validation_layer_callback(m_Instance, m_DebugMessenger, Logger::validation_callback);
+    m_DeletionQueue.push_function([&]() {
+      vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
+    });
   }
 
   glfwCreateWindowSurface(m_Instance, Window::get(), nullptr, &m_Surface);
@@ -978,10 +981,6 @@ void Engine::init_vulkan()
   functions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
   allocatorInfo.pVulkanFunctions = &functions;
   vmaCreateAllocator(&allocatorInfo, &m_Allocator);
-
-  m_DeletionQueue.push_function([&]() {
-    vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
-  });
 }
 
 void Engine::create_instance()
