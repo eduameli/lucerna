@@ -164,10 +164,12 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D ext
 
 void vkutil::set_debug_object_name(VkDevice device, VkImage image, const char* name)
 {
+#ifdef DEBUG 
   VkDebugUtilsObjectNameInfoEXT nameInfo{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
   nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
   nameInfo.objectHandle = reinterpret_cast<uint64_t> (image);
   nameInfo.pObjectName = name;
   vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
+#endif
 }
 

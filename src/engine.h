@@ -170,7 +170,7 @@ namespace Aurora {
       VkExtent2D m_WindowExtent{};
       float m_RenderScale = 1.0f;
 
-      #ifdef USE_VALIDATION_LAYERS
+      #ifdef DEBUG 
       constexpr static bool m_UseValidationLayers = true;
       #else
       constexpr static bool m_UseValidationLayers = false;
