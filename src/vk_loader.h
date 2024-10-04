@@ -44,6 +44,7 @@ VkFilter extract_filter(fastgltf::Filter filter);
 VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter);
 std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image);
 
+// FIXME: add better pbr / emission here instead of pcs
 struct GLTFMetallic_Roughness
 {
   MaterialPipeline opaquePipeline;

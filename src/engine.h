@@ -78,9 +78,23 @@ namespace Aurora {
     
       DeviceContext m_Device;
       SwapchainContext m_Swapchain;
+    
+      // FIXME: use directily instead of m_Device.<>
+      // same with SwapchainContext
+      VkDevice device;
+      VkPhysicalDevice gpu;
+      VkQueue graphicsQueue;
+      VkQueue presentQueue;
+      std::optional<uint32_t> graphicsIndex;
+      std::optional<uint32_t> presentIndex;
+      QueueFamilyIndices indices;
+
+      
+
+    
+
       Camera mainCamera;
       DrawContext mainDrawContext;
-      std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes; // unused for now...
       std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes; 
       EngineStats stats{};
       

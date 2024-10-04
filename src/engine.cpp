@@ -64,7 +64,6 @@ void Engine::init()
   loadedScenes["structure"] = *structureFile;
   
   BloomEffect::prepare();
-
 } 
 
 
