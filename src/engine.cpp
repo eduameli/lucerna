@@ -395,7 +395,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     }
 
     GPUDrawPushConstants pcs{};
-    pcs.worldMatrix = draw.transform; // worldMatrix == modelMatrix
+    pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.vertexBuffer = draw.vertexBufferAddress;
    
     // scuffed way to not render ground plane to shadow map
@@ -512,14 +512,14 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     }
 
     GPUDrawPushConstants pcs{};
-    pcs.worldMatrix = draw.transform;
+    pcs.modelMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
     pcs.LIGHT_SIZE = pcss_settings.light_size_uv;
     pcs.NEAR = pcss_settings.near;
 
     
     //pcs.emission = 50.0;
-    pcs.emission = 50.0;
+    //pcs.emission = 50.0;
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);

@@ -30,30 +30,30 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 //push constants block
 layout( push_constant ) uniform constants
 {
-	mat4 render_matrix;
+	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;
 	float LIGHT_SIZE;
 	float NEAR;
 	float emission;
-} PushConstants;
+} pcs;
 
 void main() 
 {
-	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
+	Vertex v = pcs.vertexBuffer.vertices[gl_VertexIndex];
 	
 	vec4 position = vec4(v.position, 1.0f);
 
-	gl_Position =  sceneData.viewproj * PushConstants.render_matrix *position;
+	gl_Position =  sceneData.viewproj * pcs.modelMatrix *position;
 
-	outNormal = (PushConstants.render_matrix * vec4(v.normal, 0.f)).xyz;
+	outNormal = (pcs.modelMatrix * vec4(v.normal, 0.f)).xyz;
 	outColor = v.color.xyz * materialData.colorFactors.xyz;	
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
 
-  outlightSpace = sceneData.lightViewProj * (PushConstants.render_matrix * position);
+  outlightSpace = sceneData.lightViewProj * (pcs.modelMatrix * position);
 
-  NEAR = PushConstants.NEAR;
-  LIGHT_SIZE = PushConstants.LIGHT_SIZE;
-  EMISSION = PushConstants.emission;
+  NEAR = pcs.NEAR;
+  LIGHT_SIZE = pcs.LIGHT_SIZE;
+  EMISSION = pcs.emission;
 }
 

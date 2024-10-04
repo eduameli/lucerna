@@ -44,7 +44,7 @@ namespace Aurora
   
   struct GPUDrawPushConstants
   {
-    glm::mat4 worldMatrix;
+    glm::mat4 modelMatrix;
     VkDeviceAddress vertexBuffer;
     float LIGHT_SIZE;
     float NEAR;

@@ -15,9 +15,9 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 
 layout( push_constant ) uniform constants
 {	
-	mat4 render_matrix;
+	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;
-} PushConstants;
+} pcs;
 
 layout(set = 0, binding = 0) uniform SceneData {
   mat4 viewproj;
@@ -25,8 +25,8 @@ layout(set = 0, binding = 0) uniform SceneData {
 
 void main() 
 {
-	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
+	Vertex v = pcs.vertexBuffer.vertices[gl_VertexIndex];
 	vec4 position = vec4(v.position, 1.0f);
-	gl_Position = sceneData.viewproj * position;
+	gl_Position = sceneData.viewproj * pcs.modelMatrix  * position;
 }
 
