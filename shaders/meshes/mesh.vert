@@ -32,8 +32,6 @@ layout( push_constant ) uniform constants
 {
 	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;
-	float LIGHT_SIZE;
-	float NEAR;
 	float emission;
 } pcs;
 
@@ -50,10 +48,10 @@ void main()
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
 
-  outlightSpace = sceneData.lightViewProj * (pcs.modelMatrix * position);
+  outlightSpace = shadowSettings.lightViewProj * (pcs.modelMatrix * position);
 
-  NEAR = pcs.NEAR;
-  LIGHT_SIZE = pcs.LIGHT_SIZE;
+  NEAR = shadowSettings.near;
+  LIGHT_SIZE = shadowSettings.light_size;
   EMISSION = pcs.emission;
 }
 

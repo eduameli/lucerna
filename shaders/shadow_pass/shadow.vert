@@ -19,14 +19,15 @@ layout( push_constant ) uniform constants
 	VertexBuffer vertexBuffer;
 } pcs;
 
-layout(set = 0, binding = 0) uniform SceneData {
+// shadow pass ubo here CSM settings would go maybe?
+layout(set = 0, binding = 0) uniform shadowData {
   mat4 viewproj;
-} sceneData;
+} data;
 
 void main() 
 {
 	Vertex v = pcs.vertexBuffer.vertices[gl_VertexIndex];
 	vec4 position = vec4(v.position, 1.0f);
-	gl_Position = sceneData.viewproj * pcs.modelMatrix  * position;
+	gl_Position = data.viewproj * pcs.modelMatrix  * position;
 }
 
