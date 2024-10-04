@@ -1,11 +1,9 @@
 #include "logger.h"
+
 #include "ar_asserts.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include <memory>
-
-#include <string_view>
 
 namespace Aurora {
   std::shared_ptr<spdlog::logger> Logger::s_Logger;

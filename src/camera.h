@@ -17,7 +17,7 @@ namespace Aurora
     public:
       static inline glm::vec3 s_Position{2.5, 2.5, 2.5};
     private:
-      // NOTE: no input system multi window support 
+      // FIX: make a proper controller/input system 
       static inline glm::vec3 s_Velocity{0.0f};
       static inline float s_Speed{0.2f};
       static inline float s_Pitch{0.0f};

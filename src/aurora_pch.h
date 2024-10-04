@@ -1,7 +1,6 @@
 #ifndef AURORA_PCH
 #define AURORA_PCH
 
-#include <iostream>
 #include <memory>
 #include <utility>
 #include <algorithm>
@@ -10,6 +9,8 @@
 #include <string>
 #include <string_view>
 #include <sstream>
+
+#include <filesystem>
 
 #include <array>
 #include <vector>

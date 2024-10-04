@@ -15,7 +15,10 @@ namespace Aurora
   void Camera::init()
   {
     // wasd movement
-    glfwSetKeyCallback(Window::get(), [](GLFWwindow* window, int key, int scancode, int action, int mods){
+    
+    GLFWwindow* win = Window::get();
+
+    glfwSetKeyCallback(win, [](GLFWwindow* window, int key, int scancode, int action, int mods){
       ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
       if (action == GLFW_PRESS)
       {
@@ -35,7 +38,7 @@ namespace Aurora
     });
     
     // move camera
-    glfwSetCursorPosCallback(Window::get(), [](GLFWwindow* window, double xpos, double ypos) {
+    glfwSetCursorPosCallback(win, [](GLFWwindow* window, double xpos, double ypos) {
       ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos); 
       
       float xOffset = xpos - s_LastMouseX;
@@ -52,7 +55,7 @@ namespace Aurora
     });
     
     // left click to move camera
-    glfwSetMouseButtonCallback(Window::get(), [](GLFWwindow* window, int button, int action, int mods) {
+    glfwSetMouseButtonCallback(win, [](GLFWwindow* window, int button, int action, int mods) {
       ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
       
       if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
@@ -69,7 +72,7 @@ namespace Aurora
     });
     
     // scroll to control speed
-    glfwSetScrollCallback(Window::get(), [](GLFWwindow* window, double xoffset, double yoffset){
+    glfwSetScrollCallback(win, [](GLFWwindow* window, double xoffset, double yoffset){
       ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
 
       float v = s_Speed + yoffset*0.01;
