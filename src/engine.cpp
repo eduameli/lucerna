@@ -556,19 +556,18 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui::NewFrame();
   
   
-  if (ImGui::Begin("settings"))
-  {
-    ComputeEffect& selected = m_BackgroundEffects[m_BackgroundEffectIndex];
-    ImGui::Text("Selected effect: %s", selected.name);
-    ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1); 
-    ImGui::ColorEdit4("data1", (float*) &selected.data.data1);
-    ImGui::InputFloat4("data1", (float*) &selected.data.data1);
-    ImGui::InputFloat4("data2", (float*) &selected.data.data2);
-    ImGui::InputFloat4("data3", (float*) &selected.data.data3);
-    ImGui::InputFloat4("data4", (float*) &selected.data.data4);
-    ImGui::InputFloat4("Light Rotation Y", &sceneData.sunlightDirection.x);
-    ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
-  }
+  ComputeEffect& selected = m_BackgroundEffects[m_BackgroundEffectIndex];
+  ImGui::Begin("Background Settings");
+  ImGui::Text("Selected effect: %s", selected.name);
+  ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1); 
+  ImGui::ColorEdit4("data1", (float*) &selected.data.data1);
+  ImGui::InputFloat4("data1", (float*) &selected.data.data1);
+  ImGui::InputFloat4("data2", (float*) &selected.data.data2);
+  ImGui::InputFloat4("data3", (float*) &selected.data.data3);
+  ImGui::InputFloat4("data4", (float*) &selected.data.data4);
+  ImGui::InputFloat4("Light Rotation Y", &sceneData.sunlightDirection.x);
+  ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.1f, 1.0f);
+  ImGui::End();
 
   ImGui::Begin("Stats");
     ImGui::Text("frametime %f ms", stats.frametime);
@@ -587,9 +586,25 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::InputFloat("ORTHO SIZE", &pcss_settings.ortho_size);
   ImGui::End();
   
+  
+  ImGui::Begin("Renderer Settings");
+    if (ImGui::CollapsingHeader("Bloom"))
+    {
+      ImGui::Text("Sledgehammer Bloom");
+    }
+    if (ImGui::CollapsingHeader("Shadows"))
+    {
+      ImGui::Text("CSM & PCSS");
+    }
 
+    if (ImGui::CollapsingHeader("CVARS"))
+    {
+      ImGui::Text("Every single console variable");
+    }
   ImGui::End();
+
   ImGui::Render(); 
+  
 
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
