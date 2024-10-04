@@ -15,12 +15,10 @@ void BloomEffect::prepare()
   VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
   VkExtent3D size = {engine.internalExtent.width / 2, engine.internalExtent.height / 2, 1};
 
-  AR_CORE_INFO("DRAW {}x{}, INTERNAL {}x{}", engine.m_DrawExtent.width, engine.m_DrawExtent.height, engine.internalExtent.width, engine.internalExtent.height);
-
   VkImageUsageFlags usages{};
   usages |= VK_IMAGE_USAGE_STORAGE_BIT;
   usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
-
+  
   for (uint32_t i = 0; i < 6; i++)
   {
     VkExtent3D mipSize = 
@@ -110,7 +108,6 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
 
   Engine& engine = Engine::get();
   VkExtent3D size = {engine.internalExtent.width, engine.internalExtent.height, 1};
-  AR_CORE_INFO("INTERNAL {}x{}", engine.internalExtent.width, engine.internalExtent.height);
 
   BloomPushConstants pcs{};
   pcs.srcResolution = {size.width, size.height};
