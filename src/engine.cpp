@@ -290,7 +290,7 @@ void Engine::draw_background(VkCommandBuffer cmd)
   ComputePushConstants pc;
   vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 
-  vkCmdDispatch(cmd, std::ceil(m_DrawExtent.width / 16.0), std::ceil(m_DrawExtent.height / 16.0), 1);
+  vkCmdDispatch(cmd, std::ceil(internalExtent.width / 16.0), std::ceil(internalExtent.height / 16.0), 1);
 }
 
 // FIXME: vertex buffer should be separated for better cache when doing shadow pass
