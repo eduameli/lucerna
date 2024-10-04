@@ -345,11 +345,8 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   );
 
   sceneData.sunlightDirection = glm::normalize(glm::vec4{x_value, 1.0f, z_value, 1.0f}); // .w for sun power
-  
-
   data.viewproj = lightProj * lView; 
-  sceneData.lightViewProj = lightProj * lView;
-  
+  pcss_settings.lightViewProj = lightProj * lView; 
   
   AllocatedBuffer shadowPass = create_buffer(sizeof(ShadowPassUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   get_current_frame().deletionQueue.push_function([=, this] {
@@ -457,14 +454,34 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     destroy_buffer(gpuSceneDataBuffer);
   });
 
+  AllocatedBuffer shadowSettings = create_buffer(sizeof(ShadowUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  get_current_frame().deletionQueue.push_function([=, this] {
+    destroy_buffer(shadowSettings);
+  });
+
   GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
   *sceneUniformData = sceneData;
+
   
+
+  ShadowUBO* settings = (ShadowUBO*) shadowSettings.allocation->GetMappedData();
+  *settings = {
+    .lightView = pcss_settings.lightViewProj, 
+    .near = 0.1,
+    .far = 20.0,
+    .light_size = 0.1,
+    .pcss_enabled = true
+  };
+
+
   VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.write_image(1, m_ShadowDepthImage.imageView, m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.update_set(m_Device.logical, globalDescriptor);
+  
+
 
   MaterialPipeline* lastPipeline = nullptr;
   MaterialInstance* lastMaterial = nullptr;
@@ -1092,6 +1109,7 @@ void Engine::init_descriptors()
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    builder.add_binding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     m_SceneDescriptorLayout = builder.build(m_Device.logical, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT); 
   } 
   
