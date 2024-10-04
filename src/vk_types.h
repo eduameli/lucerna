@@ -41,7 +41,9 @@ namespace Aurora
     AllocatedBuffer vertexBuffer{};
     VkDeviceAddress vertexBufferAddress{};
   };
-  
+ 
+//FIXME move LIGHT_SIZE, NEAR to shadow mapping ubo
+// move emission to material ubo
   struct GPUDrawPushConstants
   {
     glm::mat4 modelMatrix;
@@ -50,7 +52,8 @@ namespace Aurora
     float NEAR;
     float emission{0.0f};
   };
-  
+ 
+// remove lightViewProj from here i only need it during shadow pass!
   struct GPUSceneData
   {
     glm::mat4 view;
