@@ -399,11 +399,8 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     pcs.vertexBuffer = draw.vertexBufferAddress;
    
     // scuffed way to not render ground plane to shadow map
-    if (draw.indexCount > 50)
-    {
-      vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
-      vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
-    }
+    vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
   };
   
 
