@@ -9,14 +9,14 @@ namespace Aurora
 {
 void BloomEffect::prepare()
 {
-  // create pipelines layouts descriptors
-  // create images
-  
   Engine& engine = Engine::get();
   
   // create mip chain
   VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
-  VkExtent3D size = {engine.m_DrawExtent.width / 2, engine.m_DrawExtent.height / 2, 1};
+  VkExtent3D size = {engine.internalExtent.width / 2, engine.internalExtent.height / 2, 1};
+
+  AR_CORE_INFO("DRAW {}x{}, INTERNAL {}x{}", engine.m_DrawExtent.width, engine.m_DrawExtent.height, engine.internalExtent.width, engine.internalExtent.height);
+
   VkImageUsageFlags usages{};
   usages |= VK_IMAGE_USAGE_STORAGE_BIT;
   usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -43,10 +43,6 @@ void BloomEffect::prepare()
     }
   });
 
-
-  // create descriptor layout // FIXME: could reuse? well im gonna use descriptor indexing eventually anyways so might as well
-  // leave it like this until then
-  // 1 image & pcs
   {
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -55,7 +51,7 @@ void BloomEffect::prepare()
   }
 
 
-  // create compute pipeline
+  // create compute pipelines 
   VkPipelineLayoutCreateInfo computeLayout{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, .pNext = nullptr};
   computeLayout.pSetLayouts = &descriptorLayout;
   computeLayout.setLayoutCount = 1;
@@ -84,30 +80,23 @@ void BloomEffect::prepare()
   VkComputePipelineCreateInfo pipelineInfo{ .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO, .pNext = nullptr};
   pipelineInfo.layout = pipelineLayout;
   pipelineInfo.stage = stageInfo;
-
   VK_CHECK_RESULT(vkCreateComputePipelines(engine.m_Device.logical, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &downsamplePipeline));
   
   pipelineInfo.stage.module = upsample;
-
   VK_CHECK_RESULT(vkCreateComputePipelines(engine.m_Device.logical, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &upsamplePipeline));
  
+
   descriptorSet = engine.globalDescriptorAllocator.allocate(engine.m_Device.logical, descriptorLayout);
   
-  VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
-  sampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  sampl.minLod = 0.0f;
-  sampl.maxLod = 0.0f;
-  sampl.mipLodBias = 0.0f;
+  VkSamplerCreateInfo samplerInfo{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
+  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
+  samplerInfo.magFilter = VK_FILTER_LINEAR;
+  samplerInfo.minFilter = VK_FILTER_LINEAR;
+  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
-  sampl.magFilter = VK_FILTER_LINEAR;
-  sampl.minFilter = VK_FILTER_LINEAR;
-  sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  sampl.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  sampl.unnormalizedCoordinates = VK_FALSE;
-
-  vkCreateSampler(engine.m_Device.logical, &sampl, nullptr, &sampler);
+  vkCreateSampler(engine.m_Device.logical, &samplerInfo, nullptr, &sampler);
   
   vkDestroyShaderModule(engine.m_Device.logical, downsample, nullptr);
   vkDestroyShaderModule(engine.m_Device.logical, upsample, nullptr);
@@ -121,6 +110,7 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
 
   Engine& engine = Engine::get();
   VkExtent3D size = {engine.internalExtent.width, engine.internalExtent.height, 1};
+  AR_CORE_INFO("INTERNAL {}x{}", engine.internalExtent.width, engine.internalExtent.height);
 
   BloomPushConstants pcs{};
   pcs.srcResolution = {size.width, size.height};
@@ -216,12 +206,9 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
     
     pcs.srcResolution = {size.width, size.height};
-    size = 
-    {
-      size.width * 2,
-      size.height * 2, 
-      1
-    };
+    size.width *= 2;
+    size.height *= 2;
+
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
     vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
@@ -258,12 +245,9 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
   
   pcs.srcResolution = {size.width, size.height};
-  size = 
-  {
-    size.width * 2,
-    size.height * 2
-  };
-  
+  size.width *= 2;
+  size.height *= 2;
+
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 }
 
