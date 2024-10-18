@@ -48,9 +48,6 @@ namespace Aurora
   {
     glm::mat4 modelMatrix;
     VkDeviceAddress vertexBuffer;
-    float LIGHT_SIZE;
-    float NEAR;
-    float emission{0.0f};
   };
  
 // remove lightViewProj from here i only need it during shadow pass!
