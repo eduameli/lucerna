@@ -573,7 +573,8 @@ void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
   //pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   pipelineBuilder.set_multisampling_none();
   pipelineBuilder.disable_blending();
-  pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+  pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+  
 
   pipelineBuilder.set_color_attachment_format(engine->m_DrawImage.imageFormat);
   pipelineBuilder.set_depth_format(engine->m_DepthImage.imageFormat);

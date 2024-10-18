@@ -189,7 +189,7 @@ void main()
   // 0 to 1 
   lightValue = max(lightValue * shadow_value, 0.1f);
   
-  if (EMISSION > 0.01)
+  if (EMISSION > 1000000.01)
   {
     outFragColor = vec4(color + ambient + vec3(1, 0, 0)*EMISSION, 1.0);
     return;

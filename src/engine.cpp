@@ -56,7 +56,7 @@ void Engine::init()
   mainCamera.init();
    
   //std::string structurePath = "assets/shadows_demo.glb";
-  std::string structurePath = "assets/bloom_demo.glb";
+  std::string structurePath = "assets/testing_prepass.glb";
   auto structureFile = load_gltf(this, structurePath);
 
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
@@ -237,11 +237,10 @@ void Engine::draw()
   
   draw_geometry(cmd);
   
+  // NOTE: Post Effects
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
   BloomEffect::run(cmd, m_DrawImage.imageView);
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-  //vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
@@ -300,7 +299,8 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
   {
-    if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
+    // FIXME: accessed shadowUBO before setting it in frame 0?
+    if (is_visible(mainDrawContext.OpaqueSurfaces[i], shadowUBO.lightView))
     {
       opaque_draws.push_back(i);
     }
@@ -348,6 +348,8 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   data.viewproj = lightProj * lView; 
   pcss_settings.lightViewProj = lightProj * lView; 
   
+  // NOTE: CMS Settings?? different mat proj or a scale to basic 1 or smth
+
   AllocatedBuffer shadowPass = create_buffer(sizeof(ShadowPassUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   get_current_frame().deletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass);
@@ -440,10 +442,83 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
       return A.material < B.material;
     }
   });
+  
+  // depth prepass (draw to depth only then depth test is == current)
+  { 
+    VkRenderingAttachmentInfo depthPrepass = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+    VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthPrepass);
+    vkCmdBeginRendering(cmd, &depthPrepassInfo);
 
+    VkViewport viewport{};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = m_DrawExtent.width;
+    viewport.height = m_DrawExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    VkRect2D scissor{};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent.width = m_DrawExtent.width;
+    scissor.extent.height = m_DrawExtent.height;
+    vkCmdSetScissor(cmd , 0, 1, &scissor);
+    
+    struct ShadowPassUBO
+    {
+      glm::mat4 viewproj;
+    } data;
+    
+    data.viewproj = sceneData.viewproj;
+
+    AllocatedBuffer shadowPass = create_buffer(sizeof(ShadowPassUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    get_current_frame().deletionQueue.push_function([=, this] {
+      destroy_buffer(shadowPass);
+    });
+
+    ShadowPassUBO* shadowPassUniform = (ShadowPassUBO*) shadowPass.allocation->GetMappedData();
+    *shadowPassUniform = data;
+
+    VkDescriptorSet shadowDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_ShadowSetLayout);
+    DescriptorWriter writer;
+    writer.write_buffer(0, shadowPass.buffer, sizeof(ShadowPassUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.update_set(m_Device.logical, shadowDescriptor);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipelineLayout, 0, 1, &shadowDescriptor, 0, nullptr);
+    
+    VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+    auto draw = [&](const RenderObject& draw) {
+      if (draw.indexBuffer != lastIndexBuffer)
+      {
+        lastIndexBuffer = draw.indexBuffer;
+        vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+      }
+
+      GPUDrawPushConstants pcs{};
+      pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
+      pcs.vertexBuffer = draw.vertexBufferAddress;
+     
+      // scuffed way to not render ground plane to shadow map
+      vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
+      vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+    };
+    
+
+    for (auto& r : opaque_draws)
+    {
+      draw(mainDrawContext.OpaqueSurfaces[r]);
+    }
+
+
+    vkCmdEndRendering(cmd);
+  }
 
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+  depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
   
@@ -527,7 +602,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
-    //pcs.emission = 50.0;
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
