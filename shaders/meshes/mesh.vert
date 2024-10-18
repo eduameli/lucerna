@@ -32,7 +32,6 @@ layout( push_constant ) uniform constants
 {
 	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;
-	float emission;
 } pcs;
 
 void main() 
@@ -52,6 +51,6 @@ void main()
 
   NEAR = shadowSettings.near;
   LIGHT_SIZE = shadowSettings.light_size;
-  EMISSION = pcs.emission;
+  EMISSION = 50.0;
 }
 

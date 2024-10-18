@@ -527,11 +527,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
-    pcs.LIGHT_SIZE = pcss_settings.light_size_uv;
-    pcs.NEAR = pcss_settings.near;
-
-    
-    //pcs.emission = 50.0;
     //pcs.emission = 50.0;
     // world matrix is the model matrix??
 

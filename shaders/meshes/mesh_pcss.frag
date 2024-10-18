@@ -188,7 +188,6 @@ void main()
   float shadow_value = 1.0 - shadow_map_pcss(inlightSpace);
   // 0 to 1 
   lightValue = max(lightValue * shadow_value, 0.1f);
-  (1.0 - shadow_value);
   
   if (EMISSION > 0.01)
   {
