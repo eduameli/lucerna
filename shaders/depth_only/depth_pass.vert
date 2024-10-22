@@ -1,6 +1,7 @@
 #version 450
 #extension GL_EXT_buffer_reference : require
 
+// FIXME: should only have position! (deinterleaved)
 struct Vertex {
 	vec3 position;
 	float uv_x;
