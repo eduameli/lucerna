@@ -185,9 +185,9 @@ void main()
 	vec3 color = inColor * texture(colorTex,inUV).xyz;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
   
-  float shadow_value = 1.0 - shadow_map_pcss(inlightSpace);
+  //float shadow_value = 1.0 - shadow_map_pcss(inlightSpace);
   // 0 to 1 
-  lightValue = max(lightValue * shadow_value, 0.1f);
+  //lightValue = max(lightValue * shadow_value, 0.1f);
   
   if (EMISSION > 1000000.01)
   {

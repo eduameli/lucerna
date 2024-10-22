@@ -25,15 +25,16 @@ class PipelineBuilder
     void set_depth_format(VkFormat format);
     void disable_depthtest();
     void enable_depthtest(bool depthWriteEnable, VkCompareOp op);
+    void disable_rasterization();
 
   public:
     VkPipelineLayout PipelineLayout;
+    VkPipelineColorBlendAttachmentState m_ColorBlendAttachment{};
   private:
   private:
     std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages{};
     VkPipelineInputAssemblyStateCreateInfo m_InputAssembly{};
     VkPipelineRasterizationStateCreateInfo m_Rasterizer{};
-    VkPipelineColorBlendAttachmentState m_ColorBlendAttachment{};
     VkPipelineMultisampleStateCreateInfo m_Multisampling{};
     VkPipelineDepthStencilStateCreateInfo m_DepthStencil{};
     VkPipelineRenderingCreateInfo m_RenderInfo{};
