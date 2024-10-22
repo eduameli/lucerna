@@ -110,6 +110,11 @@ void PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkShaderModule fr
   m_ShaderStages.clear();
   m_ShaderStages.push_back(
     vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, vertexShader));
+
+
+  if (fragmentShader == nullptr)
+    return;
+
   m_ShaderStages.push_back(
     vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShader));
 }
@@ -210,4 +215,9 @@ void PipelineBuilder::enable_depthtest(bool depthWriteEnable, VkCompareOp op)
   m_DepthStencil.back = {};
   m_DepthStencil.minDepthBounds = 0.0f;
   m_DepthStencil.maxDepthBounds = 1.0f;
+}
+
+void PipelineBuilder::disable_rasterization()
+{
+  m_Rasterizer.rasterizerDiscardEnable = VK_TRUE;
 }
