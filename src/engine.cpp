@@ -1277,7 +1277,6 @@ void Engine::init_pipelines()
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
   builder.PipelineLayout = m_ShadowPipelineLayout;
-  builder.m_ColorBlendAttachment.colorWriteMask = 0;
 
   m_ShadowPipeline = builder.build_pipeline(device);
   

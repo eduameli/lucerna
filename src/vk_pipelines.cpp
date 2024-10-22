@@ -216,8 +216,3 @@ void PipelineBuilder::enable_depthtest(bool depthWriteEnable, VkCompareOp op)
   m_DepthStencil.minDepthBounds = 0.0f;
   m_DepthStencil.maxDepthBounds = 1.0f;
 }
-
-void PipelineBuilder::disable_rasterization()
-{
-  m_Rasterizer.rasterizerDiscardEnable = VK_TRUE;
-}
