@@ -646,20 +646,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
   
-  
-  ComputeEffect& selected = m_BackgroundEffects[m_BackgroundEffectIndex];
-  ImGui::Begin("Background Settings");
-  ImGui::Text("Selected effect: %s", selected.name);
-  ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1); 
-  ImGui::ColorEdit4("data1", (float*) &selected.data.data1);
-  ImGui::InputFloat4("data1", (float*) &selected.data.data1);
-  ImGui::InputFloat4("data2", (float*) &selected.data.data2);
-  ImGui::InputFloat4("data3", (float*) &selected.data.data3);
-  ImGui::InputFloat4("data4", (float*) &selected.data.data4);
-  ImGui::InputFloat4("Light Rotation Y", &sceneData.sunlightDirection.x);
-  ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.1f, 1.0f);
-  ImGui::End();
-
   ImGui::Begin("Stats");
     ImGui::Text("frametime %f ms", stats.frametime);
     ImGui::Text("draw time %f ms", stats.mesh_draw_time);
@@ -667,16 +653,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::Text("triangles %i", stats.triangle_count);
     ImGui::Text("draws %i", stats.drawcall_count);
   ImGui::End();
-
-  ImGui::Begin("Shadow Mapping Settings");
-    ImGui::Checkbox("Pause", &pcss_settings.rotate);
-    ImGui::Checkbox("Camera View", &lightView);
-    ImGui::InputFloat("NEAR", &pcss_settings.near);
-    ImGui::InputFloat("FAR", &pcss_settings.far);
-    ImGui::InputFloat("LIGHT SIZE", &pcss_settings.light_size_uv);
-    ImGui::InputFloat("ORTHO SIZE", &pcss_settings.ortho_size);
-  ImGui::End();
-  
   
   ImGui::Begin("Renderer Settings");
     if (ImGui::CollapsingHeader("Bloom"))
@@ -687,11 +663,17 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     {
       ImGui::Text("CSM & PCSS");
     }
-
-    if (ImGui::CollapsingHeader("CVARS"))
+    
+    if (ImGui::CollapsingHeader("Background Effects"))
     {
-      ImGui::Text("Every single console variable");
+      ImGui::Text("Selected effect: %s", m_BackgroundEffects[m_BackgroundEffectIndex].name);
+      ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1);
     }
+    ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
+
+  ImGui::Begin("Inspector");
+  ImGui::End();
+
   ImGui::End();
 
   ImGui::Render(); 
@@ -1316,12 +1298,6 @@ void Engine::init_background_pipelines()
     "Error loading Gradient Compute Effect Shader"
   );  
 
-  VkShaderModule skyShader;
-  AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/sky_shader.spv", m_Device.logical, &skyShader),
-    "Error loading Sky Compute Effect Shader"
-  );
-
   VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader);
 
   VkComputePipelineCreateInfo computePipelineCreateInfo{};
@@ -1357,15 +1333,9 @@ void Engine::init_background_pipelines()
 
   VK_CHECK_RESULT(vkCreateComputePipelines(m_Device.logical, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
-  computePipelineCreateInfo.stage.module = skyShader;
-
-  VK_CHECK_RESULT(vkCreateComputePipelines(m_Device.logical, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
-
   m_BackgroundEffects.push_back(gradient);
-  m_BackgroundEffects.push_back(sky);
 
   vkDestroyShaderModule(m_Device.logical, gradientShader, nullptr);
-  vkDestroyShaderModule(m_Device.logical, skyShader, nullptr);
 
   m_DeletionQueue.push_function([&, layout]() {
     vkDestroyPipelineLayout(m_Device.logical, layout, nullptr);
