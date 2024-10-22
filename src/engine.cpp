@@ -55,7 +55,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/testing_prepass.glb";
+  std::string structurePath = "assets/shadows_demo.glb";
   //std::string structurePath = "assets/testing_prepass.glb";
   auto structureFile = load_gltf(this, structurePath);
 
@@ -334,7 +334,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   float x_value = sin(frameNumber/200.0) * 5.0;
   float z_value = cos(frameNumber/200.0) * 5.0;
   
-  if (pcss_settings.rotate == false)
+  if (pcss_settings.rotate == true)
   {
     x_value = 0.0;
     z_value = 5.0;
@@ -561,7 +561,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.write_image(1, m_ShadowDepthImage.imageView, m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowShadingSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.update_set(m_Device.logical, globalDescriptor);
   
@@ -657,11 +657,11 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui::Begin("Renderer Settings");
     if (ImGui::CollapsingHeader("Bloom"))
     {
-      ImGui::Text("Sledgehammer Bloom");
+      ImGui::Text("boop");
     }
     if (ImGui::CollapsingHeader("Shadows"))
     {
-      ImGui::Text("CSM & PCSS");
+      ImGui::Checkbox("Light Projection", &lightView);
     }
     
     if (ImGui::CollapsingHeader("Background Effects"))
@@ -932,6 +932,12 @@ void Engine::init_default_data()
   sampl.minFilter = VK_FILTER_LINEAR;
   vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_DefaultSamplerLinear);
   
+  sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+  vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_ShadowSampler);
+
+
   GLTFMetallic_Roughness::MaterialResources materialResources;
   materialResources.colorImage = m_WhiteImage;
   materialResources.colorSampler = m_DefaultSamplerLinear;
@@ -958,7 +964,7 @@ void Engine::init_default_data()
   m_DeletionQueue.push_function([&]{
     vkDestroySampler(m_Device.logical, m_DefaultSamplerLinear, nullptr);
     vkDestroySampler(m_Device.logical, m_DefaultSamplerNearest, nullptr);
-   
+    vkDestroySampler(m_Device.logical, m_ShadowSampler, nullptr); 
     // FIXME: metalRoughnessMaterial.clear_resources() instead!
     
     metalRoughMaterial.clear_resources(m_Device.logical);
@@ -1214,17 +1220,17 @@ void Engine::init_pipelines()
 
   // shadow pipelines
   VkDevice device = m_Device.logical;
-  /*
+  
   VkShaderModule shadowFrag;
   AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/shadow_pass/shadow.frag.spv", device, &shadowFrag),
+    vkutil::load_shader_module("shaders/depth_only/depth_pass.frag.spv", device, &shadowFrag),
     "Error when building the shadow pass fragment shader module"
   );
-  */
+  
 
   VkShaderModule shadowVert;
   AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/shadow_pass/shadow.vert.spv", device, &shadowVert),
+    vkutil::load_shader_module("shaders/depth_only/depth_pass.vert.spv", device, &shadowVert),
     "Error when building the shadow pass vertex shader module"
   );
 
@@ -1249,7 +1255,7 @@ void Engine::init_pipelines()
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &m_ShadowPipelineLayout));
 
   PipelineBuilder builder;
-  builder.set_shaders(shadowVert, nullptr);
+  builder.set_shaders(shadowVert, shadowFrag);
   builder.set_depth_format(m_DepthImage.imageFormat);
   builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
@@ -1262,7 +1268,7 @@ void Engine::init_pipelines()
 
   m_ShadowPipeline = builder.build_pipeline(device);
   
-  //vkDestroyShaderModule(device, shadowFrag, nullptr);
+  vkDestroyShaderModule(device, shadowFrag, nullptr);
   vkDestroyShaderModule(device, shadowVert, nullptr);
 
   m_DeletionQueue.push_function([&](){

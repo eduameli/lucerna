@@ -526,13 +526,13 @@ void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
 
   VkShaderModule meshFragShader;
   AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/meshes/mesh_pcss.frag.spv", device, &meshFragShader),
+    vkutil::load_shader_module("shaders/meshes/std_material.frag.spv", device, &meshFragShader),
     "Error when building the triangle fragment shader module"
   );
 
   VkShaderModule meshVertShader;
   AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/meshes/mesh.vert.spv", device, &meshVertShader),
+    vkutil::load_shader_module("shaders/meshes/std_material.vert.spv", device, &meshVertShader),
     "Error when building the triangle vertex shader module"
   );
 

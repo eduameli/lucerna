@@ -111,6 +111,7 @@ namespace Aurora {
       AllocatedImage m_ShadowDepthImage; // used for shadow mapping!
       VkSampler m_DefaultSamplerNearest;
       VkSampler m_DefaultSamplerLinear;
+      VkSampler m_ShadowSampler;
       VkDescriptorSetLayout m_SceneDescriptorLayout;
       VkDescriptorSetLayout m_SingleImageDescriptorLayout;
 
