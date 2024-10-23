@@ -331,22 +331,22 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
   lightProj[1][1] *= -1;  //FIXME: do i need this??
   
-  float x_value = sin(frameNumber/200.0) * 5.0;
-  float z_value = cos(frameNumber/200.0) * 5.0;
+  float x_value = sin(frameNumber/200.0) * pcss_settings.distance;
+  float z_value = cos(frameNumber/200.0) * pcss_settings.distance;
   
-  if (pcss_settings.rotate == true)
+  if (pcss_settings.rotate == false)
   {
     x_value = 0.0;
     z_value = 5.0;
   }
 
   lView = glm::lookAt(
-    glm::vec3{x_value, 5.0f, z_value},
+    glm::vec3{x_value, pcss_settings.distance, z_value},
     glm::vec3{0.0f, 0.0f, 0.0f},
     glm::vec3{0.0f, 1.0f, 0.0f}
   );
 
-  sceneData.sunlightDirection = glm::normalize(glm::vec4{x_value, 1.0f, z_value, 1.0f}); // .w for sun power
+  sceneData.sunlightDirection = glm::normalize(glm::vec4{x_value, pcss_settings.distance, z_value, 1.0f}); // .w for sun power
   shadowPass.lightView = lightProj * lView; 
   pcss_settings.lightViewProj = lightProj * lView; 
   
@@ -546,8 +546,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
   *sceneUniformData = sceneData;
 
-  
-
   ShadowShadingSettings* settings = (ShadowShadingSettings*) shadowSettings.allocation->GetMappedData();
   *settings = {
     .lightView = pcss_settings.lightViewProj, 
@@ -662,6 +660,11 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     if (ImGui::CollapsingHeader("Shadows"))
     {
       ImGui::Checkbox("Light Projection", &lightView);
+      ImGui::Checkbox("Spin Directional Light", &pcss_settings.rotate);
+      ImGui::InputFloat("Frustum Size: ", &pcss_settings.ortho_size);
+      ImGui::InputFloat("Far Plane: ", &pcss_settings.far);
+      ImGui::InputFloat("Near Plane: ", &pcss_settings.near);
+      ImGui::InputFloat("Light Distance: ", &pcss_settings.distance);
     }
     
     if (ImGui::CollapsingHeader("Background Effects"))

@@ -32,7 +32,7 @@ void main()
 	Vertex v = pcs.vertexBuffer.vertices[gl_VertexIndex];
 	vec4 position = vec4(v.position, 1.0f);
 
-	gl_Position =  sceneData.viewproj * pcs.modelMatrix *position;
+	gl_Position =  sceneData.viewproj * pcs.modelMatrix * position;
 
 	outNormal = (pcs.modelMatrix * vec4(v.normal, 0.f)).xyz;
 	outColor = v.color.xyz * materialData.colorFactors.xyz;	

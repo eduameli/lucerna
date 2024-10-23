@@ -50,6 +50,14 @@ vec2(-0.38587, 0.89740));
 float shadow_pcf(vec3 projCoords, float radius)
 {
   
+  /*
+  if (int(gl_FragCoord.x + gl_FragCoord.y) % 2 == 0)
+  {
+    return 1.0;
+    // interp? do it in anohter pass or sm 
+  }
+  */
+
   float shadow = 0.0f;
   float currentDepth = projCoords.z;
   
@@ -96,7 +104,7 @@ void main()
   
   vec3 projCoords = inlightSpace.xyz / inlightSpace.w;
   projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
-  float shadow_value = 1.0 - shadow_pcf(projCoords, 0.01);
+  float shadow_value = 1.0 - shadow_pcf(projCoords, 0.005);
   
   lightValue *= shadow_value;
 	outFragColor = vec4(color * lightValue *  1.0  + ambient,1.0f);
