@@ -12,12 +12,8 @@ layout (location = 3) in vec4 inlightSpace;
 layout (location = 0) out vec4 outFragColor;
 
 
-
-float random(vec3 seed, int i)
-{
-  vec4 seed4 = vec4(seed, i);
-  float dot_product = dot(seed4, vec4(12.9898, 78.233, 45.164, 94.673));
-  return fract(sin(dot_product) * 43758.5453);
+float IGN(int pixelX, int pixelY) {
+    return mod(52.9829189 * mod(0.06711056 * float(pixelX) + 0.00583715 * float(pixelY), 1.0), 1.0);
 }
 
 vec2 rotate(vec2 v, float angle) {
@@ -70,7 +66,10 @@ float shadow_pcf(vec3 projCoords, float radius)
   for (int i = 0; i < 6; i++)
   {
     vec2 dir = pDisk[i];
-    dir = rotate(dir, random(gl_FragCoord.xyz, i));
+    float randf = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y));
+    int index = int(floor(randf * 17.0));
+    //dir = rotate(dir, randf);
+    dir = pDisk[index + i % 16];
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
     shadow += pcfDepth > currentDepth /*+ bias*/? 1.0 : 0.0;
@@ -84,8 +83,18 @@ float shadow_pcf(vec3 projCoords, float radius)
 
   for (int i = 6; i < 16; i++)
   {
+    /*
+    float randf = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y));
+    vec2 dir = pDisk[];
+    float randf = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y));
+    dir = rotate(dir, randf);
+    */
+
     vec2 dir = pDisk[i];
-    dir = rotate(dir, random(gl_FragCoord.xyz, i));
+    float randf = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y));
+    int index = int(floor(randf * 17.0));
+    //dir = rotate(dir, randf);
+    dir = pDisk[index + i % 16];
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
     shadow += pcfDepth > currentDepth /*+ bias*/ ? 1.0 : 0.0;

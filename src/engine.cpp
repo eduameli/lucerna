@@ -455,7 +455,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd, std::span<uint32_t> opaque_
   writer.write_buffer(0, shadowPass.buffer, sizeof(ShadowPassUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.update_set(m_Device.logical, shadowDescriptor);
 
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipeline);
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_DepthPrepassPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipelineLayout, 0, 1, &shadowDescriptor, 0, nullptr);
   
   VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
@@ -1266,11 +1266,14 @@ void Engine::init_pipelines()
   builder.set_multisampling_none();
   builder.disable_blending();
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-
+  
   builder.PipelineLayout = m_ShadowPipelineLayout;
 
   m_ShadowPipeline = builder.build_pipeline(device);
   
+  builder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  m_DepthPrepassPipeline = builder.build_pipeline(device);
+
   vkDestroyShaderModule(device, shadowFrag, nullptr);
   vkDestroyShaderModule(device, shadowVert, nullptr);
 
@@ -1278,6 +1281,7 @@ void Engine::init_pipelines()
     vkDestroyDescriptorSetLayout(m_Device.logical, m_ShadowSetLayout, nullptr);
     vkDestroyPipelineLayout(m_Device.logical, m_ShadowPipelineLayout, nullptr);
     vkDestroyPipeline(m_Device.logical, m_ShadowPipeline, nullptr);
+    vkDestroyPipeline(m_Device.logical, m_DepthPrepassPipeline, nullptr);
   });
 }
 

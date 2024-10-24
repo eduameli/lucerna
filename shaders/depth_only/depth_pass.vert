@@ -29,6 +29,6 @@ void main()
 {
 	Vertex v = pcs.vertexBuffer.vertices[gl_VertexIndex];
 	vec4 position = vec4(v.position, 1.0f);
-	gl_Position = data.viewproj * pcs.modelMatrix  * position;
+	gl_Position = data.viewproj * pcs.modelMatrix * position;
 }
 

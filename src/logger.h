@@ -24,6 +24,8 @@ namespace Aurora {
   };
 } // namespace aurora
 
+#define STRINGIFY(x) #x
+
 #if (AR_LOG_LEVEL == 1)
   #define AR_CORE_FATAL(...)    ::Aurora::Logger::s_Logger->critical(__VA_ARGS__)
   #define AR_CORE_ERROR(...)    ::Aurora::Logger::s_Logger->error(__VA_ARGS__)
