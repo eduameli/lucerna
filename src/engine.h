@@ -196,7 +196,8 @@ namespace Aurora {
       VkCommandBuffer m_ImmCommandBuffer;
       VkCommandPool m_ImmCommandPool;
       GPUSceneData sceneData;
-
+  
+      VkPipeline m_DepthPrepassPipeline;
       VkPipeline m_ShadowPipeline;
       VkPipelineLayout m_ShadowPipelineLayout;
       VkDescriptorSetLayout m_ShadowSetLayout;
