@@ -11,9 +11,11 @@ layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec4 inlightSpace;
 layout (location = 0) out vec4 outFragColor;
 
+#define GOLDEN_RATIO 1.61803
+#define PI 3.14159
 
-float IGN(int pixelX, int pixelY) {
-    return mod(52.9829189 * mod(0.06711056 * float(pixelX) + 0.00583715 * float(pixelY), 1.0), 1.0);
+float IGN(int pixelX, int pixelY, int index) {
+    return mod(52.9829189 * mod(0.06711056 * float(pixelX) + 0.00583715 * float(pixelY) + 0.00314159, 1.0), 1.0);
 }
 
 vec2 rotate(vec2 v, float angle) {
@@ -24,6 +26,13 @@ vec2 rotate(vec2 v, float angle) {
         sinAngle * v.x + cosAngle * v.y
     );
 }
+
+vec3 offset_lookup(sampler2D map, vec4 loc, vec2 offset)
+{
+  return textureProj(map,
+                   vec4(loc.xy + offset * vec2(1/1024, 1/1024) * loc.w, loc.z, loc.w)).rgb;
+}
+
 
 const vec2 pDisk[16] = vec2[](
 vec2(0.91222, 0.38802), /* start */
@@ -45,36 +54,22 @@ vec2(-0.38587, 0.89740));
 
 float shadow_pcf(vec3 projCoords, float radius)
 {
-  
-  /*
-  if (int(gl_FragCoord.x + gl_FragCoord.y) % 2 == 0)
-  {
-    return 1.0;
-    // interp? do it in anohter pass or sm 
-  }
-  */
-
   float shadow = 0.0f;
   float currentDepth = projCoords.z;
-  
+ 
   if (currentDepth < 0.0)
     return 0.0;
-
-  //float bias = max(0.05 * (1.0 - dot(inNormal, sceneData.sunlightDirection.xyz)), 0.005);  
-  //NOTE: instead of random() and rotate() maybe blue noise or golden ratio sequence?
-
   for (int i = 0; i < 6; i++)
   {
     vec2 dir = pDisk[i];
-    float randf = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y));
-    int index = int(floor(randf * 17.0));
-    //dir = rotate(dir, randf);
-    dir = pDisk[index + i % 16];
+    float randAngle = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y), i) * 2 * PI;
+    dir = rotate(dir, randAngle);
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
     shadow += pcfDepth > currentDepth /*+ bias*/? 1.0 : 0.0;
   }
-
+  
+  // NOTE: early bailing
   if (shadow < 0.01  || shadow > 5.99)
   {
     return shadow < 0.01 ? 0.0 : 1.0;
@@ -83,18 +78,11 @@ float shadow_pcf(vec3 projCoords, float radius)
 
   for (int i = 6; i < 16; i++)
   {
-    /*
-    float randf = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y));
-    vec2 dir = pDisk[];
-    float randf = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y));
-    dir = rotate(dir, randf);
-    */
+    int index = int(floor(IGN(int(gl_FragCoord.x), int(gl_FragCoord.y), i) * 16.0));
+    vec2 dir = pDisk[index];
 
-    vec2 dir = pDisk[i];
-    float randf = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y));
-    int index = int(floor(randf * 17.0));
-    //dir = rotate(dir, randf);
-    dir = pDisk[index + i % 16];
+    float randAngle = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y), i) * 2 * PI;
+    dir = rotate(dir, randAngle);
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
     shadow += pcfDepth > currentDepth /*+ bias*/ ? 1.0 : 0.0;
@@ -104,7 +92,6 @@ float shadow_pcf(vec3 projCoords, float radius)
 }
 
 
-// missing specular (blinn-phong) & pbr normal roughness etc
 void main() 
 {
 	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
@@ -113,7 +100,7 @@ void main()
   
   vec3 projCoords = inlightSpace.xyz / inlightSpace.w;
   projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
-  float shadow_value = 1.0 - shadow_pcf(projCoords, 0.005);
+  float shadow_value = 1.0 - shadow_pcf(projCoords, 0.001);
   
   lightValue *= shadow_value;
 	outFragColor = vec4(color * lightValue *  1.0  + ambient,1.0f);
