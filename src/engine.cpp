@@ -938,6 +938,10 @@ void Engine::init_default_data()
   sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
   sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
   sampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+
+  // NOTE: linear for now, it should be shadow billinear?? hardware!
+  sampl.magFilter = VK_FILTER_NEAREST;
+  sampl.minFilter = VK_FILTER_NEAREST;
   vkCreateSampler(m_Device.logical, &sampl, nullptr, &m_ShadowSampler);
 
 
