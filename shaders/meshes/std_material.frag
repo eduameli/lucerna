@@ -14,8 +14,8 @@ layout (location = 0) out vec4 outFragColor;
 #define GOLDEN_RATIO 1.61803
 #define PI 3.14159
 
-float IGN(int pixelX, int pixelY, int index) {
-    return mod(52.9829189 * mod(0.06711056 * float(pixelX) + 0.00583715 * float(pixelY) + 0.00314159, 1.0), 1.0);
+float IGN(vec2 fragCoord) {
+    return mod(52.9829189 * mod(0.06711056 * fragCoord.x + 0.00583715 * fragCoord.y + 0.00314159, 1.0), 1.0);
 }
 
 vec2 rotate(vec2 v, float angle) {
@@ -61,10 +61,11 @@ float shadow_pcf(vec3 projCoords, float radius)
 
   if (currentDepth < 0.0)
     return 0.0;
+
   for (int i = 0; i < 6; i++)
   {
     vec2 dir = pDisk[i];
-    float randAngle = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y), i) * 2 * PI;
+    float randAngle = IGN(gl_FragCoord.xy) * 2 * PI;
     dir = rotate(dir, randAngle);
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
@@ -80,10 +81,8 @@ float shadow_pcf(vec3 projCoords, float radius)
 
   for (int i = 6; i < 16; i++)
   {
-    int index = int(floor(IGN(int(gl_FragCoord.x), int(gl_FragCoord.y), i) * 16.0));
-    vec2 dir = pDisk[index];
-
-    float randAngle = IGN(int(gl_FragCoord.x), int(gl_FragCoord.y), i) * 2 * PI;
+    vec2 dir = pDisk[i];
+    float randAngle = IGN(gl_FragCoord.xy) * 2 * PI;
     dir = rotate(dir, randAngle);
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
