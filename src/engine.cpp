@@ -259,19 +259,49 @@ void Engine::draw()
   
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo))
-
-  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
-  // draw compute
-  draw_background(cmd);
   
+
+  // draw compute bg
+  vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+  draw_background(cmd);
+ 
+  mainDrawContext.opaque_draws.clear(); 
+  mainDrawContext.opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
+  
+  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
+  {
+    if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
+    {
+      mainDrawContext.opaque_draws.push_back(i);
+    }
+
+  }
+   
+  // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
+  // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
+  std::sort(mainDrawContext.opaque_draws.begin(), mainDrawContext.opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+    const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
+    const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
+    if(A.material == B.material)
+    {
+      return A.indexBuffer < B.indexBuffer;
+    }
+    else
+    {
+      return A.material < B.material;
+    }
+  });
+
+  // draw depth prepass first to be able to overlap shadow mapping & screen space (depth based) compute effects
+  vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+  draw_depth_prepass(cmd, mainDrawContext.opaque_draws);
+
   vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   draw_shadow_pass(cmd);
   vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-  draw_geometry(cmd);
+  draw_geometry(cmd, mainDrawContext.opaque_draws);
   
   // NOTE: Post Effects
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
@@ -523,43 +553,14 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd, std::span<uint32_t> opaque_
 
 }
 
-void Engine::draw_geometry(VkCommandBuffer cmd)
+void Engine::draw_geometry(VkCommandBuffer cmd, std::span<uint32_t> opaque_draws)
 {
   auto start = std::chrono::system_clock::now();
   stats.drawcall_count = 0;
   stats.triangle_count = 0;
 
-  std::vector<uint32_t> opaque_draws;
-  opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
-  
-  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
-  {
-    if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
-    {
-      opaque_draws.push_back(i);
-    }
 
-  }
-   
-  // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
-  // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
-  std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-    const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
-    const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
-    if(A.material == B.material)
-    {
-      return A.indexBuffer < B.indexBuffer;
-    }
-    else
-    {
-      return A.material < B.material;
-    }
-  });
   
-  // depth prepass (draw to depth only then depth test is == current)
-  
-  draw_depth_prepass(cmd, opaque_draws);
-
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL);
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
   depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
