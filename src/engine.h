@@ -208,10 +208,11 @@ namespace Aurora {
         glm::mat4 lightViewProj;
         bool rotate{ false };
         float light_size_uv{/* 0.25 */ 0.0};
-        float ortho_size{ 15.0 };
-        float distance{ 15.0 };
-        float near{ 5.0 };
-        float far{ 40.0 };
+        float ortho_size{ 5.0 };
+        float distance{ 5.0 };
+        float near{ 0.1 };
+        float far{ 15.0 };
+        uint32_t shadowNumber{ 0 };
       } pcss_settings;
       
       // this instead of pcs / sceneData
