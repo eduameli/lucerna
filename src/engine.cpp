@@ -122,21 +122,24 @@ void Engine::run()
   while (should_quit())
   {
     auto start = std::chrono::system_clock::now();
-    glfwPollEvents();
 
     if (stopRendering)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
       continue;
     }
-
-    if (resizeRequested)
+  
+    if (valid_swapchain)
     {
-      resize_swapchain();
+      glfwPollEvents();
     }
-    
+    else
+    {
+      glfwWaitEvents();
+      continue;
+    }
+      
     update_scene();
-
     draw();
     
     auto end = std::chrono::system_clock::now();
@@ -145,26 +148,28 @@ void Engine::run()
   }
 }
 
-void Engine::resize_swapchain()
+void Engine::resize_swapchain(int width, int height)
 {
-  // FIX: build from previous swapchain
+  AR_LOG_ASSERT(width > 0 && height > 0, "Attempted to resize swapchain to 0x0");
+
   vkDeviceWaitIdle(m_Device.logical);
 
+  VkSwapchainKHR oldSwapchain = m_Swapchain.handle;
   for (int i = 0; i < m_Swapchain.views.size(); i++)
   {
     vkDestroyImageView(m_Device.logical, m_Swapchain.views[i], nullptr);
   }
+  
+  vkDestroySwapchainKHR(m_Device.logical, oldSwapchain, nullptr);
 
   SwapchainContextBuilder builder{m_Device, m_Surface};
-  SwapchainContext newSwapchain = builder
+  m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
     .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
-    .build(m_Swapchain.handle);
+    .build();
   
-  vkDestroySwapchainKHR(m_Device.logical, m_Swapchain.handle, nullptr);
-  m_Swapchain = newSwapchain;
-  resizeRequested = false;
+  valid_swapchain = true;
 }
 
 void Engine::update_scene()
@@ -209,18 +214,40 @@ void Engine::update_scene()
 
 void Engine::draw()
 {
+  VkResult r;
+
   VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &get_current_frame().renderFence, true, 1000000000));
   
   get_current_frame().deletionQueue.flush();
   get_current_frame().frameDescriptors.clear_pools(m_Device.logical);
 
   uint32_t swapchainImageIndex;
+  if (valid_swapchain)
+  {
+    r = vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
+    if (r == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+      valid_swapchain = false;
+    }
+    else if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR)
+    {
+      AR_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "Error getting next swapchain image!");
+    }
+  }
+
+  if (!valid_swapchain)
+  {
+    return;
+  }
+  
+  /*
   VkResult e = vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
   if (e == VK_ERROR_OUT_OF_DATE_KHR)
   {
     resizeRequested = true;
     return;
   }
+  */
 
   m_DrawExtent.height = glm::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height) * m_RenderScale;
   m_DrawExtent.width = glm::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width) * m_RenderScale;
@@ -277,12 +304,22 @@ void Engine::draw()
   presentInfo.waitSemaphoreCount = 1;
   presentInfo.pImageIndices = &swapchainImageIndex;
 
-  VkResult presentResult = vkQueuePresentKHR(m_Device.present, &presentInfo);
+  r = vkQueuePresentKHR(m_Device.present, &presentInfo);
+  if (r == VK_ERROR_OUT_OF_DATE_KHR)
+  {
+    valid_swapchain = false;
+  }
+  else if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR)
+  {
+    AR_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "error presenting swapchin");
+  }
+
+  /*
   if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
   {
     resizeRequested = true;
   }
-  
+  */
   frameNumber++;
 }
 

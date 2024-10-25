@@ -24,6 +24,7 @@ namespace Aurora {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     win = glfwCreateWindow(width, height, name.data(), nullptr, nullptr);
     glfwSetWindowIconifyCallback(win, iconify_callback);
+    glfwSetWindowSizeCallback(win, resize_callback);
   }
   
   void Window::shutdown()
@@ -57,6 +58,14 @@ namespace Aurora {
   {
     Engine::get().stopRendering = iconify == 0 ? false : true;
     AR_CORE_WARN("{} Rendering", iconify == 0 ? "Resumed" : "Suspended");
+  }
+
+  void Window::resize_callback(GLFWwindow* window, int width, int height)
+  {
+    if (width > 0 && height > 0)
+    {
+      Engine::get().resize_swapchain(width, height);
+    }
   }
 
 } // namespace aurora
