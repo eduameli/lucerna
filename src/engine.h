@@ -100,7 +100,8 @@ namespace Aurora {
       
       size_t frameNumber{ 0 };
       bool stopRendering{ false };
-      bool resizeRequested{ false };
+
+      bool valid_swapchain{ true };
 
       AllocatedImage m_DrawImage;
       AllocatedImage m_DepthImage;
@@ -148,8 +149,8 @@ namespace Aurora {
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
     public:
       FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
-    private:
-      void resize_swapchain();
+    public:
+      void resize_swapchain(int width, int height);
     public:
       void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
     private:

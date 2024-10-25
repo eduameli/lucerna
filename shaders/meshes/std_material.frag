@@ -52,6 +52,8 @@ vec2(-0.03102, 0.62509),
 vec2(-0.21704, 0.81630),
 vec2(-0.38587, 0.89740));
 
+// FIX: use hw filtering to handle more samples at once!
+
 float shadow_pcf(vec3 projCoords, float radius)
 {
   float shadow = 0.0f;
@@ -101,7 +103,7 @@ void main()
   
   vec3 projCoords = inlightSpace.xyz / inlightSpace.w;
   projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
-  float shadow_value = 1.0 - shadow_pcf(projCoords, 0.001);
+  float shadow_value = 1.0 - shadow_pcf(projCoords, 0.0025); // shadow softness parameter!
   
   lightValue *= shadow_value;
 	outFragColor = vec4(color * lightValue *  1.0  + ambient,1.0f);
