@@ -55,7 +55,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/shadows_demo.glb";
+  std::string structurePath = "assets/simple_shadow.glb";
   //std::string structurePath = "assets/testing_prepass.glb";
   auto structureFile = load_gltf(this, structurePath);
 
@@ -329,15 +329,14 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     pcss_settings.ortho_size,
     pcss_settings.far, pcss_settings.near); //FIXME: arbritary znear zfar planes
 
-  lightProj[1][1] *= -1;  //FIXME: do i need this??
+  lightProj[1][1] *= -1;
+
+  float x_value = sin(pcss_settings.shadowNumber/200.0) * pcss_settings.distance;
+  float z_value = cos(pcss_settings.shadowNumber/200.0) * pcss_settings.distance;
   
-  float x_value = sin(frameNumber/200.0) * pcss_settings.distance;
-  float z_value = cos(frameNumber/200.0) * pcss_settings.distance;
-  
-  if (pcss_settings.rotate == false)
+  if (pcss_settings.rotate == true)
   {
-    x_value = 0.0;
-    z_value = 5.0;
+    pcss_settings.shadowNumber++;
   }
 
   lView = glm::lookAt(
@@ -345,7 +344,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     glm::vec3{0.0f, 0.0f, 0.0f},
     glm::vec3{0.0f, 1.0f, 0.0f}
   );
-
+  
   sceneData.sunlightDirection = glm::normalize(glm::vec4{x_value, pcss_settings.distance, z_value, 1.0f}); // .w for sun power
   shadowPass.lightView = lightProj * lView; 
   pcss_settings.lightViewProj = lightProj * lView; 
@@ -1270,7 +1269,6 @@ void Engine::init_pipelines()
   builder.set_multisampling_none();
   builder.disable_blending();
   builder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-  
   builder.PipelineLayout = m_ShadowPipelineLayout;
 
   m_ShadowPipeline = builder.build_pipeline(device);

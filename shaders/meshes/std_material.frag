@@ -56,7 +56,9 @@ float shadow_pcf(vec3 projCoords, float radius)
 {
   float shadow = 0.0f;
   float currentDepth = projCoords.z;
- 
+  
+  //return texture(shadowDepth, projCoords.xy).r > currentDepth ? 1.0 : 0.0;
+
   if (currentDepth < 0.0)
     return 0.0;
   for (int i = 0; i < 6; i++)
