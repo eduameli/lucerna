@@ -27,4 +27,6 @@
 #include <thread>
 #include <variant>
 
+#include "cvars.h"
+
 #endif

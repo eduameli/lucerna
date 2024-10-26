@@ -1,5 +1,6 @@
 #pragma once
-#include "aurora_pch.h"
+#include <cstdint>
+#include <string_view>
 
 namespace StringUtils {
 	constexpr uint32_t fnv1a_32(char const* s, std::size_t count)
@@ -56,7 +57,7 @@ class CVarSystem
   public:
     static CVarSystem* get();
     virtual CVarParameter* get_cvar(StringUtils::StringHash hash) = 0;
-    
+     
     virtual double* get_float_cvar(StringUtils::StringHash hash) = 0;
     virtual int32_t* get_int_cvar(StringUtils::StringHash hash) = 0;
 
@@ -67,7 +68,7 @@ class CVarSystem
     virtual CVarParameter* create_int_cvar(const char* name, const char* description, int initial, int current) = 0;  
   
     virtual void draw_editor() = 0;
-
+  
   public:
   private:
   private:
@@ -88,5 +89,7 @@ struct AutoCVar_Float : AutoCVar<double>
   double get();
   void set(double value);
 };
+
+
 
 }
