@@ -1,0 +1,92 @@
+#pragma once
+#include "aurora_pch.h"
+
+namespace StringUtils {
+	constexpr uint32_t fnv1a_32(char const* s, std::size_t count)
+	{
+		return ((count ? fnv1a_32(s, count - 1) : 2166136261u) ^ s[count]) * 16777619u;
+	}
+
+	constexpr size_t const_strlen(const char* s)
+	{
+		size_t size = 0;
+		while (s[size]) { size++; };
+		return size;
+	}
+
+	struct StringHash
+	{
+		uint32_t computedHash;
+		constexpr StringHash(uint32_t hash) noexcept : computedHash(hash) {}
+		constexpr StringHash(const char* s) noexcept : computedHash(0)
+		{
+			computedHash = fnv1a_32(s, const_strlen(s));
+		}
+		constexpr StringHash(const char* s, std::size_t count)noexcept : computedHash(0)
+		{
+			computedHash = fnv1a_32(s, count);
+		}
+		constexpr StringHash(std::string_view s)noexcept : computedHash(0)
+		{
+			computedHash = fnv1a_32(s.data(), s.size());
+		}
+		StringHash(const StringHash& other) = default;
+		constexpr operator uint32_t()noexcept { return computedHash; }
+	};
+}
+
+namespace Aurora
+{
+
+enum class CVarFlags : uint32_t
+{
+	None = 0,
+	Noedit = 1 << 1,
+	EditReadOnly = 1 << 2,
+	Advanced = 1 << 3,
+
+	EditCheckbox = 1 << 8,
+	EditFloatDrag = 1 << 9,
+};
+
+class CVarParameter;
+
+class CVarSystem
+{
+  public:
+    static CVarSystem* get();
+    virtual CVarParameter* get_cvar(StringUtils::StringHash hash) = 0;
+    
+    virtual double* get_float_cvar(StringUtils::StringHash hash) = 0;
+    virtual int32_t* get_int_cvar(StringUtils::StringHash hash) = 0;
+
+    virtual void set_float_cvar(StringUtils::StringHash hash, double value) = 0;
+    virtual void set_int_cvar(StringUtils::StringHash has, int32_t value) = 0;
+
+    virtual CVarParameter* create_float_cvar(const char* name, const char* description, double initial, double current) = 0;
+    virtual CVarParameter* create_int_cvar(const char* name, const char* description, int initial, int current) = 0;  
+  
+    virtual void draw_editor() = 0;
+
+  public:
+  private:
+  private:
+};
+
+
+template<typename T>
+struct AutoCVar
+{
+protected:
+  int index;
+  using CVarType = T;
+};
+
+struct AutoCVar_Float : AutoCVar<double>
+{
+  AutoCVar_Float(const char* name, const char* description, double initial, CVarFlags flags = CVarFlags::None);
+  double get();
+  void set(double value);
+};
+
+}
