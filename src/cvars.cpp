@@ -1,4 +1,6 @@
 #include "cvars.h"
+#include <string>
+#include <unordered_map>
 
 namespace Aurora
 {
@@ -15,6 +17,7 @@ struct CVarParameter
   friend class CVarSystemImpl;
   uint32_t arrayIndex;
   CVarType type;
+  CVarFlags flags;
   std::string name;
   std::string description;
 };
@@ -128,6 +131,8 @@ public:
   int* get_int_cvar(StringUtils::StringHash hash) override final;
   void set_int_cvar(StringUtils::StringHash has, int value) override final;
   
+  void draw_editor() override final;
+
   template<typename T>
   T* get_cvar_current(uint32_t hash)
   {
@@ -147,8 +152,11 @@ public:
     }
   }
 
-  void draw_editor() override final;
-
+  static CVarSystemImpl* get()
+  {
+    return static_cast<CVarSystemImpl*>(CVarSystem::get());
+  }
+  
 public:
 private:
   CVarParameter* init_cvar(const char* name, const char* description);
@@ -238,6 +246,26 @@ T get_cvar_current_by_index(int32_t index)
   return CVarSystemImpl::get()->get_cvar_array<T>()->get_current(index);
 }
 
-
-
+template<typename T>
+void set_cvar_current_by_index(int32_t index, const T& data)
+{
+  CVarSystemImpl::get()->get_cvar_array<T>()->set_current(data, index);
 }
+
+AutoCVar_Float::AutoCVar_Float(const char* name, const char* description, double initial, CVarFlags flags)
+{
+  CVarParameter* cvar = CVarSystem::get()->create_float_cvar(name, description, initial, initial);
+  cvar->flags = flags;
+  index = cvar->arrayIndex;
+}
+
+double AutoCVar_Float::get()
+{
+  return get_cvar_current_by_index<CVarType>(index);
+}
+
+void AutoCVar_Float::set(double f)
+{
+  set_cvar_current_by_index<CVarType>(f, index);
+}
+} // aurora namespace
