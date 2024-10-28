@@ -20,6 +20,10 @@ namespace Aurora
 
     glfwSetKeyCallback(win, [](GLFWwindow* window, int key, int scancode, int action, int mods){
       ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+    
+      ImGuiIO& io = ImGui::GetIO();
+      if (io.WantTextInput) return;
+
       if (action == GLFW_PRESS)
       {
         if (key == GLFW_KEY_W) {s_Velocity.z = -1;}

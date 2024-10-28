@@ -2,6 +2,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "imgui.h"
+
 namespace Aurora
 {
 
@@ -42,7 +44,7 @@ struct CVarArray
   }
   ~CVarArray()
   {
-    delete cvars;
+    delete[] cvars;
   }
 
   T get_current(uint32_t index)
@@ -231,7 +233,19 @@ void CVarSystemImpl::set_int_cvar(StringUtils::StringHash hash, int value)
 
 void CVarSystemImpl::draw_editor()
 {
+  ImGui::Begin("Console Variables");
 
+  static char searchText[64] = "";
+  ImGui::InputText("filter", searchText, 64);
+	
+  static bool showAdvanced = false;
+	ImGui::Checkbox("show advanced", &showAdvanced);
+	
+  ImGui::Separator(); 
+
+  // filter - (able to edit all of them / for non editable info just put it in render settings)
+
+  ImGui::End();
 }
 
 CVarSystem* CVarSystem::get()

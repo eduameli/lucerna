@@ -30,6 +30,8 @@
 
 namespace Aurora {
 
+AutoCVar_Float CVAR_TestCheckbox("test.checkbox", "just a checkbox", 0, CVarFlags::EditCheckbox);
+
 static Engine* s_Instance = nullptr;
 Engine& Engine::get()
 {
@@ -215,7 +217,6 @@ void Engine::update_scene()
 void Engine::draw()
 {
   VkResult r;
-
   VK_CHECK_RESULT(vkWaitForFences(m_Device.logical, 1, &get_current_frame().renderFence, true, 1000000000));
   
   get_current_frame().deletionQueue.flush();
@@ -711,8 +712,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     }
     ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
 
-  ImGui::Begin("Inspector");
-  ImGui::End();
+  CVarSystem::get()->draw_editor();
 
   ImGui::End();
 
