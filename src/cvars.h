@@ -42,9 +42,8 @@ namespace Aurora
 enum class CVarFlags : uint32_t
 {
 	None = 0,
-	Noedit = 1 << 1,
-	EditReadOnly = 1 << 2,
-	Advanced = 1 << 3,
+	Hidden = 1 << 1,
+	Advanced = 1 << 2,
 
 	EditCheckbox = 1 << 8,
 	EditFloatDrag = 1 << 9,

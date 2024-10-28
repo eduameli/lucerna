@@ -1,7 +1,9 @@
 #include "cvars.h"
 #include <string>
 #include <unordered_map>
-
+#include <vector>
+#include <algorithm>
+#include "logger.h"
 #include "imgui.h"
 
 namespace Aurora
@@ -163,6 +165,7 @@ public:
 private:
   CVarParameter* init_cvar(const char* name, const char* description);
   std::unordered_map<uint32_t, CVarParameter> savedCVars;
+  std::vector<CVarParameter*> searchResults;
 };
 
 CVarParameter* CVarSystemImpl::init_cvar(const char* name, const char* description)
@@ -242,6 +245,67 @@ void CVarSystemImpl::draw_editor()
 	ImGui::Checkbox("show advanced", &showAdvanced);
 	
   ImGui::Separator(); 
+  
+  searchResults.clear();
+
+  auto addToSearchResults = [&](auto param)
+  {
+    bool isHidden = ((uint32_t)param->flags & (uint32_t)CVarFlags::Hidden);
+    bool isAdvanced = ((uint32_t)param->flags & (uint32_t) CVarFlags::Advanced);
+
+    if (!isHidden)
+    {
+      if(!(!showAdvanced & isAdvanced) && param->name.find(searchText) != std::string::npos)
+      {
+        searchResults.push_back(param);
+      }
+    }
+  };
+
+  for (int i = 0; i < get_cvar_array<int32_t>()->last; i++)
+  {
+    addToSearchResults(get_cvar_array<int32_t>()->cvars[i].parameter);
+  }
+
+  for (int i = 0; i < get_cvar_array<double>()->last; i++)
+  {
+    addToSearchResults(get_cvar_array<double>()->cvars[i].parameter);
+  }
+  
+
+  std::sort(searchResults.begin(), searchResults.end(), [](CVarParameter* A, CVarParameter* B)
+  {
+    return A->name < B->name;
+	});
+
+  for (auto p : searchResults)
+  {
+    ImGui::Text("%s", p->name.c_str());
+    if (ImGui::IsItemHovered())
+	  {
+		  ImGui::SetTooltip("%s", p->description.c_str());
+	  }
+
+
+    switch (p->type)
+    {
+      case CVarType::INT:
+        ImGui::PushID(p->name.c_str());
+				ImGui::InputInt("", get_cvar_array<int32_t>()->get_current_ptr(p->arrayIndex));
+				ImGui::PopID();
+       break;
+      case CVarType::FLOAT:
+        ImGui::PushID(p->name.c_str());
+				ImGui::InputDouble("", get_cvar_array<double>()->get_current_ptr(p->arrayIndex));
+				ImGui::PopID();
+        break;
+      case CVarType::STRING:
+        break;
+      default:
+        AR_CORE_WARN("Attempted to display unregisted CVar type");
+    }
+
+  }
 
   // filter - (able to edit all of them / for non editable info just put it in render settings)
 
