@@ -30,7 +30,7 @@
 
 namespace Aurora {
 
-AutoCVar_Float CVAR_TestCheckbox("test.checkbox", "just a checkbox", 0, CVarFlags::EditCheckbox);
+AutoCVar_Float CVAR_TestCheckbox("test.checkbox", "just a checkbox", 0, CVarFlags::Advanced);
 
 static Engine* s_Instance = nullptr;
 Engine& Engine::get()
