@@ -13,7 +13,6 @@ enum class CVarType : uint8_t
 {
 	INT,
 	FLOAT,
-	STRING,
 };
 
 struct CVarParameter
@@ -97,10 +96,7 @@ public:
   CVarArray<int32_t> intCVars2{ MAX_INT_CVARS }; //FIX: why 2? :sob:
 
   constexpr static int MAX_FLOAT_CVARS = 100;
-  CVarArray<double> floatCVars{ MAX_FLOAT_CVARS };
-
-  constexpr static int MAX_STRING_CVARS = 50;
-  CVarArray<std::string> stringCVars{ MAX_STRING_CVARS };
+  CVarArray<float> floatCVars{ MAX_FLOAT_CVARS };
 
   template<typename T>
   CVarArray<T>* get_cvar_array();
@@ -112,25 +108,19 @@ public:
   }
 
   template<>
-  CVarArray<double>* get_cvar_array()
+  CVarArray<float>* get_cvar_array()
   {
     return &floatCVars;
   }
 
-  template<>
-  CVarArray<std::string>* get_cvar_array()
-  {
-    return &stringCVars;
-  }
-  
 
   CVarParameter* get_cvar(StringUtils::StringHash hash) override final;
 
-  CVarParameter* create_float_cvar(const char* name, const char* description, double initial, double current) override final;
+  CVarParameter* create_float_cvar(const char* name, const char* description, float initial, float current) override final;
   CVarParameter* create_int_cvar(const char* name, const char* description, int initial, int current) override final;
   
-  double* get_float_cvar(StringUtils::StringHash hash) override final;
-  void set_float_cvar(StringUtils::StringHash hash, double value) override final;
+  float* get_float_cvar(StringUtils::StringHash hash) override final;
+  void set_float_cvar(StringUtils::StringHash hash, float value) override final;
 
   int* get_int_cvar(StringUtils::StringHash hash) override final;
   void set_int_cvar(StringUtils::StringHash has, int value) override final;
@@ -181,14 +171,14 @@ CVarParameter* CVarSystemImpl::init_cvar(const char* name, const char* descripti
   return &savedCVars[hash];
 }
 
-CVarParameter* CVarSystemImpl::create_float_cvar(const char* name, const char* description, double initial, double current)
+CVarParameter* CVarSystemImpl::create_float_cvar(const char* name, const char* description, float initial, float current)
 {
   CVarParameter* param = init_cvar(name, description);
   if (!param) return nullptr;
   
   param->type = CVarType::FLOAT;
 
-  get_cvar_array<double>()->add(initial, current, param);
+  get_cvar_array<float>()->add(initial, current, param);
   return param;
 }
 
@@ -214,14 +204,14 @@ CVarParameter* CVarSystemImpl::get_cvar(StringUtils::StringHash hash)
   return nullptr;
 }
 
-double* CVarSystemImpl::get_float_cvar(StringUtils::StringHash hash)
+float* CVarSystemImpl::get_float_cvar(StringUtils::StringHash hash)
 {
-  return get_cvar_current<double>(hash);
+  return get_cvar_current<float>(hash);
 }
 
-void CVarSystemImpl::set_float_cvar(StringUtils::StringHash hash, double value)
+void CVarSystemImpl::set_float_cvar(StringUtils::StringHash hash, float value)
 {
-  set_cvar_current<double>(hash, value);
+  set_cvar_current<float>(hash, value);
 }
 
 int* CVarSystemImpl::get_int_cvar(StringUtils::StringHash hash)
@@ -267,9 +257,9 @@ void CVarSystemImpl::draw_editor()
     addToSearchResults(get_cvar_array<int32_t>()->cvars[i].parameter);
   }
 
-  for (int i = 0; i < get_cvar_array<double>()->last; i++)
+  for (int i = 0; i < get_cvar_array<float>()->last; i++)
   {
-    addToSearchResults(get_cvar_array<double>()->cvars[i].parameter);
+    addToSearchResults(get_cvar_array<float>()->cvars[i].parameter);
   }
   
 
@@ -286,25 +276,35 @@ void CVarSystemImpl::draw_editor()
 		  ImGui::SetTooltip("%s", p->description.c_str());
 	  }
 
-
     switch (p->type)
     {
       case CVarType::INT:
+      {
         ImGui::PushID(p->name.c_str());
-				ImGui::InputInt("", get_cvar_array<int32_t>()->get_current_ptr(p->arrayIndex));
-				ImGui::PopID();
-       break;
+        bool isCheckbox = ((uint32_t) p->flags & (uint32_t) CVarFlags::EditCheckbox);
+        if (isCheckbox)
+        {
+          bool value = get_cvar_array<int32_t>()->get_current(p->arrayIndex) != 0;
+          if (ImGui::Checkbox("", &value))
+          {
+            get_cvar_array<int32_t>()->set_current(value ? 1 : 0, p->arrayIndex);
+          }
+        }
+        else
+        {
+          ImGui::InputInt("", get_cvar_array<int32_t>()->get_current_ptr(p->arrayIndex));
+        }
+        ImGui::PopID();
+        break;
+      }
       case CVarType::FLOAT:
         ImGui::PushID(p->name.c_str());
-				ImGui::InputDouble("", get_cvar_array<double>()->get_current_ptr(p->arrayIndex));
+				ImGui::InputFloat("", get_cvar_array<float>()->get_current_ptr(p->arrayIndex));
 				ImGui::PopID();
-        break;
-      case CVarType::STRING:
         break;
       default:
         AR_CORE_WARN("Attempted to display unregisted CVar type");
     }
-
   }
 
   // filter - (able to edit all of them / for non editable info just put it in render settings)
@@ -330,20 +330,56 @@ void set_cvar_current_by_index(int32_t index, const T& data)
   CVarSystemImpl::get()->get_cvar_array<T>()->set_current(data, index);
 }
 
-AutoCVar_Float::AutoCVar_Float(const char* name, const char* description, double initial, CVarFlags flags)
+AutoCVar_Float::AutoCVar_Float(const char* name, const char* description, float initial, CVarFlags flags)
 {
   CVarParameter* cvar = CVarSystem::get()->create_float_cvar(name, description, initial, initial);
   cvar->flags = flags;
   index = cvar->arrayIndex;
 }
 
-double AutoCVar_Float::get()
+float AutoCVar_Float::get()
 {
   return get_cvar_current_by_index<CVarType>(index);
 }
 
-void AutoCVar_Float::set(double f)
+float* AutoCVar_Float::get_ptr()
+{
+  return CVarSystemImpl::get()->get_cvar_array<float>()->get_current_ptr(index);
+}
+
+void AutoCVar_Float::set(float f)
 {
   set_cvar_current_by_index<CVarType>(f, index);
 }
+
+
+AutoCVar_Int::AutoCVar_Int(const char* name, const char* description, int32_t initial, CVarFlags flags)
+{
+  CVarParameter* cvar = CVarSystem::get()->create_int_cvar(name, description, initial, initial);
+  cvar->flags = flags;
+  index = cvar->arrayIndex;
+}
+
+int32_t AutoCVar_Int::get()
+{
+  return get_cvar_current_by_index<CVarType>(index);
+}
+
+int32_t* AutoCVar_Int::get_ptr()
+{
+  return CVarSystemImpl::get()->get_cvar_array<int32_t>()->get_current_ptr(index);
+}
+
+void AutoCVar_Int::set(int32_t f)
+{
+  set_cvar_current_by_index<CVarType>(f, index);
+}
+
+void AutoCVar_Int::toggle()
+{
+  bool enabled = get() != 0;
+  set(enabled ? 0 : 1);
+}
+
+
 } // aurora namespace

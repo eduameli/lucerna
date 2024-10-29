@@ -49,6 +49,12 @@ enum class CVarFlags : uint32_t
 	EditFloatDrag = 1 << 9,
 };
 
+//inline CVarFlags operator|(CVarFlags lhs, CVarFlags rhs) {
+//    return static_cast<CVarFlags>(static_cast<int>(lhs) | static_cast<int>(rhs));
+//}
+
+
+
 class CVarParameter;
 
 class CVarSystem
@@ -57,13 +63,13 @@ class CVarSystem
     static CVarSystem* get();
     virtual CVarParameter* get_cvar(StringUtils::StringHash hash) = 0;
      
-    virtual double* get_float_cvar(StringUtils::StringHash hash) = 0;
+    virtual float* get_float_cvar(StringUtils::StringHash hash) = 0;
     virtual int32_t* get_int_cvar(StringUtils::StringHash hash) = 0;
 
-    virtual void set_float_cvar(StringUtils::StringHash hash, double value) = 0;
+    virtual void set_float_cvar(StringUtils::StringHash hash, float value) = 0;
     virtual void set_int_cvar(StringUtils::StringHash has, int32_t value) = 0;
 
-    virtual CVarParameter* create_float_cvar(const char* name, const char* description, double initial, double current) = 0;
+    virtual CVarParameter* create_float_cvar(const char* name, const char* description, float initial, float current) = 0;
     virtual CVarParameter* create_int_cvar(const char* name, const char* description, int initial, int current) = 0;  
   
     virtual void draw_editor() = 0;
@@ -82,13 +88,23 @@ protected:
   using CVarType = T;
 };
 
-struct AutoCVar_Float : AutoCVar<double>
+struct AutoCVar_Float : AutoCVar<float>
 {
-  AutoCVar_Float(const char* name, const char* description, double initial, CVarFlags flags = CVarFlags::None);
-  double get();
-  void set(double value);
+  AutoCVar_Float(const char* name, const char* description, float initial, CVarFlags flags = CVarFlags::None);
+  float get();
+  float* get_ptr();
+  void set(float value);
 };
 
+struct AutoCVar_Int : AutoCVar<int32_t>
+{
+	AutoCVar_Int(const char* name, const char* description, int32_t initial, CVarFlags flags = CVarFlags::None);
+	int32_t get();
+	int32_t* get_ptr();
+	void set(int32_t val);
+
+	void toggle();
+};
 
 
 }

@@ -30,7 +30,9 @@
 
 namespace Aurora {
 
-AutoCVar_Float CVAR_TestCheckbox("test.checkbox", "just a checkbox", 0, CVarFlags::Advanced);
+AutoCVar_Int testCheckbox("test.checkbox", "just a checkbox", 0, CVarFlags::EditCheckbox);
+AutoCVar_Float test2("test.float", "just a float", 0, CVarFlags::None);
+AutoCVar_Int test3("test.int", "just an integer", 0, CVarFlags::None);
 
 static Engine* s_Instance = nullptr;
 Engine& Engine::get()
@@ -125,12 +127,6 @@ void Engine::run()
   {
     auto start = std::chrono::system_clock::now();
 
-    if (stopRendering)
-    {
-      std::this_thread::sleep_for(std::chrono::milliseconds(200));
-      continue;
-    }
-  
     if (valid_swapchain)
     {
       glfwPollEvents();
@@ -138,6 +134,12 @@ void Engine::run()
     else
     {
       glfwWaitEvents();
+      continue;
+    }
+
+    if (stopRendering)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
       continue;
     }
       
