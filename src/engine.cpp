@@ -715,7 +715,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 //FIXME: a simple flat plane 50x50 breaks it :sob: maybe it needs volume to work or smth??
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
-  //return true; // FIXME: not working
+  return true; // FIXME: not working
 
   std::array<glm::vec3, 8> corners {
       glm::vec3 { 1, 1, 1 },
