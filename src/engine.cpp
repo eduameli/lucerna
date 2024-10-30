@@ -118,7 +118,7 @@ void Engine::shutdown()
 
 bool Engine::should_quit()
 {
-  return !glfwWindowShouldClose(Window::get()) || glfwGetKey(Window::get(), GLFW_KEY_ESCAPE);
+  return !glfwWindowShouldClose(Window::get());
 }
 
 void Engine::run()
@@ -142,7 +142,7 @@ void Engine::run()
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
       continue;
     }
-      
+    
     update_scene();
     draw();
     
@@ -237,20 +237,10 @@ void Engine::draw()
       AR_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "Error getting next swapchain image!");
     }
   }
-
   if (!valid_swapchain)
   {
     return;
   }
-  
-  /*
-  VkResult e = vkAcquireNextImageKHR(m_Device.logical, m_Swapchain.handle, 1000000000, get_current_frame().swapchainSemaphore, nullptr, &swapchainImageIndex);
-  if (e == VK_ERROR_OUT_OF_DATE_KHR)
-  {
-    resizeRequested = true;
-    return;
-  }
-  */
 
   m_DrawExtent.height = glm::min(m_Swapchain.extent2d.height, m_DrawImage.imageExtent.height) * m_RenderScale;
   m_DrawExtent.width = glm::min(m_Swapchain.extent2d.width, m_DrawImage.imageExtent.width) * m_RenderScale;
@@ -344,15 +334,9 @@ void Engine::draw()
   }
   else if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR)
   {
-    AR_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "error presenting swapchin");
+    AR_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "Error presenting swapchain image!");
   }
 
-  /*
-  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
-  {
-    resizeRequested = true;
-  }
-  */
   frameNumber++;
 }
 
@@ -550,10 +534,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd, std::span<uint32_t> opaque_
     draw(mainDrawContext.OpaqueSurfaces[r]);
   }
 
-
   vkCmdEndRendering(cmd);
-  
-
 }
 
 void Engine::draw_geometry(VkCommandBuffer cmd, std::span<uint32_t> opaque_draws)
@@ -730,7 +711,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 //FIXME: a simple flat plane 50x50 breaks it :sob: maybe it needs volume to work or smth??
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
-  return true; // FIXME: not working
+  //return true; // FIXME: not working
 
   std::array<glm::vec3, 8> corners {
       glm::vec3 { 1, 1, 1 },
