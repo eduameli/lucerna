@@ -2,10 +2,13 @@
 #include <volk.h>
 #include "vk_mem_alloc.h"
 #include "aurora_pch.h"
+#include "input_structures.glsl"
 
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+
+
 
 namespace Aurora
 {
@@ -46,7 +49,8 @@ namespace Aurora
     glm::mat4 modelMatrix;
     VkDeviceAddress vertexBuffer;
   };
- 
+  
+/*
   struct GPUSceneData
   {
     glm::mat4 view;
@@ -56,6 +60,7 @@ namespace Aurora
     glm::vec4 sunlightDirection;
     glm::vec4 sunlightColour;
   };
+*/
 
   // FIXME: only needed in engine?? or maybe only types that are referenced multiple times, created many times
   // for now keep here as improved deletion queue could go here! one array per type of deletion to store less data / overhead

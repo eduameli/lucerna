@@ -39,7 +39,8 @@ project "aurora"
         "vendor/glm/",
         "vendor/stb_image/",
         "vendor/fastgltf/include",
-        "vendor/volk/"
+        "vendor/volk/",
+        "shaders/include",
     }
   
     libdirs {"build/lib/bin/%{cfg.buildcfg}"}

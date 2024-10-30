@@ -201,8 +201,8 @@ void Engine::update_scene()
     sceneData.proj = lightProj;
   }
   
-	sceneData.ambientColour = glm::vec4(0.1f);
-	sceneData.sunlightColour = glm::vec4(1.0f);
+	sceneData.ambientColor = glm::vec4(0.1f);
+	sceneData.sunlightColor = glm::vec4(1.0f);
 	//sceneData.sunlightDirection = glm::vec4(0.0f, 1.0f, 0.0f, 0.01f);
   
 
@@ -360,17 +360,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 {
   if (shadowEnabled.get() == false) return;
 
-  std::vector<uint32_t> shadow_draws;
-  shadow_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
-  
-  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
-  {
-    // FIXME: accessed shadowUBO before setting it in frame 0?
-    if (is_visible(mainDrawContext.OpaqueSurfaces[i], shadowUBO.lightView))
-    {
-      shadow_draws.push_back(i);
-    }
-  }
+
   
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_ShadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info({m_ShadowExtent.width, m_ShadowExtent.height}, nullptr, &depthAttachment);
@@ -405,8 +395,20 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   sceneData.sunlightDirection = glm::normalize(glm::vec4{x_value, pcss_settings.distance, z_value, 1.0f}); // .w for sun power
   shadowPass.lightView = lightProj * lView; 
-  pcss_settings.lightViewProj = lightProj * lView; 
+  pcss_settings.lightViewProj = lightProj * lView;
+
+  std::vector<uint32_t> shadow_draws;
+  shadow_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
   
+  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
+  {
+    // FIXME: does nothing rn but need to do culling from camera view!
+    if (is_visible(mainDrawContext.OpaqueSurfaces[i], lightProj*lView))
+    {
+      shadow_draws.push_back(i);
+    }
+  }
+
   // NOTE: CMS Settings?? different mat proj or a scale to basic 1 or smth
   
   struct ShadowPassUBO
@@ -572,14 +574,11 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   *sceneUniformData = sceneData;
 
   ShadowShadingSettings* settings = (ShadowShadingSettings*) shadowSettings.allocation->GetMappedData();
-  *settings = {
-    .lightView = pcss_settings.lightViewProj, 
-    .near = 0.1,
-    .far = 20.0,
-    .light_size = 0.1,
-    .pcss_enabled = true
-  };
-
+  settings->lightViewProj = pcss_settings.lightViewProj;
+  settings->near = 0.1;
+  settings->far = 20.0;
+  settings->light_size = 0.1;
+  settings->pcss_enabled = true;
 
   VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
   DescriptorWriter writer;
