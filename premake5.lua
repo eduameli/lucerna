@@ -57,6 +57,7 @@ project "aurora"
 
     postbuildcommands {
       "premake export-compile-commands",
+      "./compile_shaders.sh"
     }
   
     buildoptions {"-Wno-nullability-completeness"}
