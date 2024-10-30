@@ -1334,7 +1334,7 @@ void Engine::init_background_pipelines()
 
   VkShaderModule gradientShader;
   AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/push_gradient.spv", m_Device.logical, &gradientShader),
+    vkutil::load_shader_module("shaders/push_gradient.comp.spv", m_Device.logical, &gradientShader),
     "Error loading Gradient Compute Effect Shader"
   );  
 
