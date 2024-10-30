@@ -271,7 +271,7 @@ void CVarSystemImpl::draw_editor()
   for (auto p : searchResults)
   {
     ImGui::Text("%s", p->name.c_str());
-    if (ImGui::IsItemHovered())
+    if (ImGui::IsItemHovered() && p->description.size() != 0)
 	  {
 		  ImGui::SetTooltip("%s", p->description.c_str());
 	  }
