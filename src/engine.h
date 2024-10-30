@@ -144,8 +144,8 @@ namespace Aurora {
       inline bool should_quit();
       void draw();
       void draw_background(VkCommandBuffer cmd);
-      void draw_depth_prepass(VkCommandBuffer cmd, std::span<uint32_t> opaque_draws);
-      void draw_geometry(VkCommandBuffer cmd, std::span<uint32_t> opaque_draws);
+      void draw_depth_prepass(VkCommandBuffer cmd);
+      void draw_geometry(VkCommandBuffer cmd);
       void draw_shadow_pass(VkCommandBuffer cmd);
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
     public:

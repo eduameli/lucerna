@@ -30,9 +30,10 @@
 
 namespace Aurora {
 
-AutoCVar_Int testCheckbox("test.checkbox", "just a checkbox", 0, CVarFlags::EditCheckbox);
-AutoCVar_Float test2("test.float", "just a float", 0, CVarFlags::None);
-AutoCVar_Int test3("test.int", "just an integer", 0, CVarFlags::None);
+AutoCVar_Int shadowEnabled("shadow_mapping.enabled", "is shadow mapping enabled", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int shadowViewFromLight("shadow_mapping.view_from_light", "view scene from view of directional light shadow caster", 0, CVarFlags::EditCheckbox);
+AutoCVar_Int shadowRotateLight("shadow_mapping.rotate_light", "rotate light around origin showcasing real time shadows", 0, CVarFlags::EditCheckbox);
+AutoCVar_Float shadowSoftness("shadow_mapping.softness", "radius of pcf sampling", 0.1, CVarFlags::None);
 
 static Engine* s_Instance = nullptr;
 Engine& Engine::get()
@@ -126,7 +127,7 @@ void Engine::run()
   while (should_quit())
   {
     auto start = std::chrono::system_clock::now();
-
+    
     if (valid_swapchain)
     {
       glfwPollEvents();
@@ -193,7 +194,7 @@ void Engine::update_scene()
   sceneData.proj = projection;
   sceneData.viewproj = projection * view;
 
-  if (lightView)
+  if (shadowViewFromLight.get() == true)
   {
     sceneData.viewproj = lightProj * lView;
     sceneData.view = lView;
@@ -287,14 +288,14 @@ void Engine::draw()
 
   // draw depth prepass first to be able to overlap shadow mapping & screen space (depth based) compute effects
   vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-  draw_depth_prepass(cmd, mainDrawContext.opaque_draws);
+  draw_depth_prepass(cmd);
 
   vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   draw_shadow_pass(cmd);
   vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  draw_geometry(cmd, mainDrawContext.opaque_draws);
+  draw_geometry(cmd);
   
   // NOTE: Post Effects
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
@@ -354,17 +355,20 @@ void Engine::draw_background(VkCommandBuffer cmd)
 }
 
 // FIXME: vertex buffer should be separated for better cache when doing shadow pass
+
 void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 {
-  std::vector<uint32_t> opaque_draws;
-  opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
+  if (shadowEnabled.get() == false) return;
+
+  std::vector<uint32_t> shadow_draws;
+  shadow_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
   
   for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
   {
     // FIXME: accessed shadowUBO before setting it in frame 0?
     if (is_visible(mainDrawContext.OpaqueSurfaces[i], shadowUBO.lightView))
     {
-      opaque_draws.push_back(i);
+      shadow_draws.push_back(i);
     }
   }
   
@@ -388,7 +392,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   float x_value = sin(pcss_settings.shadowNumber/200.0) * pcss_settings.distance;
   float z_value = cos(pcss_settings.shadowNumber/200.0) * pcss_settings.distance;
   
-  if (pcss_settings.rotate == true)
+  if (shadowRotateLight.get() == true)
   {
     pcss_settings.shadowNumber++;
   }
@@ -458,7 +462,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   };
   
 
-  for (auto& r : opaque_draws)
+  for (auto& r : shadow_draws)
   {
     draw(mainDrawContext.OpaqueSurfaces[r]);
   }
@@ -466,7 +470,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   vkCmdEndRendering(cmd);
 }
 
-void Engine::draw_depth_prepass(VkCommandBuffer cmd, std::span<uint32_t> opaque_draws)
+void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 {
   VkRenderingAttachmentInfo depthPrepass = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthPrepass);
@@ -529,7 +533,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd, std::span<uint32_t> opaque_
   };
   
 
-  for (auto& r : opaque_draws)
+  for (auto& r : mainDrawContext.opaque_draws)
   {
     draw(mainDrawContext.OpaqueSurfaces[r]);
   }
@@ -537,7 +541,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd, std::span<uint32_t> opaque_
   vkCmdEndRendering(cmd);
 }
 
-void Engine::draw_geometry(VkCommandBuffer cmd, std::span<uint32_t> opaque_draws)
+void Engine::draw_geometry(VkCommandBuffer cmd)
 {
   auto start = std::chrono::system_clock::now();
   stats.drawcall_count = 0;
@@ -640,7 +644,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd, std::span<uint32_t> opaque_draws
     stats.triangle_count += draw.indexCount / 3;
   };
 
-  for (auto& r : opaque_draws)
+  for (auto& r : mainDrawContext.opaque_draws)
   {
     draw(mainDrawContext.OpaqueSurfaces[r]);
   }
