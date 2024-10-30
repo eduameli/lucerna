@@ -18,7 +18,6 @@ namespace Aurora
     VkFormat imageFormat;
   };
   
-  // NOTE: could contain create_buffer and destroy_buffer inside the struct and be mini & self contained
   struct AllocatedBuffer
   {
     VkBuffer buffer{};
@@ -42,15 +41,12 @@ namespace Aurora
     VkDeviceAddress vertexBufferAddress{};
   };
  
-//FIXME move LIGHT_SIZE, NEAR to shadow mapping ubo
-// move emission to material ubo
   struct GPUDrawPushConstants
   {
     glm::mat4 modelMatrix;
     VkDeviceAddress vertexBuffer;
   };
  
-// remove lightViewProj from here i only need it during shadow pass!
   struct GPUSceneData
   {
     glm::mat4 view;
@@ -133,32 +129,31 @@ namespace Aurora
     }
   };
 
+  struct GLTFMaterial
+  {
+    MaterialInstance data;
+  };
 
-struct GLTFMaterial
-{
-  MaterialInstance data;
-};
+  struct Bounds
+  {
+    glm::vec3 origin;
+    float sphereRadius;
+    glm::vec3 extents;
+  };
 
-struct Bounds
-{
-  glm::vec3 origin;
-  float sphereRadius;
-  glm::vec3 extents;
-};
+  struct GeoSurface
+  {
+    uint32_t startIndex;
+    uint32_t count;
+    Bounds bounds;
+    std::shared_ptr<GLTFMaterial> material;
+  };
 
-struct GeoSurface
-{
-  uint32_t startIndex;
-  uint32_t count;
-  Bounds bounds;
-  std::shared_ptr<GLTFMaterial> material;
-};
-
-struct MeshAsset
-{
-  std::string name;
-  std::vector<GeoSurface> surfaces;
-  GPUMeshBuffers meshBuffers;
-};
+  struct MeshAsset
+  {
+    std::string name;
+    std::vector<GeoSurface> surfaces;
+    GPUMeshBuffers meshBuffers;
+  };
 } // namespace aurora
 
