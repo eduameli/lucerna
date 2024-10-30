@@ -2,8 +2,6 @@
 
 SHADER_DIR="shaders"
 INCLUDE_DIR="shaders/include"
-
-# Function to compile shaders
 compile_shader() {
     local SHADER="$1"
     local OUTPUT_FILE="${SHADER}.spv"
@@ -19,14 +17,7 @@ compile_shader() {
 
 find "$SHADER_DIR" -name "*.comp" -o -name "*.frag" -o -name "*.vert" | while read -r SHADER; do
     OUTPUT_FILE="${SHADER}.spv"
-
-    if [[ -e "$OUTPUT_FILE" ]]; then
-        if [[ "$SHADER" -nt "$OUTPUT_FILE" ]]; then
-            compile_shader "$SHADER"
-        fi
-    else
-        compile_shader "$SHADER"
-    fi
+    compile_shader "$SHADER"
 done
 
 echo "Shader compilation completed!"

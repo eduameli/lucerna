@@ -218,6 +218,7 @@ namespace Aurora {
       } pcss_settings;
       
       // this instead of pcs / sceneData
+  /*
       struct ShadowShadingSettings
       {
         glm::mat4 lightView;
@@ -226,6 +227,7 @@ namespace Aurora {
         float light_size{0.0};
         bool pcss_enabled{true};
       } shadowUBO;
+    */
 
       struct ShadowPassSettings
       {
