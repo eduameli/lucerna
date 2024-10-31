@@ -49,7 +49,7 @@ float shadow_pcf(vec3 projCoords, float radius)
 {
   float shadow = 0.0f;
   float currentDepth = projCoords.z;
-  
+   
   if (currentDepth < 0.0)
     return 0.0;
 
@@ -60,7 +60,7 @@ float shadow_pcf(vec3 projCoords, float radius)
     dir = rotate(dir, randAngle);
 
     float pcfDepth = texture(shadowDepth, projCoords.xy + (dir*radius)).r;
-    shadow += pcfDepth > currentDepth /*+ bias*/? 1.0 : 0.0;
+    shadow += pcfDepth > currentDepth /*+ bias*/ ? 1.0 : 0.0;
   }
   
   // NOTE: early bailing

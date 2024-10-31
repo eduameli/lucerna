@@ -181,9 +181,6 @@ void Engine::update_scene()
 {
   auto start = std::chrono::system_clock::now();
 
-  //mainDrawContext.OpaqueSurfaces.clear();
-  //mainDrawContext.TransparentSurfaces.clear();
-
   mainCamera.update();
   glm::mat4 view = mainCamera.get_view_matrix();
   glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_DrawExtent.width / (float) m_DrawExtent.height, 10000.0f, 0.1f);
@@ -683,8 +680,11 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     }
     if (ImGui::CollapsingHeader("Shadows"))
     {
-      ImGui::Checkbox("Light Projection", &lightView);
-      ImGui::Checkbox("Spin Directional Light", &pcss_settings.rotate);
+      ImGui::Checkbox("Enabled", (bool*) shadowEnabled.get_ptr());
+      ImGui::Checkbox("Rotate Light", (bool*) shadowRotateLight.get_ptr());
+      ImGui::Checkbox("View from Light", (bool*) shadowViewFromLight.get_ptr());
+      ImGui::SliderFloat("Shadow Softness", shadowSoftness.get_ptr(), 0.0, 0.1, "%.4f");
+     
       ImGui::InputFloat("Frustum Size: ", &pcss_settings.ortho_size);
       ImGui::InputFloat("Far Plane: ", &pcss_settings.far);
       ImGui::InputFloat("Near Plane: ", &pcss_settings.near);
