@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_scalar_block_layout : require
 
 #include "input_structures.glsl"
 
@@ -16,12 +17,13 @@ struct Vertex {
 	vec3 normal;
 	float uv_y;
 	vec4 color;
-}; 
-layout(buffer_reference, std430) readonly buffer VertexBuffer{ 
+};
+
+layout(buffer_reference, scalar) readonly buffer VertexBuffer{ 
 	Vertex vertices[];
 };
 
-layout( push_constant ) uniform constants
+layout( push_constant, scalar ) uniform constants
 {
 	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;

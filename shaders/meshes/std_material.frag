@@ -1,7 +1,6 @@
 #version 450
 
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_debug_printf : enable
 
 #include "input_structures.glsl"
 
@@ -11,7 +10,6 @@ layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec4 inlightSpace;
 layout (location = 0) out vec4 outFragColor;
 
-#define GOLDEN_RATIO 1.61803
 #define PI 3.14159
 
 float IGN(vec2 fragCoord) {
@@ -26,13 +24,6 @@ vec2 rotate(vec2 v, float angle) {
         sinAngle * v.x + cosAngle * v.y
     );
 }
-
-vec3 offset_lookup(sampler2D map, vec4 loc, vec2 offset)
-{
-  return textureProj(map,
-                   vec4(loc.xy + offset * vec2(1/1024, 1/1024) * loc.w, loc.z, loc.w)).rgb;
-}
-
 
 const vec2 pDisk[16] = vec2[](
 vec2(0.91222, 0.38802), /* start */
@@ -59,8 +50,6 @@ float shadow_pcf(vec3 projCoords, float radius)
   float shadow = 0.0f;
   float currentDepth = projCoords.z;
   
-  //return texture(shadowDepth, projCoords.xy).r > currentDepth ? 1.0 : 0.0;
-
   if (currentDepth < 0.0)
     return 0.0;
 
