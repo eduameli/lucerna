@@ -14,6 +14,7 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
 
   AR_CORE_WARN("Required Features: ");
   AR_CORE_WARN("\tbufferDeviceAddress");
+  AR_CORE_WARN("\tscalarBlockLayout");
   AR_CORE_WARN("\tdynamicRendering");
   AR_CORE_WARN("\tsynchronization2");
 
@@ -26,6 +27,7 @@ bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
 
   return 
     query.f12.bufferDeviceAddress &&
+    query.f12.scalarBlockLayout &&
     query.f13.dynamicRendering &&
     query.f13.synchronization2;
 }
