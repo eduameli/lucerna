@@ -33,7 +33,7 @@ namespace Aurora {
 AutoCVar_Int shadowEnabled("shadow_mapping.enabled", "is shadow mapping enabled", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int shadowViewFromLight("shadow_mapping.view_from_light", "view scene from view of directional light shadow caster", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int shadowRotateLight("shadow_mapping.rotate_light", "rotate light around origin showcasing real time shadows", 0, CVarFlags::EditCheckbox);
-AutoCVar_Float shadowSoftness("shadow_mapping.softness", "radius of pcf sampling", 0.1, CVarFlags::None);
+AutoCVar_Float shadowSoftness("shadow_mapping.softness", "radius of pcf sampling", 0.0025, CVarFlags::None);
 
 static Engine* s_Instance = nullptr;
 Engine& Engine::get()
@@ -578,7 +578,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   settings->near = 0.1;
   settings->far = 20.0;
   settings->light_size = 0.1;
-  settings->pcss_enabled = true;
+  settings->enabled = shadowEnabled.get();
+  settings->softness = shadowSoftness.get();
 
   VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(m_Device.logical, m_SceneDescriptorLayout);
   DescriptorWriter writer;
@@ -636,7 +637,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
-
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
 
     stats.drawcall_count++;

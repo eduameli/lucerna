@@ -18,13 +18,14 @@ struct ShadowShadingSettings
 {
 #ifdef __cplusplus
   ShadowShadingSettings():
-    lightViewProj{1.0f}, near{0.1f}, far{10.0f}, light_size{0.0f}, pcss_enabled{false} {} 
+    lightViewProj{1.0f}, near{0.1f}, far{10.0f}, light_size{0.0f}, softness{0.0025}, enabled{false} {} 
 #endif
   mat4_ar lightViewProj;
   float_ar near;
   float_ar far;
   float_ar light_size;
-  bool_ar pcss_enabled;  
+  float_ar softness;
+  uint32_ar enabled;  
 };
 
 #ifndef __cplusplus
