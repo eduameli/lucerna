@@ -55,7 +55,7 @@ project "aurora"
     }
     
     filter {}
-
+  
     postbuildcommands {
       "premake export-compile-commands",
       "./compile_shaders.sh"

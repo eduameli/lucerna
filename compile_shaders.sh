@@ -18,5 +18,3 @@ find "$SHADER_DIR" -name "*.comp" -o -name "*.frag" -o -name "*.vert" | while re
     OUTPUT_FILE="${SHADER}.spv"
     compile_shader "$SHADER"
 done
-
-# glslangValidator -C --target-env vulkan1.3 --P "#extension GL_GOOGLE_include_directive: enable" --P "#extension GL_EXT_scalar_block_layout:enable" --glsl-version 460 depth_pass.frag -o depth_pass.frag.spv
