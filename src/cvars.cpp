@@ -299,7 +299,7 @@ void CVarSystemImpl::draw_editor()
       }
       case CVarType::FLOAT:
         ImGui::PushID(p->name.c_str());
-				ImGui::InputFloat("", get_cvar_array<float>()->get_current_ptr(p->arrayIndex));
+				ImGui::InputFloat("", get_cvar_array<float>()->get_current_ptr(p->arrayIndex), 0.0f, 0.0f, "%.5f");
 				ImGui::PopID();
         break;
       default:

@@ -100,11 +100,15 @@ void main()
 	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
 	vec3 color = inColor * texture(colorTex,inUV).xyz;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
+
+  if (shadowSettings.enabled == 1)
+  {
+    vec3 projCoords = inlightSpace.xyz / inlightSpace.w;
+    projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
+    float shadow_value = 1.0 - shadow_pcf(projCoords, shadowSettings.softness); // shadow softness parameter!
+    lightValue *= shadow_value;
+  }
+    
   
-  vec3 projCoords = inlightSpace.xyz / inlightSpace.w;
-  projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
-  float shadow_value = 1.0 - shadow_pcf(projCoords, 0.0025); // shadow softness parameter!
-  
-  lightValue *= shadow_value;
 	outFragColor = vec4(color * lightValue *  1.0  + ambient,1.0f);
 }
