@@ -1,14 +1,8 @@
 #version 450
 #extension GL_EXT_buffer_reference : require
 
+#include "input_structures.glsl"
 // FIXME: should only have position! (deinterleaved)
-struct Vertex {
-	vec3 padding;
-	float uv_x;
-	vec3 normal;
-  float uv_y;
-  vec4 color;
-};
 
 layout(buffer_reference, buffer_reference_align = 8) readonly buffer PositionBuffer {
   vec4 positions[];

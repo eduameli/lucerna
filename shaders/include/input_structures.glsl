@@ -1,10 +1,23 @@
 #include "common.h"
 
+struct Vertex
+{
+#ifdef __cplusplus
+  Vertex()
+    : padding{0.0f}, uv_x{0.0}, normal{0.0, 1.0, 0.0}, uv_y{0.0}, color{1.0, 0.0, 1.0, 1.0} {}
+#endif
+  vec3_ar padding;
+  float_ar uv_x;
+  vec3_ar normal;
+  float_ar uv_y;
+  vec4_ar color;
+};
+
 struct GPUSceneData
 {
 #ifdef __cplusplus
-  GPUSceneData():
-    view{1.0f}, proj{1.0f}, viewproj{1.0f}, ambientColor{1.0f}, sunlightDirection{1.0f}, sunlightColor{1.0f} {}
+  GPUSceneData()
+    : view{1.0f}, proj{1.0f}, viewproj{1.0f}, ambientColor{1.0f}, sunlightDirection{1.0f}, sunlightColor{1.0f} {}
 #endif
   mat4_ar view;
   mat4_ar proj;
@@ -17,8 +30,8 @@ struct GPUSceneData
 struct ShadowShadingSettings
 {
 #ifdef __cplusplus
-  ShadowShadingSettings():
-    lightViewProj{1.0f}, near{0.1f}, far{10.0f}, light_size{0.0f}, softness{0.0025}, enabled{false} {} 
+  ShadowShadingSettings()
+    : lightViewProj{1.0f}, near{0.1f}, far{10.0f}, light_size{0.0f}, softness{0.0025}, enabled{false} {} 
 #endif
   mat4_ar lightViewProj;
   float_ar near;

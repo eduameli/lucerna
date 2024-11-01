@@ -12,14 +12,6 @@ layout (location = 2) out vec2 outUV;
 layout (location = 3) out vec4 outlightSpace;
 layout (location = 4) out float emission;
 
-struct Vertex {
-	vec3 padding;
-	float uv_x;
-	vec3 normal;
-  float uv_y;
-  vec4 color;
-};
-
 // NOTE: afaik padding is needed until i add bitangents or sm cause ssbo alignments? to 16 or 8 - scalar works only for uniforms?
 layout(buffer_reference, scalar) readonly buffer VertexBuffer{ 
 	Vertex vertices[];

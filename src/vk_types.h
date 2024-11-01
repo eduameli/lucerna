@@ -2,7 +2,9 @@
 #include <volk.h>
 #include "vk_mem_alloc.h"
 #include "aurora_pch.h"
+
 #include "input_structures.glsl"
+#include "common.h"
 
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -26,15 +28,6 @@ namespace Aurora
     VkBuffer buffer{};
     VmaAllocation allocation{};
     VmaAllocationInfo info{};
-  };
-
-  struct Vertex
-  {
-    glm::vec3 padding{0.0};
-    float uv_x;
-    glm::vec3 normal;
-    float uv_y;
-    glm::vec4 color;
   };
 
   struct GPUMeshBuffers
