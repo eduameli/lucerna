@@ -60,10 +60,9 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/simple_shadow.glb";
+  std::string structurePath = "assets/structure.glb";
   //std::string structurePath = "assets/testing_prepass.glb";
   auto structureFile = load_gltf(this, structurePath);
-
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
@@ -800,11 +799,11 @@ void Engine::destroy_buffer(const AllocatedBuffer& buffer)
   vmaDestroyBuffer(m_Allocator, buffer.buffer, buffer.allocation);
 }
 
-GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec4> positions, std::span<Vertex> vertices, std::span<uint32_t> indices)
+GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec3> positions, std::span<Vertex> vertices, std::span<uint32_t> indices)
 {
   // vertices interleaved(normal uv colour) | positions (only pos)
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
-  const size_t positionBufferSize = positions.size() * sizeof(glm::vec4);
+  const size_t positionBufferSize = positions.size() * sizeof(glm::vec3);
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
 
   GPUMeshBuffers newSurface;

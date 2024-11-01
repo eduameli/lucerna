@@ -5,7 +5,7 @@
 // FIXME: should only have position! (deinterleaved)
 
 layout(buffer_reference, scalar) readonly buffer PositionBuffer {
-  vec4 positions[];
+  vec3 positions[];
 };
 
 layout(buffer_reference, scalar) readonly buffer VertexBuffer{ 
@@ -27,7 +27,7 @@ layout(set = 0, binding = 0) uniform shadowData {
 
 void main() 
 {
-	vec4 position = pcs.positionBuffer.positions[gl_VertexIndex];
+	vec4 position = vec4(pcs.positionBuffer.positions[gl_VertexIndex], 1.0);
 	gl_Position = data.viewproj * pcs.modelMatrix * position;
 }
 
