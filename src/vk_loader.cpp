@@ -188,7 +188,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         fastgltf::Accessor& posAccessor = asset.accessors[p.findAttribute("POSITION")->accessorIndex];
         vertices.resize(vertices.size() + posAccessor.count);
-        positions.resize(vertices.size() + posAccessor.count);
+        positions.resize(positions.size() + posAccessor.count);
         
         auto lambda = [&](glm::vec3 v, size_t index) {
           Vertex newvtx;
