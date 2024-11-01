@@ -1,4 +1,5 @@
 #include "post_effects.h"
+
 #include "engine.h"
 #include "vk_initialisers.h"
 #include "ar_asserts.h"
@@ -7,6 +8,9 @@
 
 namespace Aurora
 {
+
+AutoCVar_Int bloomEnabled{"bloom.enabled", "", 1, CVarFlags::EditCheckbox};
+
 void BloomEffect::prepare()
 {
   Engine& engine = Engine::get();
@@ -118,6 +122,9 @@ void BloomEffect::prepare()
 
 void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
 {
+
+  if (bloomEnabled.get() == false) return;
+
   // run compute downsample
   // run compute upsample
   // mix with target img
