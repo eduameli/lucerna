@@ -12,7 +12,6 @@ layout (location = 2) out vec2 outUV;
 layout (location = 3) out vec4 outlightSpace;
 
 struct Vertex {
-<<<<<<< HEAD
 	vec3 padding;
 	float uv_x;
 	vec3 normal;
@@ -33,7 +32,6 @@ layout( push_constant, scalar ) uniform constants
 	mat4 modelMatrix;
 	VertexBufferSTD vertexBuffer;
   PositionBuffer positionBuffer;
-=======
 	vec3 position;
 	float uv_x;
 	vec3 normal;
