@@ -60,7 +60,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/structure.glb";
+  std::string structurePath = "assets/bloom_demo.glb";
   //std::string structurePath = "assets/testing_prepass.glb";
   auto structureFile = load_gltf(this, structurePath);
 
@@ -110,8 +110,6 @@ void Engine::shutdown()
 
   m_DeletionQueue.flush();
   
-  BloomEffect::cleanup(this);
-
   vmaDestroyAllocator(m_Allocator);
   vkDestroyDevice(m_Device.logical, nullptr);
   vkDestroyInstance(m_Instance, nullptr);
@@ -296,9 +294,9 @@ void Engine::draw()
   
   // NOTE: Post Effects
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-  //BloomEffect::run(cmd, m_DrawImage.imageView);
-  
+  BloomEffect::run(cmd, m_DrawImage.imageView);
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
   
@@ -356,7 +354,6 @@ void Engine::draw_background(VkCommandBuffer cmd)
 void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 {
   if (shadowEnabled.get() == false) return;
-
 
   
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_ShadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -632,7 +629,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
-    pcs.positionBuffer = draw.positionBufferAddress; 
+    pcs.positionBuffer = draw.positionBufferAddress;
+    pcs.emission = 50.0;
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -870,18 +868,10 @@ GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec4> positions, std::span<Ver
     vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
   });
   destroy_buffer(staging);
-  
-  VkDebugUtilsObjectNameInfoEXT vertexLabel{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
-  vertexLabel.objectType = VK_OBJECT_TYPE_BUFFER;
-  vertexLabel.objectHandle = reinterpret_cast<uint64_t> (newSurface.vertexBuffer.buffer);
-  vertexLabel.pObjectName = "VERTEX ATTRIBUTES";
-  vkSetDebugUtilsObjectNameEXT(m_Device.logical, &vertexLabel);
- 
-  VkDebugUtilsObjectNameInfoEXT posLabel{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
-  posLabel.objectType = VK_OBJECT_TYPE_BUFFER;
-  posLabel.objectHandle = reinterpret_cast<uint64_t> (newSurface.positionBuffer.buffer);
-  posLabel.pObjectName = "POSITION BUFFER";
-  vkSetDebugUtilsObjectNameEXT(m_Device.logical, &posLabel);
+
+
+  vklog::label_buffer(m_Device.logical, newSurface.vertexBuffer.buffer, "VERTEX ATTRIBUTES");
+  vklog::label_buffer(m_Device.logical, newSurface.positionBuffer.buffer, "POSITION BUFFER");
 
   return newSurface;
 }
@@ -957,7 +947,7 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
   return newImage;
 }
 
-void Engine::destroy_image(const AllocatedImage& img)
+void Engine::destroy_image(const AllocatedImage& img) const
 {
   vkDestroyImageView(m_Device.logical, img.imageView, nullptr);
   vmaDestroyImage(m_Allocator, img.image, img.allocation);
@@ -1206,9 +1196,9 @@ void Engine::init_swapchain()
   m_DepthImage = create_image(internalExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
   m_ShadowDepthImage = create_image(m_ShadowExtent, VK_FORMAT_D32_SFLOAT, depthImageUsages, false);
   
-  vkutil::set_debug_object_name(m_Device.logical, m_DrawImage.image, "Draw Image");
-  vkutil::set_debug_object_name(m_Device.logical, m_DepthImage.image, "Depth Image");
-  vkutil::set_debug_object_name(m_Device.logical, m_ShadowDepthImage.image, "Shadow Mapping Image");
+  vklog::label_image(m_Device.logical, m_DrawImage.image, "Draw Image");
+  vklog::label_image(m_Device.logical, m_DepthImage.image, "Depth Image");
+  vklog::label_image(m_Device.logical, m_ShadowDepthImage.image, "Shadow Mapping Image");
 
   m_DeletionQueue.push_function([=, this]() {
     destroy_image(m_DrawImage);

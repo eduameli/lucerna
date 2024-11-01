@@ -51,6 +51,7 @@ namespace Aurora
     glm::mat4 modelMatrix;
     VkDeviceAddress vertexBuffer;
     VkDeviceAddress positionBuffer;
+    float emission;
   };
   
 /*

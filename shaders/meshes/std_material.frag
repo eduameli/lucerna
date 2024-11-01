@@ -9,7 +9,7 @@ layout (location = 1) in vec3 inColor;
 layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec4 inlightSpace;
 layout (location = 0) out vec4 outFragColor;
-
+layout (location = 4) in float emission;
 #define PI 3.14159
 
 float IGN(vec2 fragCoord) {
@@ -83,21 +83,27 @@ float shadow_pcf(vec3 projCoords, float radius)
   return shadow /= 16;
 }
 
-
 void main() 
 {
 	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
 	vec3 color = inColor * texture(colorTex,inUV).xyz;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
 
-  if (shadowSettings.enabled == 1)
+  if (shadowSettings.enabled == 1 && emission < 0.01)
   {
     vec3 projCoords = inlightSpace.xyz / inlightSpace.w;
     projCoords = projCoords * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
     float shadow_value = 1.0 - shadow_pcf(projCoords, shadowSettings.softness); // shadow softness parameter!
     lightValue *= shadow_value;
   }
-    
+  
+
+  if (emission > 0.01)
+  {
+    outFragColor = vec4(color + ambient + vec3(1, 0, 0)*emission, 1.0);
+    return;
+  }
   
 	outFragColor = vec4(color * lightValue *  1.0  + ambient,1.0f);
+
 }

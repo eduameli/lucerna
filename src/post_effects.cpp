@@ -29,7 +29,7 @@ void BloomEffect::prepare()
     };
     AllocatedImage img = engine.create_image(mipSize, format, usages);
     std::string identifier = "Bloom Mipmap Level" + std::to_string(i); 
-    vkutil::set_debug_object_name(engine.m_Device.logical, img.image, identifier.c_str());
+    vklog::label_image(engine.m_Device.logical, img.image, identifier.c_str());
     blurredMips.push_back(img);
   }
     
@@ -98,6 +98,22 @@ void BloomEffect::prepare()
   
   vkDestroyShaderModule(engine.m_Device.logical, downsample, nullptr);
   vkDestroyShaderModule(engine.m_Device.logical, upsample, nullptr);
+
+  engine.m_DeletionQueue.push_function([engine] {
+    for (auto img : blurredMips)
+    {
+      engine.destroy_image(img);
+    }
+
+    VkDevice dv = engine.m_Device.logical;
+    vkDestroySampler(dv, sampler, nullptr);
+    vkDestroyPipelineLayout(dv, pipelineLayout, nullptr);
+    vkDestroyPipeline(dv, upsamplePipeline, nullptr);
+    vkDestroyPipeline(dv, downsamplePipeline, nullptr);
+    vkDestroyDescriptorSetLayout(dv, descriptorLayout, nullptr);
+
+  });
+
 }
 
 void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
@@ -247,20 +263,4 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
 
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 }
-
-void BloomEffect::cleanup(Engine* engine)
-{
-  for (auto img : blurredMips)
-  {
-    engine->destroy_image(img);
-  }
-
-  VkDevice dv = engine->m_Device.logical;
-  vkDestroySampler(dv, sampler, nullptr);
-  vkDestroyPipelineLayout(dv, pipelineLayout, nullptr);
-  vkDestroyPipeline(dv, upsamplePipeline, nullptr);
-  vkDestroyPipeline(dv, downsamplePipeline, nullptr);
-  vkDestroyDescriptorSetLayout(dv, descriptorLayout, nullptr);
-}
-
 } // aurora namespace

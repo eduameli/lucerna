@@ -56,7 +56,7 @@ namespace Aurora {
       GPUMeshBuffers upload_mesh(std::span<glm::vec4> positions, std::span<Vertex> vertices, std::span<uint32_t> indices);
       AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-      void destroy_image(const AllocatedImage& img);
+      void destroy_image(const AllocatedImage& img) const;
     
       void update_scene();
 
@@ -188,7 +188,7 @@ namespace Aurora {
       VkExtent2D m_WindowExtent{};
       float m_RenderScale = 1.0f;
 
-      #ifdef DEBUG 
+      #ifdef AR_DEBUG 
       constexpr static bool m_UseValidationLayers = true;
       #else
       constexpr static bool m_UseValidationLayers = false;

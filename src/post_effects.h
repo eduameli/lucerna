@@ -12,7 +12,6 @@ namespace Aurora
     public:
       static void prepare();
       static void run(VkCommandBuffer cmd, VkImageView targetImage);
-      static void cleanup(Engine* engine);
     public:
       struct BloomPushConstants
       {

@@ -23,6 +23,7 @@ layout( push_constant ) uniform constants
 	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;
   PositionBuffer positionBuffer;
+  float emission;
 } pcs;
 
 // shadow pass ubo here CSM settings would go maybe?

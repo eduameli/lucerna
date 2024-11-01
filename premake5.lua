@@ -64,7 +64,7 @@ project "aurora"
     buildoptions {"-Wno-nullability-completeness"}
 
     filter "configurations:debug"
-        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "DEBUG"}
+        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "AR_DEBUG"}
         symbols "On"
         optimize "Off"
 

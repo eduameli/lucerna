@@ -10,6 +10,7 @@ layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec2 outUV;
 layout (location = 3) out vec4 outlightSpace;
+layout (location = 4) out float emission;
 
 struct Vertex {
 	vec3 padding;
@@ -32,6 +33,7 @@ layout( push_constant, scalar ) uniform constants
 	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;
   PositionBuffer positionBuffer;
+  float emission;
 } pcs;
 
 void main() 
@@ -47,5 +49,7 @@ void main()
 	outUV.y = v.uv_y;
 
   outlightSpace = shadowSettings.lightViewProj * (pcs.modelMatrix * position);
+
+  emission = pcs.emission;
 }
 

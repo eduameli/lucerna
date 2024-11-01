@@ -162,14 +162,3 @@ void vkutil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D ext
   transition_image(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void vkutil::set_debug_object_name(VkDevice device, VkImage image, const char* name)
-{
-#ifdef DEBUG 
-  VkDebugUtilsObjectNameInfoEXT nameInfo{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
-  nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
-  nameInfo.objectHandle = reinterpret_cast<uint64_t> (image);
-  nameInfo.pObjectName = name;
-  vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
-#endif
-}
-

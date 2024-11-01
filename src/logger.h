@@ -111,3 +111,28 @@ namespace Aurora {
 #else
   #define AR_PROFILE_SCOPE
 #endif
+
+namespace vklog {
+  inline void label_image(VkDevice device, VkImage image, const char* name)
+  {
+#ifdef DEBUG 
+    VkDebugUtilsObjectNameInfoEXT nameInfo{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
+    nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
+    nameInfo.objectHandle = reinterpret_cast<uint64_t> (image);
+    nameInfo.pObjectName = name;
+    vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
+#endif
+  }
+
+  inline void label_buffer(VkDevice device, VkBuffer buffer, const char* name)
+  {
+#ifdef DEBUG 
+    VkDebugUtilsObjectNameInfoEXT nameInfo{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
+    nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
+    nameInfo.objectHandle = reinterpret_cast<uint64_t> (buffer);
+    nameInfo.pObjectName = name;
+    vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
+#endif
+  }
+}
+
