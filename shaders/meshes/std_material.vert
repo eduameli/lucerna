@@ -20,10 +20,12 @@ struct Vertex {
   vec4 color;
 };
 
+// NOTE: afaik padding is needed until i add bitangents or sm cause ssbo alignments? to 16 or 8 - scalar works only for uniforms?
 layout(buffer_reference, scalar) readonly buffer VertexBuffer{ 
 	Vertex vertices[];
 };
 
+// NOTE: idk how to improve this 
 layout(buffer_reference, buffer_reference_align = 8) readonly buffer PositionBuffer {
   vec4 positions[];
 };

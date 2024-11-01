@@ -54,18 +54,6 @@ namespace Aurora
     float emission;
   };
   
-/*
-  struct GPUSceneData
-  {
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 viewproj;
-    glm::vec4 ambientColour;
-    glm::vec4 sunlightDirection;
-    glm::vec4 sunlightColour;
-  };
-*/
-
   // FIXME: only needed in engine?? or maybe only types that are referenced multiple times, created many times
   // for now keep here as improved deletion queue could go here! one array per type of deletion to store less data / overhead
   struct DeletionQueue

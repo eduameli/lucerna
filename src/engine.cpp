@@ -60,7 +60,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/bloom_demo.glb";
+  std::string structurePath = "assets/shadows_demo.glb";
   //std::string structurePath = "assets/testing_prepass.glb";
   auto structureFile = load_gltf(this, structurePath);
 
@@ -630,7 +630,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     pcs.modelMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
     pcs.positionBuffer = draw.positionBufferAddress;
-    pcs.emission = 50.0;
+    //pcs.emission = 50.0;
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -677,6 +677,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     if (ImGui::CollapsingHeader("Bloom"))
     {
       ImGui::Text("boop");
+      ImGui::Checkbox("Enabled", (bool*) CVarSystem::get()->get_int_cvar("bloom.enabled"));
     }
     if (ImGui::CollapsingHeader("Shadows"))
     {
