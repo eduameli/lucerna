@@ -454,10 +454,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.vertexBuffer = draw.vertexBufferAddress;
-<<<<<<< HEAD
     pcs.positionBuffer = draw.positionBufferAddress; 
-=======
->>>>>>> 2fc41e26024453e1ba7ae1bc91e68d28616f99df
    
     // scuffed way to not render ground plane to shadow map
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);

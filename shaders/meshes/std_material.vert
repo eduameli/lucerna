@@ -47,17 +47,12 @@ layout( push_constant, scalar ) uniform constants
 {
 	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;
->>>>>>> 2fc41e26024453e1ba7ae1bc91e68d28616f99df
 } pcs;
 
 void main() 
 {
 	Vertex v = pcs.vertexBuffer.vertices[gl_VertexIndex];
-<<<<<<< HEAD
 	vec4 position = pcs.positionBuffer.positions[gl_VertexIndex];
-=======
-	vec4 position = vec4(v.position, 1.0f);
->>>>>>> 2fc41e26024453e1ba7ae1bc91e68d28616f99df
 
 	gl_Position =  sceneData.viewproj * pcs.modelMatrix * position;
 
