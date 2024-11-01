@@ -60,7 +60,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/shadows_demo.glb";
+  std::string structurePath = "assets/simple_shadow.glb";
   //std::string structurePath = "assets/testing_prepass.glb";
   auto structureFile = load_gltf(this, structurePath);
 

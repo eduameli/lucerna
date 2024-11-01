@@ -4,7 +4,7 @@
 #include "input_structures.glsl"
 // FIXME: should only have position! (deinterleaved)
 
-layout(buffer_reference, buffer_reference_align = 8) readonly buffer PositionBuffer {
+layout(buffer_reference, scalar) readonly buffer PositionBuffer {
   vec4 positions[];
 };
 
