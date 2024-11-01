@@ -154,6 +154,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   std::vector<uint32_t> indices;
   std::vector<Vertex> vertices;
+  std::vector<glm::vec4> positions;
 
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
@@ -189,12 +190,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
         
         auto lambda = [&](glm::vec3 v, size_t index) {
           Vertex newvtx;
-          newvtx.position = v;
           newvtx.normal = {1, 0, 0};
           newvtx.color = glm::vec4{1.0f};
           newvtx.uv_x = 0;
           newvtx.uv_y = 0;
           vertices[initial_vtx + index] = newvtx;
+          positions[initial_vtx + index] = {v.x, v.y, v.z, 0.0};
         };
 
         fastgltf::iterateAccessorWithIndex<glm::vec3>(asset, posAccessor, lambda);
@@ -239,11 +240,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         newSurface.material = materials[0];
       }
-      glm::vec3 minpos = vertices[initial_vtx].position;
-      glm::vec3 maxpos = vertices[initial_vtx].position;
+      glm::vec4 minpos = positions[initial_vtx];
+      glm::vec4 maxpos = positions[initial_vtx];
       for (int i = initial_vtx; i < vertices.size(); i++) {
-          minpos = glm::min(minpos, vertices[i].position);
-          maxpos = glm::max(maxpos, vertices[i].position);
+          minpos = glm::min(minpos, positions[i]);
+          maxpos = glm::max(maxpos, positions[i]);
       }
 
       newSurface.bounds.origin = (maxpos + minpos) / 2.f;
@@ -253,7 +254,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       newmesh->surfaces.push_back(newSurface);
       
     }
-    newmesh->meshBuffers = engine->upload_mesh(vertices, indices);
+    newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
   }
   
   for (fastgltf::Node& node : asset.nodes)
@@ -643,7 +644,8 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
     def.transform = nodeMatrix;
     def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
-    
+    def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
+
     if (s.material->data.passType == MaterialPass::Transparent)
     {
       ctx.TransparentSurfaces.push_back(def);

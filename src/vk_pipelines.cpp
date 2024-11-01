@@ -74,7 +74,7 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device)
   colorBlending.attachmentCount = 1;
   colorBlending.pAttachments = &m_ColorBlendAttachment;
    
-  // (UNUSED), normally used for specifying vertex attribute format
+  // NOTE: (UNUSED as im using BDA), normally used for specifying vertex attribute format
   VkPipelineVertexInputStateCreateInfo vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
