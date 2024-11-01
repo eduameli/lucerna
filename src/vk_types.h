@@ -31,10 +31,10 @@ namespace Aurora
   struct Vertex
   {
     glm::vec3 padding{0.0};
-    glm::vec3 normal;
     float uv_x;
-    glm::vec4 color;
+    glm::vec3 normal;
     float uv_y;
+    glm::vec4 color;
   };
 
   struct GPUMeshBuffers

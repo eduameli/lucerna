@@ -165,6 +165,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     
     indices.clear();
     vertices.clear();
+    positions.clear();
 
     for (auto&& p : mesh.primitives)
     {
@@ -187,6 +188,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         fastgltf::Accessor& posAccessor = asset.accessors[p.findAttribute("POSITION")->accessorIndex];
         vertices.resize(vertices.size() + posAccessor.count);
+        positions.resize(vertices.size() + posAccessor.count);
         
         auto lambda = [&](glm::vec3 v, size_t index) {
           Vertex newvtx;
@@ -195,7 +197,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
           newvtx.uv_x = 0;
           newvtx.uv_y = 0;
           vertices[initial_vtx + index] = newvtx;
-          positions[initial_vtx + index] = {v.x, v.y, v.z, 0.0};
+          positions[initial_vtx + index] = glm::vec4{v.x, v.y, v.z, 1.0};
         };
 
         fastgltf::iterateAccessorWithIndex<glm::vec3>(asset, posAccessor, lambda);
@@ -240,8 +242,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         newSurface.material = materials[0];
       }
-      glm::vec4 minpos = positions[initial_vtx];
-      glm::vec4 maxpos = positions[initial_vtx];
+      glm::vec4  minpos = positions[initial_vtx];
+      glm::vec4  maxpos = positions[initial_vtx];
       for (int i = initial_vtx; i < vertices.size(); i++) {
           minpos = glm::min(minpos, positions[i]);
           maxpos = glm::max(maxpos, positions[i]);
@@ -398,6 +400,7 @@ void LoadedGLTF::clearAll()
   {
     creator->destroy_buffer(v->meshBuffers.indexBuffer);
     creator->destroy_buffer(v->meshBuffers.vertexBuffer);
+    creator->destroy_buffer(v->meshBuffers.positionBuffer);
   }
 
   for (auto& [k, v] : images)

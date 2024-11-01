@@ -60,7 +60,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/simple_shadow.glb";
+  std::string structurePath = "assets/testing_shadows.glb";
   //std::string structurePath = "assets/testing_prepass.glb";
   auto structureFile = load_gltf(this, structurePath);
 
@@ -454,6 +454,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.vertexBuffer = draw.vertexBufferAddress;
+    pcs.positionBuffer = draw.positionBufferAddress; 
    
     // scuffed way to not render ground plane to shadow map
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -631,6 +632,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
+    pcs.positionBuffer = draw.positionBufferAddress; 
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -803,7 +805,9 @@ GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec4> positions, std::span<Ver
 {
   // vertices interleaved(normal uv colour) | positions (only pos)
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
-  const size_t positionBufferSize = positions.size() * sizeof(glm::vec3);
+  const size_t positionBufferSize = positions.size() * sizeof(glm::vec4);
+  AR_CORE_WARN("POSITIONS {} SIZE {}", positions.size(), positionBufferSize);
+  // FIXME: i think maybe loading is done wrong?? or how i thought about seperating the vertex attribs is just simply wrong
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
 
   GPUMeshBuffers newSurface;
@@ -866,6 +870,18 @@ GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec4> positions, std::span<Ver
     vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
   });
   destroy_buffer(staging);
+  
+  VkDebugUtilsObjectNameInfoEXT vertexLabel{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
+  vertexLabel.objectType = VK_OBJECT_TYPE_BUFFER;
+  vertexLabel.objectHandle = reinterpret_cast<uint64_t> (newSurface.vertexBuffer.buffer);
+  vertexLabel.pObjectName = "POSITION BUFFER";
+  vkSetDebugUtilsObjectNameEXT(m_Device.logical, &vertexLabel);
+ 
+  VkDebugUtilsObjectNameInfoEXT posLabel{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
+  posLabel.objectType = VK_OBJECT_TYPE_BUFFER;
+  posLabel.objectHandle = reinterpret_cast<uint64_t> (newSurface.positionBuffer.buffer);
+  posLabel.pObjectName = "VERTEX ATTRIBUTES";
+  vkSetDebugUtilsObjectNameEXT(m_Device.logical, &posLabel);
 
   return newSurface;
 }

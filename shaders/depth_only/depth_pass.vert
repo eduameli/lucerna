@@ -3,10 +3,11 @@
 
 // FIXME: should only have position! (deinterleaved)
 struct Vertex {
-	vec3 normal;
+	vec3 padding;
 	float uv_x;
-	vec4 color;
+	vec3 normal;
   float uv_y;
+  vec4 color;
 };
 // 4 * 3 + 4 + 4* 3 + 4
 layout(buffer_reference, scalar) readonly buffer VertexBufferDepth{ 
@@ -14,7 +15,7 @@ layout(buffer_reference, scalar) readonly buffer VertexBufferDepth{
 };
 
 layout(buffer_reference, buffer_reference_align = 8) readonly buffer PositionBuffer {
-  vec3 positions[];
+  vec4 positions[];
 };
 
 layout( push_constant ) uniform constants
@@ -31,7 +32,7 @@ layout(set = 0, binding = 0) uniform shadowData {
 
 void main() 
 {
-	vec4 position = vec4(pcs.positionBuffer.positions[gl_VertexIndex], 1.0);
+	vec4 position = pcs.positionBuffer.positions[gl_VertexIndex];
 	gl_Position = data.viewproj * pcs.modelMatrix * position;
 }
 
