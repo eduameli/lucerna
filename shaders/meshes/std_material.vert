@@ -19,7 +19,7 @@ struct Vertex {
   vec4 color;
 };
 
-layout(buffer_reference, scalar) readonly buffer VertexBufferSTD{ 
+layout(buffer_reference, scalar) readonly buffer VertexBuffer{ 
 	Vertex vertices[];
 };
 
@@ -30,23 +30,8 @@ layout(buffer_reference, buffer_reference_align = 8) readonly buffer PositionBuf
 layout( push_constant, scalar ) uniform constants
 {
 	mat4 modelMatrix;
-	VertexBufferSTD vertexBuffer;
-  PositionBuffer positionBuffer;
-	vec3 position;
-	float uv_x;
-	vec3 normal;
-	float uv_y;
-	vec4 color;
-};
-
-layout(buffer_reference, scalar) readonly buffer VertexBuffer{ 
-	Vertex vertices[];
-};
-
-layout( push_constant, scalar ) uniform constants
-{
-	mat4 modelMatrix;
 	VertexBuffer vertexBuffer;
+  PositionBuffer positionBuffer;
 } pcs;
 
 void main() 
