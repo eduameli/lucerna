@@ -17,6 +17,8 @@
 #define vec4_ar glm::vec4
 #define mat4_ar glm::mat4x4
 
+#define vec3fp16_ar glm::vec3fp16;
+
 #else
 
 #define uint32_ar uint

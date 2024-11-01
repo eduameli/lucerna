@@ -26,8 +26,25 @@
 
 #include "vk_pipelines.h"
 #include "glm/gtx/string_cast.hpp"
+#include "glm/packing.hpp"
 namespace Aurora
 {
+
+glm::vec2 octahedron_wrap(glm::vec2 v) {
+	glm::vec2 w = 1.0f - glm::abs(glm::vec2(v.y, v.x));
+	if (v.x < 0.0f) w.x = -w.x;
+	if (v.y < 0.0f) w.y = -w.y;
+	return w;
+}
+
+glm::vec2 enconde_normal(glm::vec3 n) {
+	n /= (glm::abs(n.x) + glm::abs(n.y) + glm::abs(n.z));
+	n = glm::vec3(n.z > 0.0f ? glm::vec2(n.x, n.y) : octahedron_wrap(glm::vec2(n.x, n.y)), n.z);
+	n = glm::vec3(glm::vec2(n.x, n.y) * 0.5f + 0.5f, n.z);
+
+	return glm::vec2(n.x, n.y);
+}
+
 
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
 {
@@ -154,7 +171,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   std::vector<uint32_t> indices;
   std::vector<Vertex> vertices;
-  std::vector<glm::vec4> positions;
+  std::vector<glm::vec3> positions;
 
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
@@ -192,12 +209,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
         
         auto lambda = [&](glm::vec3 v, size_t index) {
           Vertex newvtx;
-          newvtx.normal = {1, 0, 0};
+          newvtx.normal_uv = {1, 0, 0, 0};
           newvtx.color = glm::vec4{1.0f};
-          newvtx.uv_x = 0;
-          newvtx.uv_y = 0;
           vertices[initial_vtx + index] = newvtx;
-          positions[initial_vtx + index] = glm::vec4{v.x, v.y, v.z, 1.0};
+          positions[initial_vtx + index] = v;
         };
 
         fastgltf::iterateAccessorWithIndex<glm::vec3>(asset, posAccessor, lambda);
@@ -207,7 +222,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       if (normals != p.attributes.end())
       {
         auto lambda = [&](glm::vec3 v, size_t index) {
-          vertices[initial_vtx + index].normal = v;
+          glm::vec2 normal = enconde_normal(v);
+          vertices[initial_vtx + index].normal_uv = {normal.x, normal.y, 0, 0};
         };
 
          fastgltf::iterateAccessorWithIndex<glm::vec3>(asset, asset.accessors[(*normals).accessorIndex], lambda);
@@ -217,8 +233,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       if (uv != p.attributes.end())
       {
         auto lambda = [&](glm::vec2 v, size_t index) {
-          vertices[initial_vtx + index].uv_x = v.x;
-          vertices[initial_vtx + index].uv_y = v.y;
+          vertices[initial_vtx + index].normal_uv.z = v.x;
+          vertices[initial_vtx + index].normal_uv.w = v.y;
         };
 
          fastgltf::iterateAccessorWithIndex<glm::vec2>(asset, asset.accessors[(*uv).accessorIndex], lambda);
@@ -242,8 +258,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         newSurface.material = materials[0];
       }
-      glm::vec4  minpos = positions[initial_vtx];
-      glm::vec4  maxpos = positions[initial_vtx];
+      glm::vec3  minpos = positions[initial_vtx];
+      glm::vec3  maxpos = positions[initial_vtx];
       for (int i = initial_vtx; i < vertices.size(); i++) {
           minpos = glm::min(minpos, positions[i]);
           maxpos = glm::max(maxpos, positions[i]);

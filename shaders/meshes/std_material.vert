@@ -19,7 +19,7 @@ layout(buffer_reference, scalar) readonly buffer VertexBuffer{
 
 // NOTE: idk how to improve this 
 layout(buffer_reference, scalar) readonly buffer PositionBuffer {
-  vec4 positions[];
+  vec3 positions[];
 };
 
 layout( push_constant, scalar ) uniform constants
@@ -30,17 +30,29 @@ layout( push_constant, scalar ) uniform constants
   float emission;
 } pcs;
 
+vec3 decode_normal(vec2 f)
+{
+	f = f * 2.0 - 1.0;
+	vec3 n = vec3(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
+	float t = max(-n.z, 0.0);
+	n.x += n.x >= 0.0 ? -t : t;
+	n.y += n.y >= 0.0 ? -t : t;
+	return normalize(n);
+}
+
 void main() 
 {
 	Vertex v = pcs.vertexBuffer.vertices[gl_VertexIndex];
-	vec4 position = pcs.positionBuffer.positions[gl_VertexIndex];
+	vec4 position = vec4(pcs.positionBuffer.positions[gl_VertexIndex], 1.0);
 
 	gl_Position =  sceneData.viewproj * pcs.modelMatrix * position;
+  
+  vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 
-	outNormal = (pcs.modelMatrix * vec4(v.normal, 0.f)).xyz;
+	outNormal = (pcs.modelMatrix * vec4(normal_unpacked, 0.f)).xyz;
 	outColor = v.color.xyz * materialData.colorFactors.xyz;	
-	outUV.x = v.uv_x;
-	outUV.y = v.uv_y;
+	outUV.x = v.normal_uv.z;
+	outUV.y = v.normal_uv.w;
 
   outlightSpace = shadowSettings.lightViewProj * (pcs.modelMatrix * position);
 

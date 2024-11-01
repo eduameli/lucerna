@@ -9,6 +9,7 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   : m_Instance{instance}, m_Surface{surface} 
 {
   features.f12.bufferDeviceAddress = VK_TRUE;
+  features.f12.scalarBlockLayout = VK_TRUE;
   features.f13.dynamicRendering = VK_TRUE;
   features.f13.synchronization2 = VK_TRUE;
 
@@ -24,7 +25,8 @@ bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
 {
   Features query{};
   vkGetPhysicalDeviceFeatures2(device, &query.get());
-
+  
+  //NOTE: if u add a feature remember to enable it in the constructor!
   return 
     query.f12.bufferDeviceAddress &&
     query.f12.scalarBlockLayout &&

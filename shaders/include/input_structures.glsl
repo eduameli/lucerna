@@ -4,12 +4,9 @@ struct Vertex
 {
 #ifdef __cplusplus
   Vertex()
-    : padding{0.0f}, uv_x{0.0}, normal{0.0, 1.0, 0.0}, uv_y{0.0}, color{1.0, 0.0, 1.0, 1.0} {}
+    : normal_uv{0.0f}, color{1.0, 0.0, 1.0, 1.0} {}
 #endif
-  vec3_ar padding;
-  float_ar uv_x;
-  vec3_ar normal;
-  float_ar uv_y;
+  vec4_ar normal_uv;
   vec4_ar color;
 };
 
