@@ -44,7 +44,6 @@ namespace Aurora
     AllocatedBuffer positionBuffer{};
     VkDeviceAddress vertexBufferAddress{};
     VkDeviceAddress positionBufferAddress{};
-  
   };
  
   struct GPUDrawPushConstants
