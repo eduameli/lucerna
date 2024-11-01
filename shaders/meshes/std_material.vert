@@ -12,27 +12,32 @@ layout (location = 2) out vec2 outUV;
 layout (location = 3) out vec4 outlightSpace;
 
 struct Vertex {
-	vec3 position;
+	vec3 padding;
 	float uv_x;
 	vec3 normal;
-	float uv_y;
-	vec4 color;
+  float uv_y;
+  vec4 color;
 };
 
-layout(buffer_reference, scalar) readonly buffer VertexBuffer{ 
+layout(buffer_reference, scalar) readonly buffer VertexBufferSTD{ 
 	Vertex vertices[];
+};
+
+layout(buffer_reference, buffer_reference_align = 8) readonly buffer PositionBuffer {
+  vec4 positions[];
 };
 
 layout( push_constant, scalar ) uniform constants
 {
 	mat4 modelMatrix;
-	VertexBuffer vertexBuffer;
+	VertexBufferSTD vertexBuffer;
+  PositionBuffer positionBuffer;
 } pcs;
 
 void main() 
 {
 	Vertex v = pcs.vertexBuffer.vertices[gl_VertexIndex];
-	vec4 position = vec4(v.position, 1.0f);
+	vec4 position = pcs.positionBuffer.positions[gl_VertexIndex];
 
 	gl_Position =  sceneData.viewproj * pcs.modelMatrix * position;
 

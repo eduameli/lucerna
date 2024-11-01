@@ -454,6 +454,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.vertexBuffer = draw.vertexBufferAddress;
+    pcs.positionBuffer = draw.positionBufferAddress; 
    
     // scuffed way to not render ground plane to shadow map
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -525,7 +526,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.vertexBuffer = draw.vertexBufferAddress;
-   
+    pcs.positionBuffer = draw.positionBufferAddress; 
     // scuffed way to not render ground plane to shadow map
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
@@ -631,6 +632,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     GPUDrawPushConstants pcs{};
     pcs.modelMatrix = draw.transform;
     pcs.vertexBuffer = draw.vertexBufferAddress;
+    pcs.positionBuffer = draw.positionBufferAddress; 
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pcs);
@@ -799,9 +801,11 @@ void Engine::destroy_buffer(const AllocatedBuffer& buffer)
   vmaDestroyBuffer(m_Allocator, buffer.buffer, buffer.allocation);
 }
 
-GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_t> indices)
+GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec4> positions, std::span<Vertex> vertices, std::span<uint32_t> indices)
 {
+  // vertices interleaved(normal uv colour) | positions (only pos)
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+  const size_t positionBufferSize = positions.size() * sizeof(glm::vec4);
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
 
   GPUMeshBuffers newSurface;
@@ -811,11 +815,24 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY);
  
-  VkBufferDeviceAddressInfo deviceAddressInfo{};
-  deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-  deviceAddressInfo.buffer = newSurface.vertexBuffer.buffer;
-  newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(m_Device.logical, &deviceAddressInfo);
+  VkBufferDeviceAddressInfo attributesBDA {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+    .buffer = newSurface.vertexBuffer.buffer
+  };
+  newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(m_Device.logical, &attributesBDA);
   
+  newSurface.positionBuffer = create_buffer(
+    positionBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY);
+
+  VkBufferDeviceAddressInfo positionBDA {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+    .buffer = newSurface.positionBuffer.buffer
+  };
+  newSurface.positionBufferAddress = vkGetBufferDeviceAddress(m_Device.logical, &positionBDA);
+
+
   newSurface.indexBuffer = create_buffer(
     indexBufferSize,
     VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -823,28 +840,48 @@ GPUMeshBuffers Engine::upload_mesh(std::span<Vertex> vertices, std::span<uint32_
   
 
   //FIXME: compare perf cpu to gpu instead of gpu only! (small gpu/cpu shared mem)
-  AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+  AllocatedBuffer staging = create_buffer(vertexBufferSize + positionBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   void* data = staging.allocation->GetMappedData();
 
-  memcpy(data, vertices.data(), vertexBufferSize);
-  memcpy((char*) data + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
+  memcpy(data, positions.data(), positionBufferSize);
+  memcpy((char*) data + positionBufferSize, vertices.data(), vertexBufferSize);
+  memcpy((char*) data + positionBufferSize + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
 
   immediate_submit([&](VkCommandBuffer cmd){
+    VkBufferCopy positionCopy{};
+    positionCopy.dstOffset = 0;
+    positionCopy.srcOffset = 0;
+    positionCopy.size = positionBufferSize;
+    
+    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.positionBuffer.buffer, 1, &positionCopy);
+
     VkBufferCopy vertexCopy{};
     vertexCopy.dstOffset = 0;
-    vertexCopy.srcOffset = 0;
+    vertexCopy.srcOffset = positionBufferSize;
     vertexCopy.size = vertexBufferSize;
 
     vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
     
     VkBufferCopy indexCopy{};
     indexCopy.dstOffset = 0;
-    indexCopy.srcOffset = vertexBufferSize;
+    indexCopy.srcOffset = positionBufferSize + vertexBufferSize;
     indexCopy.size = indexBufferSize;
 
     vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
   });
   destroy_buffer(staging);
+  
+  VkDebugUtilsObjectNameInfoEXT vertexLabel{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
+  vertexLabel.objectType = VK_OBJECT_TYPE_BUFFER;
+  vertexLabel.objectHandle = reinterpret_cast<uint64_t> (newSurface.vertexBuffer.buffer);
+  vertexLabel.pObjectName = "VERTEX ATTRIBUTES";
+  vkSetDebugUtilsObjectNameEXT(m_Device.logical, &vertexLabel);
+ 
+  VkDebugUtilsObjectNameInfoEXT posLabel{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
+  posLabel.objectType = VK_OBJECT_TYPE_BUFFER;
+  posLabel.objectHandle = reinterpret_cast<uint64_t> (newSurface.positionBuffer.buffer);
+  posLabel.pObjectName = "POSITION BUFFER";
+  vkSetDebugUtilsObjectNameEXT(m_Device.logical, &posLabel);
 
   return newSurface;
 }

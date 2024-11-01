@@ -27,10 +27,10 @@ namespace Aurora
     VmaAllocation allocation{};
     VmaAllocationInfo info{};
   };
- 
+
   struct Vertex
   {
-    glm::vec3 position;
+    glm::vec3 padding{0.0};
     float uv_x;
     glm::vec3 normal;
     float uv_y;
@@ -41,13 +41,17 @@ namespace Aurora
   {
     AllocatedBuffer indexBuffer{};
     AllocatedBuffer vertexBuffer{};
+    AllocatedBuffer positionBuffer{};
     VkDeviceAddress vertexBufferAddress{};
+    VkDeviceAddress positionBufferAddress{};
+  
   };
  
   struct GPUDrawPushConstants
   {
     glm::mat4 modelMatrix;
     VkDeviceAddress vertexBuffer;
+    VkDeviceAddress positionBuffer;
   };
   
 /*
