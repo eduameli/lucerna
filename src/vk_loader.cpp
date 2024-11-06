@@ -79,7 +79,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
     {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
   };
-  file.descriptorPool.init(engine->m_Device.logical, asset.materials.size(), sizes);
+  file.descriptorPool.init(engine->device, asset.materials.size(), sizes);
   
 
   for (fastgltf::Sampler& sampler : asset.samplers)
@@ -95,7 +95,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
     
     VkSampler newSampler;
-    vkCreateSampler(engine->m_Device.logical, &sampl, nullptr, &newSampler);
+    vkCreateSampler(engine->device, &sampl, nullptr, &newSampler);
     file.samplers.push_back(newSampler);
   }
 
@@ -165,7 +165,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       materialResources.colorSampler = file.samplers[sampler];
     }
 
-    newMat->data = engine->metalRoughMaterial.write_material(engine->m_Device.logical, passType, materialResources, file.descriptorPool);
+    newMat->data = engine->metalRoughMaterial.write_material(engine->device, passType, materialResources, file.descriptorPool);
     data_index++;
   }
   
@@ -338,34 +338,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   return scene;
 }
 
-
-std::optional<std::shared_ptr<LoadedGLTF>> load_gltf_asset(Engine* engine, std::filesystem::path path)
-{
-  AR_CORE_INFO("Loading GLTF file located at {}", path.c_str());
-  std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
-  //LoadedGLTF& scene_ptr = *scene.get();
-  // open & load gltf
-  
-  fastgltf::Parser parser;
-  auto data = fastgltf::GltfDataBuffer::FromPath(path);
-  if (data.error() != fastgltf::Error::None)
-  {
-    AR_CORE_ERROR("Failed to load GLTFDataBuffer::FromPath({})", path.c_str());
-    return {};
-  }
-
-  auto asset = parser.loadGltf(data.get(), path.parent_path(), fastgltf::Options::None);
-  if (auto error = asset.error(); error != fastgltf::Error::None)
-  {
-    AR_CORE_ERROR("Some error occurred while reading the buffer, parsing the JSON or validating the data");
-    return {};
-  }
-  
-
-  return {};
-}
-
-
 VkFilter extract_filter(fastgltf::Filter filter)
 {
   switch (filter)
@@ -407,9 +379,7 @@ void LoadedGLTF::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 void LoadedGLTF::clearAll()
 {
   // cleanup gpu memory
-  VkDevice dv = creator->m_Device.logical;
-
-  descriptorPool.destroy_pools(dv);
+  descriptorPool.destroy_pools(creator->device);
   creator->destroy_buffer(materialDataBuffer);
 
   for (auto& [k, v] : meshes)
@@ -431,7 +401,7 @@ void LoadedGLTF::clearAll()
   
   for (auto& sampler : samplers)
   {
-    vkDestroySampler(dv, sampler, nullptr);
+    vkDestroySampler(creator->device, sampler, nullptr);
   }
 
 }
@@ -542,7 +512,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
 
 void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
 {
-  VkDevice device = engine->m_Device.logical;
+  VkDevice device = engine->device;
 
   VkShaderModule meshFragShader;
   AR_LOG_ASSERT(
@@ -558,7 +528,7 @@ void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
 
   VkPushConstantRange matrixRange{};
   matrixRange.offset = 0;
-  matrixRange.size = sizeof(GPUDrawPushConstants);
+  matrixRange.size = sizeof(std_material_pcs);
   matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
   
   DescriptorLayoutBuilder layoutBuilder;

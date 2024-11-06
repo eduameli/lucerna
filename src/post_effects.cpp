@@ -11,13 +11,14 @@ namespace Aurora
 
 AutoCVar_Int bloomEnabled{"bloom.enabled", "", 1, CVarFlags::EditCheckbox};
 
-void BloomEffect::prepare()
+void bloom::prepare()
 {
-  Engine& engine = Engine::get();
-  
+  Engine* engine = Engine::get();
+  VkDevice device = engine->device;
+
   // create mip chain
   VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
-  VkExtent3D size = {engine.internalExtent.width / 2, engine.internalExtent.height / 2, 1};
+  VkExtent3D size = {engine->internalExtent.width / 2, engine->internalExtent.height / 2, 1};
 
   VkImageUsageFlags usages{};
   usages |= VK_IMAGE_USAGE_STORAGE_BIT;
@@ -31,14 +32,14 @@ void BloomEffect::prepare()
       static_cast<uint32_t>(size.height / glm::exp2(i)), 
       1
     };
-    AllocatedImage img = engine.create_image(mipSize, format, usages);
+    AllocatedImage img = engine->create_image(mipSize, format, usages);
     std::string identifier = "Bloom Mipmap Level" + std::to_string(i); 
-    vklog::label_image(engine.m_Device.logical, img.image, identifier.c_str());
+    vklog::label_image(device, img.image, identifier.c_str());
     blurredMips.push_back(img);
   }
     
   // FIXME: kind of ass having to do one full immediate submit just to transfer an img
-  engine.immediate_submit([=](VkCommandBuffer cmd){
+  engine->immediate_submit([=](VkCommandBuffer cmd){
     for (auto img : blurredMips)
     {
       vkutil::transition_image(cmd, img.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
@@ -49,7 +50,7 @@ void BloomEffect::prepare()
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    descriptorLayout = builder.build(engine.m_Device.logical, VK_SHADER_STAGE_COMPUTE_BIT);
+    descriptorLayout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
   }
 
 
@@ -66,15 +67,15 @@ void BloomEffect::prepare()
   computeLayout.pPushConstantRanges = &pcs;
   computeLayout.pushConstantRangeCount = 1;
 
-  VK_CHECK_RESULT(vkCreatePipelineLayout(engine.m_Device.logical, &computeLayout, nullptr, &pipelineLayout));
+  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &pipelineLayout));
 
   AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/bloom/downsample.comp.spv", engine.m_Device.logical, &downsample),
+    vkutil::load_shader_module("shaders/bloom/downsample.comp.spv", device, &downsample),
     "Error loading (Bloom) Downsample Compute Effect Shader"
   );
 
   AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/bloom/upsample.comp.spv", engine.m_Device.logical, &upsample),
+    vkutil::load_shader_module("shaders/bloom/upsample.comp.spv", device, &upsample),
     "Error loading (Bloom) Upsample Compute Effect Shader"
   ); 
   
@@ -82,13 +83,13 @@ void BloomEffect::prepare()
   VkComputePipelineCreateInfo pipelineInfo{ .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO, .pNext = nullptr};
   pipelineInfo.layout = pipelineLayout;
   pipelineInfo.stage = stageInfo;
-  VK_CHECK_RESULT(vkCreateComputePipelines(engine.m_Device.logical, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &downsamplePipeline));
+  VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &downsamplePipeline));
   
   pipelineInfo.stage.module = upsample;
-  VK_CHECK_RESULT(vkCreateComputePipelines(engine.m_Device.logical, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &upsamplePipeline));
+  VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &upsamplePipeline));
  
 
-  descriptorSet = engine.globalDescriptorAllocator.allocate(engine.m_Device.logical, descriptorLayout);
+  descriptorSet = engine->globalDescriptorAllocator.allocate(device, descriptorLayout);
   
   VkSamplerCreateInfo samplerInfo{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -98,29 +99,27 @@ void BloomEffect::prepare()
   samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
   samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
-  vkCreateSampler(engine.m_Device.logical, &samplerInfo, nullptr, &sampler);
+  vkCreateSampler(device, &samplerInfo, nullptr, &sampler);
   
-  vkDestroyShaderModule(engine.m_Device.logical, downsample, nullptr);
-  vkDestroyShaderModule(engine.m_Device.logical, upsample, nullptr);
+  vkDestroyShaderModule(device, downsample, nullptr);
+  vkDestroyShaderModule(device, upsample, nullptr);
 
-  engine.m_DeletionQueue.push_function([engine] {
+  engine->m_DeletionQueue.push_function([device, engine] {
     for (auto img : blurredMips)
     {
-      engine.destroy_image(img);
+      engine->destroy_image(img);
     }
-
-    VkDevice dv = engine.m_Device.logical;
-    vkDestroySampler(dv, sampler, nullptr);
-    vkDestroyPipelineLayout(dv, pipelineLayout, nullptr);
-    vkDestroyPipeline(dv, upsamplePipeline, nullptr);
-    vkDestroyPipeline(dv, downsamplePipeline, nullptr);
-    vkDestroyDescriptorSetLayout(dv, descriptorLayout, nullptr);
+    vkDestroySampler(device, sampler, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    vkDestroyPipeline(device, upsamplePipeline, nullptr);
+    vkDestroyPipeline(device, downsamplePipeline, nullptr);
+    vkDestroyDescriptorSetLayout(device, descriptorLayout, nullptr);
 
   });
 
 }
 
-void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
+void bloom::run(VkCommandBuffer cmd, VkImageView targetImage)
 {
 
   if (bloomEnabled.get() == false) return;
@@ -129,27 +128,27 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   // run compute upsample
   // mix with target img
 
-  Engine& engine = Engine::get();
-  VkExtent3D size = {engine.internalExtent.width, engine.internalExtent.height, 1};
+  Engine* engine = Engine::get();
+  VkExtent3D size = {engine->internalExtent.width, engine->internalExtent.height, 1};
 
-  BloomPushConstants pcs{};
+  bloom_pcs pcs{};
   pcs.srcResolution = {size.width, size.height};
   pcs.filterRadius = 0.005;
-  pcs.finalPass = 0;
+  pcs.mipLevel = 0;
   
   // draw img to mip0
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, downsamplePipeline);
 
-  VkDescriptorSet firstSet = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
+  VkDescriptorSet firstSet = engine->get_current_frame().frameDescriptors.allocate(engine->device, descriptorLayout);
   {
     DescriptorWriter writer;
-    writer.write_image(0, engine.m_DrawImage.imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(0, engine->m_DrawImage.imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.write_image(1, blurredMips[0].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    writer.update_set(engine.m_Device.logical, firstSet);
+    writer.update_set(engine->device, firstSet);
   }
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &firstSet, 0, nullptr);
 
-  vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+  vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(bloom_pcs), &pcs);
   size.width *= 0.5;
   size.height *= 0.5;
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
@@ -178,16 +177,16 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
 
 
     //FIXME : per frame descriptor set allocs not freed :/
-    VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
+    VkDescriptorSet set = engine->get_current_frame().frameDescriptors.allocate(engine->device, descriptorLayout);
     {
       DescriptorWriter writer;
       writer.write_image(0, blurredMips[i - 1].imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
       writer.write_image(1, blurredMips[i].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-      writer.update_set(engine.m_Device.logical, set);
+      writer.update_set(engine->device, set);
     }
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
 
-    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(bloom_pcs), &pcs);
     size.width *= 0.5;
     size.height *= 0.5;
     vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
@@ -216,12 +215,12 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   
   for (uint32_t i = 5; i > 0; i--)
   {
-    VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
+    VkDescriptorSet set = engine->get_current_frame().frameDescriptors.allocate(engine->device, descriptorLayout);
     {
       DescriptorWriter writer;
       writer.write_image(0, blurredMips[i].imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
       writer.write_image(1, blurredMips[i-1].imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-      writer.update_set(engine.m_Device.logical, set);
+      writer.update_set(engine->device, set);
     }
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
     
@@ -229,7 +228,7 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
     size.width *= 2;
     size.height *= 2;
 
-    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(bloom_pcs), &pcs);
     vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
     VkImageMemoryBarrier2 imgBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -252,14 +251,14 @@ void BloomEffect::run(VkCommandBuffer cmd, VkImageView targetImage)
   
   
   // mip0 to draw texture 
-  pcs.finalPass = 1; 
+  pcs.mipLevel = 1; 
 
-  VkDescriptorSet set = engine.get_current_frame().frameDescriptors.allocate(engine.m_Device.logical, descriptorLayout);
+  VkDescriptorSet set = engine->get_current_frame().frameDescriptors.allocate(engine->device, descriptorLayout);
   {
     DescriptorWriter writer;
     writer.write_image(0, blurredMips[0].imageView, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    writer.write_image(1, engine.m_DrawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    writer.update_set(engine.m_Device.logical, set);
+    writer.write_image(1, engine->m_DrawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    writer.update_set(engine->device, set);
   }
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);

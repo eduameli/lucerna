@@ -1,7 +1,7 @@
 #pragma once
 #include <volk.h>
 #include "aurora_pch.h"
-
+#include "logger.h"
 namespace Aurora 
 {
   struct QueueFamilyIndices
@@ -33,6 +33,7 @@ namespace Aurora
 
       features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
       features.pNext = &f11;
+
       features.features = f1;
 
       return features;
@@ -41,13 +42,13 @@ namespace Aurora
 
   struct DeviceContext
   {
-      VkDevice logical;
-      VkPhysicalDevice physical;
-      QueueFamilyIndices indices;
-      VkQueue graphics;
-      VkQueue present;
-      uint32_t graphicsIndex;
-      uint32_t presentIndex;
+      VkDevice logical{};
+      VkPhysicalDevice physical{};
+      QueueFamilyIndices indices{};
+      VkQueue graphics{};
+      VkQueue present{};
+      uint32_t graphicsIndex{};
+      uint32_t presentIndex{};
   };
   
   class DeviceContextBuilder 

@@ -57,10 +57,18 @@ namespace Aurora {
       AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       void destroy_image(const AllocatedImage& img) const;
-    
       void update_scene();
+      static Engine* get();
 
-      static Engine& get();
+      FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
+      void resize_swapchain(int width, int height);
+      void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+     
+      // debug lines functions
+      void queue_debug_line(glm::vec3 p1, glm::vec3 p2);
+      void queue_debug_frustum(glm::mat4 frustum);    
+      void queue_debug_obb(glm::vec3 origin, glm::vec3 extents); 
+
     public:
       struct ComputePushConstants
       {
@@ -83,16 +91,12 @@ namespace Aurora {
       // FIXME: use directily instead of m_Device.<>
       // same with SwapchainContext
       VkDevice device;
-      VkPhysicalDevice gpu;
+      VkPhysicalDevice physicalDevice;
       VkQueue graphicsQueue;
       VkQueue presentQueue;
-      std::optional<uint32_t> graphicsIndex;
-      std::optional<uint32_t> presentIndex;
+      uint32_t graphicsIndex;
+      uint32_t presentIndex;
       QueueFamilyIndices indices;
-
-      
-
-    
 
       Camera mainCamera;
       DrawContext mainDrawContext;
@@ -114,6 +118,7 @@ namespace Aurora {
       VkSampler m_DefaultSamplerNearest;
       VkSampler m_DefaultSamplerLinear;
       VkSampler m_ShadowSampler;
+
       VkDescriptorSetLayout m_SceneDescriptorLayout;
       VkDescriptorSetLayout m_SingleImageDescriptorLayout;
 
@@ -121,11 +126,16 @@ namespace Aurora {
       GLTFMetallic_Roughness metalRoughMaterial;
       
       // NOTE move to pcss_settings & add hard shadow setting
-      bool lightView{ false };
-      float spinSpeed{ 0.0f };
       glm::mat4 lView{ 1.0f };
       glm::mat4 lightProj{ 1.0f };
       glm::mat4 lightViewProj{ 1.0f };
+      DeletionQueue m_DeletionQueue;
+      FrameData m_Frames[FRAME_OVERLAP];
+      DescriptorAllocatorGrowable globalDescriptorAllocator;
+      VkExtent3D internalExtent{};
+      VmaAllocator m_Allocator{};
+      VkExtent2D m_DrawExtent{};
+  
     private:
       void init_vulkan();
       void init_swapchain();
@@ -133,6 +143,8 @@ namespace Aurora {
       void init_sync_structures();
       void init_descriptors();
       void init_pipelines();
+      void init_depth_prepass_pipeline();
+      void init_shadow_map_pipeline();
       void init_background_pipelines();
       void init_mesh_pipeline();
       void init_imgui();
@@ -147,27 +159,13 @@ namespace Aurora {
       void draw_depth_prepass(VkCommandBuffer cmd);
       void draw_geometry(VkCommandBuffer cmd);
       void draw_shadow_pass(VkCommandBuffer cmd);
+      void draw_debug_lines(VkCommandBuffer cmd);
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
-    public:
-      FrameData& get_current_frame() { return m_Frames[frameNumber % FRAME_OVERLAP]; }
-    public:
-      void resize_swapchain(int width, int height);
-    public:
-      void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
-    private:
       bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
       VkSurfaceKHR m_Surface;
-    public:
-      DeletionQueue m_DeletionQueue;
-    private:
-      FrameData m_Frames[FRAME_OVERLAP];
-    public:
-      DescriptorAllocatorGrowable globalDescriptorAllocator;
-      VkExtent3D internalExtent{};
-    private:
       int m_BackgroundEffectIndex{ 0 };
       std::vector<ComputeEffect> m_BackgroundEffects;
       std::vector<const char*> m_InstanceExtensions = {};
@@ -177,14 +175,9 @@ namespace Aurora {
       std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",
       };
-    public:
-      VmaAllocator m_Allocator{};
-    private:
       VkDescriptorSet m_DrawDescriptors{};
       VkDescriptorSetLayout m_DrawDescriptorLayout{};
-    public:
-      VkExtent2D m_DrawExtent{};
-    private:
+
       VkExtent2D m_WindowExtent{};
       float m_RenderScale = 1.0f;
 
@@ -202,8 +195,18 @@ namespace Aurora {
       VkPipeline m_DepthPrepassPipeline;
       VkPipeline m_ShadowPipeline;
       VkPipelineLayout m_ShadowPipelineLayout;
+      VkPipelineLayout zpassLayout;
       VkDescriptorSetLayout m_ShadowSetLayout;
-      VkExtent3D m_ShadowExtent{ 1024*4, 1024*4, 1 };
+      VkDescriptorSetLayout zpassDescriptorLayout;
+      
+      // draw debug lines structures
+      VkPipelineLayout debugLinePipelineLayout;
+      VkPipeline debugLinePipeline;
+      std::vector<glm::vec3> debugLines;
+      AllocatedBuffer debugLinesBuffer;
+      
+
+      VkExtent3D m_ShadowExtent{ 1024, 1024, 1 };
 
       struct ShadowMappingSettings
       {
@@ -216,26 +219,11 @@ namespace Aurora {
         float far{ 15.0 };
         uint32_t shadowNumber{ 0 };
       } pcss_settings;
-      
-      // this instead of pcs / sceneData
-  /*
-      struct ShadowShadingSettings
-      {
-        glm::mat4 lightView;
-        float near{0.1};
-        float far{20.0};
-        float light_size{0.0};
-        bool pcss_enabled{true};
-      } shadowUBO;
-    */
 
-      struct ShadowPassSettings
+       struct ShadowPassSettings
       {
         AllocatedBuffer buffer;
         glm::mat4 lightView; 
       } shadowPass;
-
-      
-
   };
 } // namespace aurora

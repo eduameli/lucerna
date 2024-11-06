@@ -8,12 +8,15 @@ namespace Aurora
 DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR surface)
   : m_Instance{instance}, m_Surface{surface} 
 {
+  features.f1.wideLines = VK_TRUE;
+  features.f1.fillModeNonSolid = VK_TRUE;
   features.f12.bufferDeviceAddress = VK_TRUE;
   features.f12.scalarBlockLayout = VK_TRUE;
   features.f13.dynamicRendering = VK_TRUE;
   features.f13.synchronization2 = VK_TRUE;
 
   AR_CORE_WARN("Required Features: ");
+  AR_CORE_WARN("\tfillModeNonSolid");
   AR_CORE_WARN("\tbufferDeviceAddress");
   AR_CORE_WARN("\tscalarBlockLayout");
   AR_CORE_WARN("\tdynamicRendering");
@@ -25,9 +28,8 @@ bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
 {
   Features query{};
   vkGetPhysicalDeviceFeatures2(device, &query.get());
-  
-  //NOTE: if u add a feature remember to enable it in the constructor!
-  return 
+  return
+    query.features.features.fillModeNonSolid &&
     query.f12.bufferDeviceAddress &&
     query.f12.scalarBlockLayout &&
     query.f13.dynamicRendering &&
@@ -69,6 +71,7 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
   for (const auto& device : devices)
   {
     int score = rate_physical_device(device);
+    AR_CORE_INFO("COMPUTED SCORE! {}", score);
     if (score > highscore)
     {
       highscore = score;
@@ -81,7 +84,6 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
   vkGetPhysicalDeviceProperties(selected, &properties);
   uint32_t version = properties.apiVersion;
   AR_CORE_INFO("Using {} [version {}.{}.{}]", properties.deviceName, VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
-
   return selected;
 }
 

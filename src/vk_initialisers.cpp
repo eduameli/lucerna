@@ -197,18 +197,54 @@ VkRenderingInfo vkinit::rendering_info(VkExtent2D renderExtent, VkRenderingAttac
   return renderInfo;
 }
 
-VkPresentInfoKHR vkinit::present_info()
+VkViewport vkinit::dynamic_viewport(VkExtent3D extent)
 {
-  VkPresentInfoKHR info{};
-  info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  info.pNext = nullptr;
-  info.swapchainCount = 0;
-  info.pSwapchains = nullptr;
-  info.pWaitSemaphores = nullptr;
-  info.waitSemaphoreCount = 0;
-  info.pImageIndices = nullptr;
-  return info;
+  VkViewport viewport{};
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.width = extent.width;
+  viewport.height = extent.height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+
+  return viewport;
 }
+
+VkRect2D vkinit::dynamic_scissor(VkExtent3D extent)
+{
+  VkRect2D scissor{};
+  scissor.offset.x = 0;
+  scissor.offset.y = 0;
+  scissor.extent.width = extent.width;
+  scissor.extent.height = extent.height;
+
+  return scissor;
+}
+
+VkViewport vkinit::dynamic_viewport(VkExtent2D extent)
+{
+  VkViewport viewport{};
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.width = extent.width;
+  viewport.height = extent.height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+
+  return viewport;
+}
+
+VkRect2D vkinit::dynamic_scissor(VkExtent2D extent)
+{
+  VkRect2D scissor{};
+  scissor.offset.x = 0;
+  scissor.offset.y = 0;
+  scissor.extent.width = extent.width;
+  scissor.extent.height = extent.height;
+
+  return scissor;
+}
+
 
 VkPipelineShaderStageCreateInfo vkinit::pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char* entry)
 {

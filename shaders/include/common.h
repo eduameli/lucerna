@@ -3,6 +3,8 @@
 
 #ifdef __cplusplus
 
+#include "volk.h"
+
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -17,7 +19,7 @@
 #define vec4_ar glm::vec4
 #define mat4_ar glm::mat4x4
 
-#define vec3fp16_ar glm::vec3fp16;
+#define buffer_ar(name) VkDeviceAddress
 
 #else
 
@@ -28,6 +30,10 @@
 #define vec3_ar vec3
 #define vec4_ar vec4
 #define mat4_ar mat4
+
+#define buffer_ar(name) name 
+
+#define PI 3.14159
 
 #endif // __CPLUSPLUS
 #endif // COMMON_H

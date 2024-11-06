@@ -1,34 +1,29 @@
-#version 450
-
-#extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_buffer_reference : require
-#extension GL_EXT_scalar_block_layout : require
-
+#include "common.h"
 #include "input_structures.glsl"
 
+struct std_material_pcs
+{
+#ifdef __cplusplus
+  std_material_pcs()
+    : modelMatrix{1.0f}, vertexBuffer{0}, positionBuffer{0}, emission{0.0f} {}
+#endif
+  mat4_ar modelMatrix;
+  buffer_ar(VertexBuffer) vertexBuffer;
+  buffer_ar(PositionBuffer) positionBuffer;
+  float_ar emission;
+};
+
+#ifndef __cplusplus
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec2 outUV;
 layout (location = 3) out vec4 outlightSpace;
 layout (location = 4) out float emission;
 
-// NOTE: afaik padding is needed until i add bitangents or sm cause ssbo alignments? to 16 or 8 - scalar works only for uniforms?
-layout(buffer_reference, scalar) readonly buffer VertexBuffer{ 
-	Vertex vertices[];
-};
-
-// NOTE: idk how to improve this 
-layout(buffer_reference, scalar) readonly buffer PositionBuffer {
-  vec3 positions[];
-};
-
 layout( push_constant, scalar ) uniform constants
 {
-	mat4 modelMatrix;
-	VertexBuffer vertexBuffer;
-  PositionBuffer positionBuffer;
-  float emission;
-} pcs;
+  std_material_pcs pcs;
+};
 
 vec3 decode_normal(vec2 f)
 {
@@ -59,3 +54,4 @@ void main()
   emission = pcs.emission;
 }
 
+#endif

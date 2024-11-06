@@ -7,7 +7,7 @@ namespace Aurora
   class Engine;
 
 //should it be a singleton?
-  class BloomEffect 
+  class bloom 
   {
     public:
       static void prepare();

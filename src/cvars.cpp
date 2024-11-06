@@ -13,6 +13,7 @@ enum class CVarType : uint8_t
 {
 	INT,
 	FLOAT,
+  STRING, // NOTE: not implemented - useful for file paths!
 };
 
 struct CVarParameter

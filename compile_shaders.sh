@@ -10,6 +10,8 @@ compile_shader() {
     	-g \
         --P "#extension GL_GOOGLE_include_directive: enable" \
         --P "#extension GL_EXT_scalar_block_layout: enable" \
+        --P "#extension GL_EXT_buffer_reference: require" \
+        --glsl-version 460 \
         "$SHADER" -o "$OUTPUT_FILE"
 }
 

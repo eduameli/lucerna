@@ -1,10 +1,22 @@
-build/
-*.make
-Makefile
-.cache/
-compile_commands.json
-.hidden
-.clangd
-core
-imgui.ini
-*.spv
+# Ignore everything
+*
+
+# Don't ignore these directories and their file types
+!src/
+!src/**/*
+!src/**/*.cpp
+!src/**/*.h
+
+!shaders/
+!shaders/**/*
+!shaders/**/*.glsl
+!shaders/**/*.vert
+!shaders/**/*.frag
+!shaders/**/*.comp
+!shaders/**/*.h
+
+!premake5.lua
+!compile_shaders.sh
+
+
+**.spv

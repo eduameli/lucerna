@@ -1,13 +1,13 @@
-#version 460
+#include "common.h"
+
+#ifndef __cplusplus
+#include "input_structures.glsl"
 
 layout (local_size_x = 16, local_size_y = 17) in;
-
 layout( push_constant ) uniform constants
 {	
-	vec2 srcResolution;
-	float filterRadius;
-  int finalPass;
-} pcs;
+  bloom_pcs pcs;	
+};
 
 layout(set = 0, binding = 0) uniform sampler2D srcTexture;
 layout(rgba16f, set = 0, binding = 1) uniform image2D dstImage;
@@ -52,3 +52,5 @@ void main()
     imageStore(dstImage, texelCoord, vec4(downsample, 1.0));
   }
 }
+
+#endif
