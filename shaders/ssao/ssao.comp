@@ -14,7 +14,7 @@ void main()
 
   if (texelCoord.x < size.x && texelCoord.y < size.y)
   {
-    imageStore(outAmbient, texelCoord, vec4(1.0, 0.0, 0.0, 0.0));
+    imageStore(outAmbient, texelCoord, vec4(0.5, 0.0, 0.0, 0.0));
   }
 }
 

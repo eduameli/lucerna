@@ -115,7 +115,7 @@ namespace Aurora {
 namespace vklog {
   inline void label_image(VkDevice device, VkImage image, const char* name)
   {
-#ifdef DEBUG 
+#ifdef AR_DEBUG 
     VkDebugUtilsObjectNameInfoEXT nameInfo{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
     nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
     nameInfo.objectHandle = reinterpret_cast<uint64_t> (image);
@@ -126,7 +126,7 @@ namespace vklog {
 
   inline void label_buffer(VkDevice device, VkBuffer buffer, const char* name)
   {
-#ifdef DEBUG 
+#ifdef AR_DEBUG 
     VkDebugUtilsObjectNameInfoEXT nameInfo{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
     nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
     nameInfo.objectHandle = reinterpret_cast<uint64_t> (buffer);

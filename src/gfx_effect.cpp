@@ -269,6 +269,8 @@ void bloom::run(VkCommandBuffer cmd, VkImageView targetImage)
   size.height *= 2;
 
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+
+  // FIXME: do i need a barrier here?
 }
 
 
@@ -322,7 +324,14 @@ void ssao::prepare()
   // create output image
   VkFormat format = VK_FORMAT_R8_UNORM;
   VkImageUsageFlags usages = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-  outputAmbient = engine->create_image({1280, 720, 1}, format, usages);
+  VkExtent3D size = engine->internalExtent;
+  outputAmbient = engine->create_image(size, format, usages);
+  vklog::label_image(device, outputAmbient.image, "SSAO Output Ambient Texture");
+
+  //FIXME: i might be a dumbass and u dont do this!!
+  engine->immediate_submit([=](VkCommandBuffer cmd){
+    vkutil::transition_image(cmd, outputAmbient.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+  });
 
   vkDestroyShaderModule(device, ssaoShader, nullptr);
   engine->m_DeletionQueue.push_function([device, engine](){
@@ -336,6 +345,32 @@ void ssao::prepare()
 
 void ssao::run(VkCommandBuffer cmd, VkImageView depth)
 {
+  /*
+  bind pipeline
+  write descriptor set -- depth binding 0 output binding 1
+  */
+  
+  Engine* engine = Engine::get();
+  VkExtent3D size = engine->internalExtent;
 
+  VkDescriptorSet set = engine->get_current_frame().frameDescriptors.allocate(engine->device, descLayout);
+  {
+    DescriptorWriter writer;
+    writer.write_image(0, depth, engine->m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(1, outputAmbient.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    writer.update_set(engine->device, set);
+  }
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, ssaoPipeline);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
+  /*vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+  
+  pcs.srcResolution = {size.width, size.height};
+  size.width *= 2;
+  size.height *= 2;
+  */
+  vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+
+  // FIXME: do i need a barrier here??
 }
 } // aurora namespace
