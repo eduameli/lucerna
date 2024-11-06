@@ -3,9 +3,6 @@
 #include "vk_mem_alloc.h"
 #include "aurora_pch.h"
 
-#include "input_structures.glsl"
-#include "common.h"
-
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
@@ -39,14 +36,6 @@ namespace Aurora
     VkDeviceAddress positionBufferAddress{};
   };
  
-  struct GPUDrawPushConstants
-  {
-    glm::mat4 modelMatrix;
-    VkDeviceAddress vertexBuffer;
-    VkDeviceAddress positionBuffer;
-    float emission;
-  };
-  
   // FIXME: only needed in engine?? or maybe only types that are referenced multiple times, created many times
   // for now keep here as improved deletion queue could go here! one array per type of deletion to store less data / overhead
   struct DeletionQueue
@@ -145,5 +134,13 @@ namespace Aurora
     std::vector<GeoSurface> surfaces;
     GPUMeshBuffers meshBuffers;
   };
+
+// NOTE: cpp/glsl structure definition
+#include "input_structures.glsl"
+#include "common.h"
+#include "zprepass/zprepass.vert"
+#include "shadow/shadow_map.vert"
+#include "meshes/std_material.vert"
+#include "debug_line/debug_line.vert"
 } // namespace aurora
 

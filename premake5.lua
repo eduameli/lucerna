@@ -40,7 +40,13 @@ project "aurora"
         "vendor/stb_image/",
         "vendor/fastgltf/include",
         "vendor/volk/",
+
         "shaders/include",
+        "shaders/",
+        "shaders/zprepass/zprepass.vert",
+        "shaders/shadow/shadow_map.vert",
+        "shaders/bloom/upsample.comp",
+        "shaders/bloom/downsample.comp"
     }
   
     libdirs {"build/lib/bin/%{cfg.buildcfg}"}

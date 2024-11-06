@@ -56,7 +56,7 @@ namespace Aurora {
 
   void Window::iconify_callback(GLFWwindow* window, int iconify)
   {
-    Engine::get().stopRendering = iconify == 0 ? false : true;
+    Engine::get()->stopRendering = iconify == 0 ? false : true;
     AR_CORE_WARN("{} Rendering", iconify == 0 ? "Resumed" : "Suspended");
   }
 
@@ -64,7 +64,7 @@ namespace Aurora {
   {
     if (width > 0 && height > 0)
     {
-      Engine::get().resize_swapchain(width, height);
+      Engine::get()->resize_swapchain(width, height);
     }
   }
 
