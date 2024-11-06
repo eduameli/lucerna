@@ -1,4 +1,4 @@
-#include "post_effects.h"
+#include "gfx_effects.h"
 
 #include "engine.h"
 #include "vk_initialisers.h"
@@ -68,7 +68,8 @@ void bloom::prepare()
   computeLayout.pushConstantRangeCount = 1;
 
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &pipelineLayout));
-
+  
+  VkShaderModule downsample, upsample;
   AR_LOG_ASSERT(
     vkutil::load_shader_module("shaders/bloom/downsample.comp.spv", device, &downsample),
     "Error loading (Bloom) Downsample Compute Effect Shader"
@@ -268,5 +269,73 @@ void bloom::run(VkCommandBuffer cmd, VkImageView targetImage)
   size.height *= 2;
 
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+}
+
+
+void ssao::prepare()
+{
+  /*
+    create compute pipeline - only push constants
+    create output image
+  */
+
+  Engine* engine = Engine::get();
+  VkDevice device = engine->device;
+  
+  {
+    DescriptorLayoutBuilder builder;
+    builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    descLayout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
+  }
+
+  VkPushConstantRange range{};
+  range.offset = 0;
+  range.size = sizeof(glm::vec3);
+  range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  VkPipelineLayoutCreateInfo layout = vkinit::pipeline_layout_create_info();
+  layout.pushConstantRangeCount = 1;
+  layout.pPushConstantRanges = &range;
+  layout.setLayoutCount = 1;
+  layout.pSetLayouts = &descLayout;
+
+  vkCreatePipelineLayout(device, &layout, nullptr, &pipelineLayout);
+
+  VkShaderModule ssaoShader;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/ssao/ssao.comp.spv", device, &ssaoShader),
+    "Error loading Gradient Compute Effect Shader"
+  );  
+
+  VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, ssaoShader);
+  
+  VkComputePipelineCreateInfo computePipelineCreateInfo{};
+  computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+  computePipelineCreateInfo.pNext = nullptr;
+  computePipelineCreateInfo.layout = pipelineLayout;
+  computePipelineCreateInfo.stage = stageInfo;
+  
+  VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &ssaoPipeline));
+  
+
+  // create output image
+  VkFormat format = VK_FORMAT_R8_UNORM;
+  VkImageUsageFlags usages = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+  outputAmbient = engine->create_image({1280, 720, 1}, format, usages);
+
+  vkDestroyShaderModule(device, ssaoShader, nullptr);
+  engine->m_DeletionQueue.push_function([device, engine](){
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    engine->destroy_image(outputAmbient);
+    vkDestroyPipeline(device, ssaoPipeline, nullptr);
+    vkDestroyDescriptorSetLayout(device, descLayout, nullptr);
+  });
+
+}
+
+void ssao::run(VkCommandBuffer cmd, VkImageView depth)
+{
+
 }
 } // aurora namespace

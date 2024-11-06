@@ -15,7 +15,7 @@ layout(rgba16f, set = 0, binding = 1) uniform image2D dstImage;
 void main()
 {
   ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-  ivec2 size = imageSize(dstImage);
+  ivec2 size = imageSize(dstImage); // FIXME: put it in pcs
 
   if (texelCoord.x < size.x && texelCoord.y < size.y)
   {

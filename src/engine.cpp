@@ -10,7 +10,7 @@
 #include "vk_pipelines.h"
 #include "vk_device.h"
 #include "vk_swapchain.h"
-#include "post_effects.h"
+#include "gfx_effects.h"
 #include <GLFW/glfw3.h>
 #include "vk_types.h"
 
@@ -74,8 +74,10 @@ void Engine::init()
     destroy_buffer(shadowPass.buffer);
   });
 
-  // prepare post process
+  // prepare gfx effects
   bloom::prepare();
+  ssao::prepare();
+  
 } 
 
 
@@ -296,6 +298,7 @@ void Engine::draw()
   // NOTE: Post Effects
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
   bloom::run(cmd, m_DrawImage.imageView);
+  ssao::run(cmd, m_DepthImage.imageView);
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -451,8 +454,8 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
 void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 {
-  VkRenderingAttachmentInfo depthPrepass = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-  VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthPrepass);
+  VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+  VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
   vkCmdBeginRendering(cmd, &depthPrepassInfo);
 
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
@@ -1212,7 +1215,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
     .build();
 
   device = m_Device.logical;
@@ -1382,9 +1385,7 @@ void Engine::init_pipelines()
 
 void Engine::init_background_pipelines()
 {
-  VkPipelineLayoutCreateInfo computeLayout{};
-  computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  computeLayout.pNext = nullptr;
+  VkPipelineLayoutCreateInfo computeLayout = vkinit::pipeline_layout_create_info();
   computeLayout.pSetLayouts = &m_DrawDescriptorLayout;
   computeLayout.setLayoutCount = 1;
   
@@ -1428,16 +1429,6 @@ void Engine::init_background_pipelines()
   gradient.data.data2[1] = 0;
   gradient.data.data2[2] = 1;
   gradient.data.data2[3] = 1;
-
-  ComputeEffect sky;
-  sky.layout = layout;
-  sky.name = "sky";
-  sky.data = {};
-
-  sky.data.data1[0] = 0.1;
-  sky.data.data1[1] = 0.2;
-  sky.data.data1[2] = 0.4;
-  sky.data.data1[3] = 0.97;
 
   VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
 

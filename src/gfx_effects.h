@@ -28,8 +28,19 @@ namespace Aurora
       static inline VkDescriptorSet descriptorSet{}; // just use one img
       static inline VkSampler sampler{};
       static inline VkDescriptorSetLayout descriptorLayout{};
-      static inline VkShaderModule downsample{};
-      static inline VkShaderModule upsample{};
   };
-
+  
+  class ssao
+  {
+    public:
+      static void prepare();
+      static void run(VkCommandBuffer cmd, VkImageView depth);
+    public:
+      static inline AllocatedImage outputAmbient;
+    private:
+    private:
+      static inline VkPipelineLayout pipelineLayout{};
+      static inline VkPipeline ssaoPipeline{};
+      static inline VkDescriptorSetLayout descLayout{};
+  };
 } // aurora namespace
