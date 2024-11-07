@@ -190,8 +190,9 @@ namespace Aurora {
       VkFence m_ImmFence;
       VkCommandBuffer m_ImmCommandBuffer;
       VkCommandPool m_ImmCommandPool;
+      public:
       GPUSceneData sceneData;
-  
+      private:
       VkPipeline m_DepthPrepassPipeline;
       VkPipeline m_ShadowPipeline;
       VkPipelineLayout m_ShadowPipelineLayout;

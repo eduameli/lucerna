@@ -293,7 +293,7 @@ void ssao::prepare()
 
   VkPushConstantRange range{};
   range.offset = 0;
-  range.size = sizeof(glm::vec3);
+  range.size = sizeof(ssao_pcs);
   range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
   VkPipelineLayoutCreateInfo layout = vkinit::pipeline_layout_create_info();
@@ -322,8 +322,8 @@ void ssao::prepare()
   
 
   // create output image
-  VkFormat format = VK_FORMAT_R8_UNORM;
-  VkImageUsageFlags usages = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+  VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+  VkImageUsageFlags usages = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT; /*last one for debugging*/
   VkExtent3D size = engine->internalExtent;
   outputAmbient = engine->create_image(size, format, usages);
   vklog::label_image(device, outputAmbient.image, "SSAO Output Ambient Texture");
@@ -356,19 +356,28 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   VkDescriptorSet set = engine->get_current_frame().frameDescriptors.allocate(engine->device, descLayout);
   {
     DescriptorWriter writer;
-    writer.write_image(0, depth, engine->m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(0, depth, engine->m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.write_image(1, outputAmbient.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     writer.update_set(engine->device, set);
   }
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, ssaoPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &set, 0, nullptr);
-  /*vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(BloomPushConstants), &pcs);
+
+  float near = *CVarSystem::get()->get_float_cvar("camera.near");
+  float far = *CVarSystem::get()->get_float_cvar("camera.far");
+  float fov = *CVarSystem::get()->get_float_cvar("camera.fov");
+  VkExtent2D extent = engine->m_DrawExtent; 
+  float aspectRatio = (float) extent.width / (float) extent.height;
   
-  pcs.srcResolution = {size.width, size.height};
-  size.width *= 2;
-  size.height *= 2;
-  */
+
+  // vec2 + vec2 = vec4
+  // vec2 + vec2 = vec4 
+  // vec2 near - far
+  ssao_pcs pcs{};
+  pcs.inv_viewproj = glm::inverse(Engine::get()->sceneData.viewproj);
+  vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ssao_pcs), &pcs);
+  
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
   // FIXME: do i need a barrier here??

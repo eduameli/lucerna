@@ -15,7 +15,7 @@ namespace Aurora
       glm::mat4 get_view_matrix();
       glm::mat4 get_rotation_matrix();
     public:
-      static inline glm::vec3 s_Position{2.5, 2.5, 2.5};
+      static inline glm::vec3 s_Position{0, 0, 0};
     private:
       // FIX: make a proper controller/input system 
       static inline glm::vec3 s_Velocity{0.0f};

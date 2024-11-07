@@ -37,6 +37,12 @@ AutoCVar_Float shadowSoftness("shadow_mapping.softness", "radius of pcf sampling
 
 AutoCVar_Int debugLinesEnabled("debug.show_lines", "", 1, CVarFlags::EditCheckbox);
 
+AutoCVar_Float cameraFOV("camera.fov", "camera fov in degrees", 70.0f, CVarFlags::Advanced);
+AutoCVar_Float cameraFar("camera.far", "", 10000.0, CVarFlags::Advanced);
+AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
+
+AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
+
 static Engine* s_Instance = nullptr;
 Engine* Engine::get()
 {
@@ -182,7 +188,7 @@ void Engine::update_scene()
   mainCamera.update();
 
   glm::mat4 view = mainCamera.get_view_matrix();
-  glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float) m_DrawExtent.width / (float) m_DrawExtent.height, 10000.0f, 0.1f);
+  glm::mat4 projection = glm::perspective(glm::radians(cameraFOV.get()), (float) m_DrawExtent.width / (float) m_DrawExtent.height, cameraFar.get(), cameraNear.get());
   projection[1][1] *= -1;
 
   sceneData.view = view;
@@ -305,7 +311,18 @@ void Engine::draw()
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-  vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
+  
+  if (ssaoDisplayTexture.get() == true)
+  {
+    vkutil::transition_image(cmd, ssao::outputAmbient.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    vkutil::copy_image_to_image(cmd, ssao::outputAmbient.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
+    vkutil::transition_image(cmd, ssao::outputAmbient.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+
+  }
+  else
+  {
+    vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
+  }
   
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   draw_imgui(cmd, m_Swapchain.views[swapchainImageIndex]);

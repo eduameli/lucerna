@@ -142,5 +142,6 @@ namespace Aurora
 #include "shadow/shadow_map.vert"
 #include "meshes/std_material.vert"
 #include "debug_line/debug_line.vert"
+#include "ssao/ssao.comp"
 } // namespace aurora
 
