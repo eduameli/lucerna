@@ -42,5 +42,10 @@ namespace Aurora
       static inline VkPipelineLayout pipelineLayout{};
       static inline VkPipeline ssaoPipeline{};
       static inline VkDescriptorSetLayout descLayout{};
+      static inline VkSampler depthSampler{};
+      static inline VkSampler noiseSampler{};
+
+      static inline AllocatedBuffer ssaoUniform{};
+      static inline AllocatedImage noiseImage{}; // NOTE: could be part of engine as might be reused a lot!
   };
 } // aurora namespace

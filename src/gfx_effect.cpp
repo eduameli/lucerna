@@ -5,6 +5,7 @@
 #include "ar_asserts.h"
 #include "vk_images.h"
 #include "vk_pipelines.h"
+#include <vulkan/vulkan_core.h>
 
 namespace Aurora
 {
@@ -288,6 +289,7 @@ void ssao::prepare()
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    builder.add_binding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     descLayout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
   }
 
@@ -332,6 +334,39 @@ void ssao::prepare()
   engine->immediate_submit([=](VkCommandBuffer cmd){
     vkutil::transition_image(cmd, outputAmbient.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
   });
+  
+  VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
+  sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  // NOTE: linear for now, it should be shadow billinear?? hardware!
+  sampl.magFilter = VK_FILTER_NEAREST;
+  sampl.minFilter = VK_FILTER_NEAREST;
+  vkCreateSampler(device, &sampl, nullptr, &depthSampler);
+  
+  sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  vkCreateSampler(device, &sampl, nullptr, &noiseSampler);
+  
+  ssaoUniform = engine->create_buffer(sizeof(u_ssao), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  std::array<glm::vec3, 64> samples;
+
+
+  std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
+  std::default_random_engine generator;
+  for (unsigned int i = 0; i < 64; ++i)
+  {
+      glm::vec3 sample(
+          randomFloats(generator) * 2.0 - 1.0, 
+          randomFloats(generator) * 2.0 - 1.0, 
+          randomFloats(generator)
+      );
+      sample  = glm::normalize(sample);
+      sample *= randomFloats(generator);
+      samples[i] = sample;  
+  }
+
+  u_ssao* buf = (u_ssao*) ssaoUniform.allocation->GetMappedData();
+  // allocate uniform buffer 64 vec3
 
   vkDestroyShaderModule(device, ssaoShader, nullptr);
   engine->m_DeletionQueue.push_function([device, engine](){
@@ -339,6 +374,9 @@ void ssao::prepare()
     engine->destroy_image(outputAmbient);
     vkDestroyPipeline(device, ssaoPipeline, nullptr);
     vkDestroyDescriptorSetLayout(device, descLayout, nullptr);
+    vkDestroySampler(device, depthSampler, nullptr);
+    vkDestroySampler(device, noiseSampler, nullptr);
+    engine->destroy_buffer(ssaoUniform);
   });
 
 }
@@ -356,7 +394,7 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   VkDescriptorSet set = engine->get_current_frame().frameDescriptors.allocate(engine->device, descLayout);
   {
     DescriptorWriter writer;
-    writer.write_image(0, depth, engine->m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(0, depth, depthSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.write_image(1, outputAmbient.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     writer.update_set(engine->device, set);
   }
@@ -375,6 +413,7 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   // vec2 + vec2 = vec4 
   // vec2 near - far
   ssao_pcs pcs{};
+  pcs.kernelRadius = *CVarSystem::get()->get_float_cvar("ssao.kernel_radius");
   pcs.inv_viewproj = glm::inverse(Engine::get()->sceneData.viewproj);
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ssao_pcs), &pcs);
   

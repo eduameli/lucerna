@@ -4,9 +4,15 @@ struct ssao_pcs
 {
 #ifdef __cplusplus
   ssao_pcs()
-    {}
+    : inv_viewproj{1.0f}, kernelRadius{0.5} {}
 #endif
   mat4_ar inv_viewproj;
+  float kernelRadius;
+};
+
+struct u_ssao
+{
+  vec3_ar samples[64];
 };
 
 #ifndef __cplusplus
@@ -106,7 +112,7 @@ void main()
     int oclussionFactor = 0;
     for (int i = 0; i < 8; i++)
     {
-      vec4 p = vec4(position + (TBN*sampleKernel[i])*0.5, 1.0);
+      vec4 p = vec4(position + (TBN*sampleKernel[i]) * pcs.kernelRadius, 1.0);
       vec4 uv = viewproj * p;
       vec3 uv_p = uv.xyz / uv.w;
       vec3 projCoords = uv_p * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);

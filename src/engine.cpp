@@ -42,6 +42,7 @@ AutoCVar_Float cameraFar("camera.far", "", 10000.0, CVarFlags::Advanced);
 AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
 
 AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
+AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.5, CVarFlags::None);
 
 static Engine* s_Instance = nullptr;
 Engine* Engine::get()
@@ -68,7 +69,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/simple_shadow.glb";
+  std::string structurePath = "assets/testing_ssao.glb";
   auto structureFile = load_gltf(this, structurePath);
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 

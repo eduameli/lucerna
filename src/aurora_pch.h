@@ -27,6 +27,8 @@
 #include <thread>
 #include <variant>
 
+#include <random>
+
 #include "cvars.h"
 
 #endif
