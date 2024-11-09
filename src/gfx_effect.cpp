@@ -6,6 +6,8 @@
 #include "vk_images.h"
 #include "vk_pipelines.h"
 #include <glm/packing.hpp>
+#include <glm/gtx/string_cast.hpp>
+
 namespace Aurora
 {
 
@@ -332,7 +334,7 @@ void ssao::prepare()
   
   // noise image
   std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
-  std::default_random_engine generator; // using default seed!
+  std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count()); // using default seed!
 
   std::vector<uint32_t> ssaoNoise;
   for (unsigned int i = 0; i < 16; i++)
@@ -341,9 +343,15 @@ void ssao::prepare()
           randomFloats(generator) * 2.0 - 1.0, 
           randomFloats(generator) * 2.0 - 1.0, 
           0.0f,
-          0.0f); 
-      ssaoNoise.push_back(glm::packUnorm4x8(noise));
-  }  
+          1.0f); 
+      ssaoNoise.push_back(glm::packSnorm4x8(noise));
+  }
+
+  for (uint32_t i : ssaoNoise)
+  {
+    AR_CORE_WARN("ssao {}", glm::to_string(glm::unpackSnorm4x8(i)));
+  }
+
   noiseImage = engine->create_image((void*) ssaoNoise.data(), VkExtent3D{4, 4, 1}, VK_FORMAT_R8G8B8A8_SNORM, VK_IMAGE_USAGE_SAMPLED_BIT); 
 
 
@@ -404,6 +412,7 @@ void ssao::prepare()
 
 }
 
+//FIXME NEED BARRIER OR SMTH CAUSE IF IT TAKES TOO LONG IT MESSES WITH FORWARD PASS
 void ssao::run(VkCommandBuffer cmd, VkImageView depth)
 {
   /*

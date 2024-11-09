@@ -117,7 +117,7 @@ void main()
     mat3 TBN = mat3(tangent, bitangent, normal);
     
     float oclussionFactor = 0;
-    for (int i = 0; i < 64; i++)
+    for (int i = 0; i < 32; i++)
     {
       vec4 p = vec4(position + (TBN*data.samples[i]) * pcs.kernelRadius, 1.0);
       vec4 uv = viewproj * p;
@@ -126,11 +126,13 @@ void main()
       
       //oclussionFactor += (projCoords.z - 0.025 <= sampleDepth? 0.0 : 1.0);
       float sampleDepth = texture(depthImage, projCoords.xy).r;
-      oclussionFactor += (sampleDepth <= projCoords.z? 1.0 : 0.0);
+
+      float rangeCheck= abs(projCoords.z - sampleDepth) < pcs.kernelRadius ? 1.0 : 0.0;
+      oclussionFactor += (sampleDepth <= projCoords.z? 1.0 : 0.0) * rangeCheck;
     }
     // select x points around current and if thei w uhh to be continued
     
-    imageStore(outAmbient, texelCoord, vec4(float(oclussionFactor)/64.0, 0.0, 0.0, 0.0));
+    imageStore(outAmbient, texelCoord, vec4(float(oclussionFactor)/32.0, 0.0, 0.0, 0.0));
     //imageStore(outAmbient, texelCoord, vec4(randomVec, 1.0));
     //imageStore(outAmbient, texelCoord, vec4(n, 1.0));
   }
