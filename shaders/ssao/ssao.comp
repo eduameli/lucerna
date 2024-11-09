@@ -26,6 +26,12 @@ layout( push_constant ) uniform constants
 
 layout(set = 0, binding = 0) uniform sampler2D depthImage;
 layout(r8, set = 0, binding = 1) uniform image2D outAmbient;
+layout(set = 0, binding = 2) uniform kernelSamples
+{
+  u_ssao data; 
+};
+
+layout(set = 0, binding = 3) uniform sampler2D noiseImage; 
 
 // no blue noise or whatever just testing if it works!
 vec3 sampleKernel[8] = vec3[](
@@ -104,23 +110,28 @@ void main()
     mat4 viewproj = inverse(pcs.inv_viewproj);
   
 
-    vec3 randomVec = randomVec3FromScreenPos(vec2(texelCoord));
-    vec3 tangent   = normalize(randomVec - normal * dot(randomVec, normal));
+    vec3 randomVec = texture(noiseImage, texCoord * size/4.0).xyz;
+
+    vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     vec3 bitangent = cross(normal, tangent);
-    mat3 TBN       = mat3(tangent, bitangent, normal);  
+    mat3 TBN = mat3(tangent, bitangent, normal);
     
-    int oclussionFactor = 0;
-    for (int i = 0; i < 8; i++)
+    float oclussionFactor = 0;
+    for (int i = 0; i < 64; i++)
     {
-      vec4 p = vec4(position + (TBN*sampleKernel[i]) * pcs.kernelRadius, 1.0);
+      vec4 p = vec4(position + (TBN*data.samples[i]) * pcs.kernelRadius, 1.0);
       vec4 uv = viewproj * p;
       vec3 uv_p = uv.xyz / uv.w;
       vec3 projCoords = uv_p * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
-      oclussionFactor += texture(depthImage, projCoords.xy).r < depth ? 1 : 0; 
+      
+      //oclussionFactor += (projCoords.z - 0.025 <= sampleDepth? 0.0 : 1.0);
+      float sampleDepth = texture(depthImage, projCoords.xy).r;
+      oclussionFactor += (sampleDepth <= projCoords.z? 1.0 : 0.0);
     }
     // select x points around current and if thei w uhh to be continued
     
-    imageStore(outAmbient, texelCoord, vec4(float(oclussionFactor)/8.0, 0.0, 0.0, 0.0));
+    imageStore(outAmbient, texelCoord, vec4(float(oclussionFactor)/64.0, 0.0, 0.0, 0.0));
+    //imageStore(outAmbient, texelCoord, vec4(randomVec, 1.0));
     //imageStore(outAmbient, texelCoord, vec4(n, 1.0));
   }
 }

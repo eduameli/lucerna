@@ -5,8 +5,7 @@
 #include "ar_asserts.h"
 #include "vk_images.h"
 #include "vk_pipelines.h"
-#include <vulkan/vulkan_core.h>
-
+#include <glm/packing.hpp>
 namespace Aurora
 {
 
@@ -290,6 +289,7 @@ void ssao::prepare()
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     builder.add_binding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     descLayout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
   }
 
@@ -329,6 +329,23 @@ void ssao::prepare()
   VkExtent3D size = engine->internalExtent;
   outputAmbient = engine->create_image(size, format, usages);
   vklog::label_image(device, outputAmbient.image, "SSAO Output Ambient Texture");
+  
+  // noise image
+  std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
+  std::default_random_engine generator; // using default seed!
+
+  std::vector<uint32_t> ssaoNoise;
+  for (unsigned int i = 0; i < 16; i++)
+  {
+      glm::vec4 noise(
+          randomFloats(generator) * 2.0 - 1.0, 
+          randomFloats(generator) * 2.0 - 1.0, 
+          0.0f,
+          0.0f); 
+      ssaoNoise.push_back(glm::packUnorm4x8(noise));
+  }  
+  noiseImage = engine->create_image((void*) ssaoNoise.data(), VkExtent3D{4, 4, 1}, VK_FORMAT_R8G8B8A8_SNORM, VK_IMAGE_USAGE_SAMPLED_BIT); 
+
 
   //FIXME: i might be a dumbass and u dont do this!!
   engine->immediate_submit([=](VkCommandBuffer cmd){
@@ -338,7 +355,6 @@ void ssao::prepare()
   VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
   sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
   sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  // NOTE: linear for now, it should be shadow billinear?? hardware!
   sampl.magFilter = VK_FILTER_NEAREST;
   sampl.minFilter = VK_FILTER_NEAREST;
   vkCreateSampler(device, &sampl, nullptr, &depthSampler);
@@ -350,9 +366,10 @@ void ssao::prepare()
   ssaoUniform = engine->create_buffer(sizeof(u_ssao), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   std::array<glm::vec3, 64> samples;
 
+  auto lerp = [](float a, float b, float f) {
+    return a + f * (b - a ); 
+  };
 
-  std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
-  std::default_random_engine generator;
   for (unsigned int i = 0; i < 64; ++i)
   {
       glm::vec3 sample(
@@ -361,11 +378,16 @@ void ssao::prepare()
           randomFloats(generator)
       );
       sample  = glm::normalize(sample);
-      sample *= randomFloats(generator);
+      
+      // accelerating interpolation function
+      float scale = (float)i / 64.0; 
+      scale   = lerp(0.1f, 1.0f, scale * scale);
+      sample *= scale;
+
       samples[i] = sample;  
   }
-
-  u_ssao* buf = (u_ssao*) ssaoUniform.allocation->GetMappedData();
+  
+  memcpy(ssaoUniform.info.pMappedData, samples.data(), sizeof(glm::vec3) * 64);
   // allocate uniform buffer 64 vec3
 
   vkDestroyShaderModule(device, ssaoShader, nullptr);
@@ -377,6 +399,7 @@ void ssao::prepare()
     vkDestroySampler(device, depthSampler, nullptr);
     vkDestroySampler(device, noiseSampler, nullptr);
     engine->destroy_buffer(ssaoUniform);
+    engine->destroy_image(noiseImage);
   });
 
 }
@@ -396,6 +419,8 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
     DescriptorWriter writer;
     writer.write_image(0, depth, depthSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.write_image(1, outputAmbient.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    writer.write_buffer(2, ssaoUniform.buffer, sizeof(glm::vec3)*64, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.write_image(3, noiseImage.imageView, noiseSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.update_set(engine->device, set);
   }
 
