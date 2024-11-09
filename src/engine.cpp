@@ -69,7 +69,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/testing_ssao.glb";
+  std::string structurePath = "assets/sponza.glb";
   auto structureFile = load_gltf(this, structurePath);
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 
