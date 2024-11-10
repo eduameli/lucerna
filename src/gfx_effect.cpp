@@ -335,7 +335,8 @@ void ssao::prepare()
   // noise image
   std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
   std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count()); // using default seed!
-
+  
+  // NOTE: use bayern matrix pattern and the bilateral filter?
   std::vector<uint32_t> ssaoNoise;
   for (unsigned int i = 0; i < 16; i++)
   {
@@ -346,13 +347,9 @@ void ssao::prepare()
           1.0f); 
       ssaoNoise.push_back(glm::packSnorm4x8(noise));
   }
-
-  for (uint32_t i : ssaoNoise)
-  {
-    AR_CORE_WARN("ssao {}", glm::to_string(glm::unpackSnorm4x8(i)));
-  }
-
+  
   noiseImage = engine->create_image((void*) ssaoNoise.data(), VkExtent3D{4, 4, 1}, VK_FORMAT_R8G8B8A8_SNORM, VK_IMAGE_USAGE_SAMPLED_BIT); 
+
 
 
   //FIXME: i might be a dumbass and u dont do this!!
