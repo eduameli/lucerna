@@ -78,6 +78,8 @@ layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
   ShadowFragmentSettings shadowSettings;
 };
 
+layout(set = 0, binding = 3) uniform sampler2D ssaoAmbient;
+
 
 // MATERIAL SHADING
 layout(set = 1, binding = 0) uniform GLTFMaterialData{   

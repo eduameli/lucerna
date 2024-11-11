@@ -33,44 +33,11 @@ layout(set = 0, binding = 2) uniform kernelSamples
 
 layout(set = 0, binding = 3) uniform sampler2D noiseImage; 
 
-// no blue noise or whatever just testing if it works!
-vec3 sampleKernel[8] = vec3[](
-    vec3(0.1,  0.3,  0.2),
-    vec3(-0.2, -0.3, 0.4),
-    vec3(0.4,  -0.5, 0.1),
-    vec3(-0.3, 0.1,  0.6),
-    vec3(0.6,  -0.2, 0.3),
-    vec3(-0.1, 0.5,  0.4),
-    vec3(0.2,  -0.6, 0.1),
-    vec3(-0.4, 0.2,  0.5)
-);
-
-// FIXME: temporary
-float hash(vec2 p) {
-    return fract(sin(dot(p ,vec2(127.1,311.7))) * 43758.5453123);
-}
-
-// Generate a random vec3 from screen position
-vec3 randomVec3FromScreenPos(vec2 screenPos) {
-    // Generate 3 random values based on screen position
-    float r1 = hash(screenPos + vec2(1.0, 0.0));
-    float r2 = hash(screenPos + vec2(0.0, 1.0));
-    float r3 = hash(screenPos + vec2(1.0, 1.0));
-    
-    // Return as vec3
-    return vec3(r1, r2, r3);
-}
-
 vec3 position_from_depth(vec2 uv, float depth, mat4 inv_viewproj)
 {
   vec4 ndc = vec4(vec2(uv * 2.0 - 1.0), depth, 1.0);
   vec4 pos = inv_viewproj * ndc;
   return pos.xyz / pos.w;
-}
-
-float depth_from_position(vec3 position, mat4 viewproj)
-{
-  return 0.0;
 }
 
 // FIXME: wicked engine or other blogpost talk about improving this!.. now edges are broken
@@ -120,14 +87,20 @@ void main()
     for (int i = 0; i < 32; i++)
     {
       vec4 p = vec4(position + (TBN*data.samples[i]) * pcs.kernelRadius, 1.0);
+    
+      /*
+      float dot = dot(normalize(TBN*data.samples[i]), normalize(normal));
+      if (dot < 0.15)
+      {
+        continue;
+      }
+      */
 
       vec4 uv = viewproj * p;
       vec3 uv_p = uv.xyz / uv.w;
       vec3 projCoords = uv_p * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
       
-      //oclussionFactor += (projCoords.z - 0.025 <= sampleDepth? 0.0 : 1.0);
       float sampleDepth = texture(depthImage, projCoords.xy).r;
-
       float rangeCheck= abs(projCoords.z - sampleDepth) < pcs.kernelRadius ? 1.0 : 0.0;
 
 
