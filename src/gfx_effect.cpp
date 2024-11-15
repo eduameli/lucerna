@@ -7,6 +7,7 @@
 #include "vk_pipelines.h"
 #include <glm/packing.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <vulkan/vulkan_core.h>
 
 namespace Aurora
 {
@@ -295,6 +296,13 @@ void ssao::prepare()
     descLayout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
   }
 
+  {
+    DescriptorLayoutBuilder builder;
+    builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    blurDescLayout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
+  }
+
   VkPushConstantRange range{};
   range.offset = 0;
   range.size = sizeof(ssao_pcs);
@@ -308,11 +316,29 @@ void ssao::prepare()
 
   vkCreatePipelineLayout(device, &layout, nullptr, &pipelineLayout);
 
+  VkPipelineLayoutCreateInfo ly = vkinit::pipeline_layout_create_info();
+  ly.pushConstantRangeCount = 1;
+  VkPushConstantRange range2 = VkPushConstantRange{
+    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+    .offset = 0,
+    .size = sizeof(uint32_t) // NOTE: place the pcs struct here
+  };
+  ly.pPushConstantRanges = &range;
+  ly.setLayoutCount = 1;
+  ly.pSetLayouts = &blurDescLayout;
+  vkCreatePipelineLayout(device, &ly, nullptr, &blurPipelineLayout);
+    
   VkShaderModule ssaoShader;
   AR_LOG_ASSERT(
     vkutil::load_shader_module("shaders/ssao/ssao.comp.spv", device, &ssaoShader),
-    "Error loading Gradient Compute Effect Shader"
+    "Error loading SSAO Effect Shader"
   );  
+
+  VkShaderModule blurShader;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/ssao/bilateral_filter.comp.spv", device , &blurShader),
+    "Error loading Bilateral Blur SSAO Effect Shader" 
+  );
 
   VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, ssaoShader);
   
@@ -323,6 +349,10 @@ void ssao::prepare()
   computePipelineCreateInfo.stage = stageInfo;
   
   VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &ssaoPipeline));
+
+  computePipelineCreateInfo.layout = blurPipelineLayout;
+  computePipelineCreateInfo.stage = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, blurShader);
+  VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &blurPipeline));
   
 
   // create output image
@@ -330,9 +360,10 @@ void ssao::prepare()
   VkImageUsageFlags usages = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT; /*last one for debugging*/
   VkExtent3D size = engine->internalExtent;
   outputAmbient = engine->create_image(size, format, usages);
+  outputBlurred = engine->create_image(size, format, usages);
   vklog::label_image(device, outputAmbient.image, "SSAO Output Ambient Texture");
-  
-  // noise image
+  vklog::label_image(device, outputAmbient.image, "SSAO Output Blurred Ambient Texture");  // noise image
+
   std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
   std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count()); // using default seed!
   
@@ -355,6 +386,7 @@ void ssao::prepare()
   //FIXME: i might be a dumbass and u dont do this!!
   engine->immediate_submit([=](VkCommandBuffer cmd){
     vkutil::transition_image(cmd, outputAmbient.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    vkutil::transition_image(cmd, outputBlurred.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
   });
   
   VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
@@ -405,11 +437,15 @@ void ssao::prepare()
     vkDestroySampler(device, noiseSampler, nullptr);
     engine->destroy_buffer(ssaoUniform);
     engine->destroy_image(noiseImage);
+
+    engine->destroy_image(outputBlurred);
+    vkDestroyPipeline(device, blurPipeline, nullptr);
+    vkDestroyPipelineLayout(device, blurPipelineLayout, nullptr);
   });
 
 }
 
-//FIXME NEED BARRIER OR SMTH CAUSE IF IT TAKES TOO LONG IT MESSES WITH FORWARD PASS
+// FIXME: NEED BARRIER OR SMTH CAUSE IF IT TAKES TOO LONG IT MESSES WITH FORWARD PASS
 void ssao::run(VkCommandBuffer cmd, VkImageView depth)
 {
   /*
@@ -439,17 +475,64 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   VkExtent2D extent = engine->m_DrawExtent; 
   float aspectRatio = (float) extent.width / (float) extent.height;
   
-
-  // vec2 + vec2 = vec4
-  // vec2 + vec2 = vec4 
-  // vec2 near - far
   ssao_pcs pcs{};
   pcs.kernelRadius = *CVarSystem::get()->get_float_cvar("ssao.kernel_radius");
   pcs.inv_viewproj = glm::inverse(Engine::get()->sceneData.viewproj);
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ssao_pcs), &pcs);
+
+  vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+  
+  {
+    VkImageMemoryBarrier2 imgBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr};
+    imgBarrier.srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    imgBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+    imgBarrier.dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    imgBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+    imgBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imgBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imgBarrier.image = outputAmbient.image;
+    imgBarrier.subresourceRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+  
+    VkDependencyInfo depInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};
+    depInfo.imageMemoryBarrierCount = 1;
+    depInfo.pImageMemoryBarriers = &imgBarrier;
+
+    vkCmdPipelineBarrier2(cmd, &depInfo);
+  }
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, blurPipeline);
+
+  VkDescriptorSet set2 = engine->get_current_frame().frameDescriptors.allocate(engine->device, blurDescLayout);
+  {
+    DescriptorWriter writer;
+    writer.write_image(0, outputAmbient. imageView, engine->m_DefaultSamplerNearest, VK_IMAGE_LAYOUT_GENERAL,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_image(1, outputBlurred.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    writer.update_set(engine->device, set2);
+  }
+  
+  bilateral_filter_pcs blurpcs{};
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, blurPipelineLayout, 0, 1, &set2, 0, nullptr);
+  vkCmdPushConstants(cmd, blurPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(bilateral_filter_pcs), &blurpcs);
   
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
+  
+  
+  VkImageMemoryBarrier2 imgBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr};
+  imgBarrier.srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+  imgBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+  imgBarrier.dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+  imgBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+  imgBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+  imgBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+  imgBarrier.image = outputBlurred.image;
+  imgBarrier.subresourceRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+  
+  VkDependencyInfo depInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};
+  depInfo.imageMemoryBarrierCount = 1;
+  depInfo.pImageMemoryBarriers = &imgBarrier;
 
+  vkCmdPipelineBarrier2(cmd, &depInfo);
   // FIXME: do i need a barrier here??
 }
+
 } // aurora namespace

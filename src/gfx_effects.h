@@ -37,6 +37,7 @@ namespace Aurora
       static void run(VkCommandBuffer cmd, VkImageView depth);
     public:
       static inline AllocatedImage outputAmbient;
+      static inline AllocatedImage outputBlurred;
     private:
     private:
       static inline VkPipelineLayout pipelineLayout{};
@@ -44,7 +45,11 @@ namespace Aurora
       static inline VkDescriptorSetLayout descLayout{};
       static inline VkSampler depthSampler{};
       static inline VkSampler noiseSampler{};
-
+      
+      static inline VkPipelineLayout blurPipelineLayout{};
+      static inline VkPipeline blurPipeline{};
+      static inline VkDescriptorSetLayout blurDescLayout{};
+      
       static inline AllocatedBuffer ssaoUniform{};
       static inline AllocatedImage noiseImage{}; // NOTE: could be part of engine as might be reused a lot!
   };
