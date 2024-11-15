@@ -9,7 +9,7 @@ namespace Aurora {
   std::shared_ptr<spdlog::logger> Logger::s_Logger;
   void Logger::init()
   {
-    spdlog::set_pattern("%^[%T] [%n] %v%$");
+    spdlog::set_pattern("%^[%T] %v%$");
     spdlog::set_level(spdlog::level::trace);
     s_Logger = spdlog::stdout_color_mt("aurora");
   }

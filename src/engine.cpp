@@ -1,5 +1,5 @@
 #include "engine.h"
-
+#include "application.h"
 #include "aurora_pch.h"
 #include "ar_asserts.h"
 #include "logger.h"
@@ -69,7 +69,7 @@ void Engine::init()
   
   mainCamera.init();
    
-  std::string structurePath = "assets/sponza.glb";
+  std::string structurePath = Application::config.scene_path;
   auto structureFile = load_gltf(this, structurePath);
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 

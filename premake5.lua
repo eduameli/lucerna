@@ -40,6 +40,7 @@ project "aurora"
         "vendor/stb_image/",
         "vendor/fastgltf/include",
         "vendor/volk/",
+        "vendor/tomlplusplus/include",
 
         "shaders/include",
         "shaders/",

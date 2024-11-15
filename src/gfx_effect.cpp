@@ -428,6 +428,8 @@ void ssao::prepare()
   // allocate uniform buffer 64 vec3
 
   vkDestroyShaderModule(device, ssaoShader, nullptr);
+  vkDestroyShaderModule(device, blurShader, nullptr);
+  
   engine->m_DeletionQueue.push_function([device, engine](){
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     engine->destroy_image(outputAmbient);
@@ -441,6 +443,7 @@ void ssao::prepare()
     engine->destroy_image(outputBlurred);
     vkDestroyPipeline(device, blurPipeline, nullptr);
     vkDestroyPipelineLayout(device, blurPipelineLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, blurDescLayout, nullptr);
   });
 
 }

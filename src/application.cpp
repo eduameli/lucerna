@@ -1,4 +1,6 @@
 #include "application.h"
+#include "aurora_pch.h"
+#include "toml++/toml.hpp"
 
 namespace Aurora {
 
@@ -6,6 +8,18 @@ namespace Aurora {
   {
     // read and set preferred configuration
     Window::init("aurora", 1280, 800);
+
+    if (std::filesystem::exists("configuration.toml"))
+    {
+      AR_CORE_INFO("Config Exists!!!");
+      auto toml = toml::parse_file("configuration.toml");
+
+      config.scene_path = toml["startup"]["default_scene"].value_or("");
+    }
+    else
+    {
+      AR_CORE_TRACE("Doesnt exist...");
+    }
   }
 
   Application::~Application()

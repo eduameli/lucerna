@@ -10,6 +10,11 @@ namespace Aurora {
       Application();
       ~Application();
       void run();
+    public:
+      static inline struct Configuration
+      {
+        std::string scene_path;
+      } config;
     private:
       Engine m_Engine;
       Window m_Window;

@@ -34,3 +34,6 @@
 	path = vendor/volk
   url = https://github.com/zeux/volk.git
   ignore = dirty
+[submodule "vendor/tomlplusplus"]
+	path = vendor/tomlplusplus
+	url = https://github.com/marzer/tomlplusplus.git

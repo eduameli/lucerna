@@ -18,5 +18,8 @@
 !premake5.lua
 !compile_shaders.sh
 
+!vendor/
+!vendor/**/*
+!vendor/**
 
 **.spv
