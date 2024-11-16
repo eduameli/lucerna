@@ -71,12 +71,12 @@ project "aurora"
     buildoptions {"-Wno-nullability-completeness"}
 
     filter "configurations:debug"
-        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "AR_DEBUG"}
+        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "AR_DEBUG", "TOML_EXCEPTIONS=0"}
         symbols "On"
         optimize "Off"
 
     filter "configurations:release"
-        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1"}
+        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0"}
         optimize "On"
 
 project "spdlog"

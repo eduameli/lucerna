@@ -740,6 +740,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui::NewFrame();
   
   ImGui::Begin("Stats");
+    ImGui::Text("frame: %zu", frameNumber);
     ImGui::Text("frametime %f ms", stats.frametime);
     ImGui::Text("draw time %f ms", stats.mesh_draw_time);
     ImGui::Text("update time %f ms", stats.scene_update_time);
@@ -789,7 +790,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 //FIXME: a simple flat plane 50x50 breaks it :sob: maybe it needs volume to work or smth??
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
-  return true; // FIXME: not working
+  //return true; // FIXME: not working
 
   std::array<glm::vec3, 8> corners {
       glm::vec3 { 1, 1, 1 },
@@ -1237,7 +1238,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
     .build();
 
   device = m_Device.logical;
