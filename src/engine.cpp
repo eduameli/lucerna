@@ -835,10 +835,10 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     // check the clip space box is within the view
     if (min.z > 1.f || max.z < 0.001f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
     {
-      if (glm::distance(mainCamera.s_Position, obj.bounds.origin) < obj.bounds.sphereRadius)
+      /*if (glm::distance(mainCamera.s_Position, obj.bounds.origin) < obj.bounds.sphereRadius)
       {
         return true; // FIXME: does this work??
-      }
+      }*/
       return false;
     } else {
       return true;
