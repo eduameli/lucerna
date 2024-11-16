@@ -12,6 +12,7 @@
 #include "vk_swapchain.h"
 #include "gfx_effects.h"
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 
 #define VMA_IMPLEMENTATION
@@ -222,9 +223,17 @@ void Engine::update_scene()
 
     // draw aabb
     if (debugLinesEnabled.get() == true)
-      queue_debug_obb(mainDrawContext.OpaqueSurfaces[i].bounds.origin, mainDrawContext.OpaqueSurfaces[i].bounds.extents);
+    {
+      glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
+      glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
+      glm::mat4 mat = mainDrawContext.OpaqueSurfaces[i].transform;
+      glm::vec4 origin = glm::vec4(o, 1.0) ;
+      glm::vec4 ext = glm::vec4(e, 1.0) * mat;      
+      queue_debug_obb(glm::vec3(origin.x, origin.y, origin.z), glm::vec3(ext.x, ext.y, ext.z));
 
-  }
+    }
+    
+    }
    
   // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
   // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
@@ -419,10 +428,10 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
   {
     // FIXME: does nothing rn but need to do culling from camera view!
-    if (is_visible(mainDrawContext.OpaqueSurfaces[i], lightProj*lView))
-    {
+    //if (is_visible(mainDrawContext.OpaqueSurfaces[i], lightProj*lView))
+    //{
       shadow_draws.push_back(i);
-    }
+    //}
   }
 
   // NOTE: CMS Settings?? different mat proj or a scale to basic 1 or smth
@@ -685,9 +694,12 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
 
   //queue_debug_obb(glm::vec3{0.0f}, glm::vec3{2.0f});
 
-  if (debugLinesEnabled.get() == false) return;
-  if (debugLines.size() == 0) return;
-
+  AR_CORE_INFO("DEBUG POINTS {}", debugLines.size());
+  if (debugLinesEnabled.get() == false || debugLines.size() == 0)
+  {
+    return;
+  } 
+  
   AR_LOG_ASSERT(debugLines.size() % 2 == 0, "Debug Lines buffer must be a multiple of two");
  
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -695,10 +707,13 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
   vkCmdBeginRendering(cmd, &renderInfo);
 
 
-  debugLinesBuffer = create_buffer(debugLines.size() * sizeof(glm::vec3), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
+  debugLinesBuffer = create_buffer(debugLines.size() * sizeof(glm::vec3), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+  std::string n = "debug lines buffer" + std::to_string(frameNumber);
+  vklog::label_buffer(device, debugLinesBuffer.buffer, n.c_str()); // FIXME: kind of ass string manipulation also in gfx_effects.cpp bloom!
   glm::vec3* data = (glm::vec3*) debugLinesBuffer.allocation->GetMappedData();
   memcpy(data, debugLines.data(), debugLines.size() * sizeof(glm::vec3)); 
+  
+  //vmaFlushAllocation(m_Allocator,debugLinesBuffer.allocation , 0 , VK_WHOLE_SIZE); // FIXME: if its host coherent i dont need this??
   
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, debugLinePipeline);
   
@@ -721,16 +736,13 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
 
   vkCmdDraw(cmd, debugLines.size(), 1, 0, 0);
 
-  // draw line list at DrawImage
-  // make buffer for queued lines
-  // upload cpu to gpu
-  // bind - set pcs 
-  // draw - non indexed geometry - same pipeline
-  destroy_buffer(debugLinesBuffer); 
   debugLines.clear();
 
   vkCmdEndRendering(cmd);
 
+  // get_current_frame().deletionQueue.push_function([=, this]{
+    destroy_buffer(debugLinesBuffer);                                                  
+  // });
 }
 
 void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
@@ -790,43 +802,47 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 //FIXME: a simple flat plane 50x50 breaks it :sob: maybe it needs volume to work or smth??
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
-  //return true; // FIXME: not working
+    std::array<glm::vec3, 8> corners {
+        glm::vec3 { 1, 1, 1 },
+        glm::vec3 { 1, 1, -1 },
+        glm::vec3 { 1, -1, 1 },
+        glm::vec3 { 1, -1, -1 },
+        glm::vec3 { -1, 1, 1 },
+        glm::vec3 { -1, 1, -1 },
+        glm::vec3 { -1, -1, 1 },
+        glm::vec3 { -1, -1, -1 },
+    };
 
-  std::array<glm::vec3, 8> corners {
-      glm::vec3 { 1, 1, 1 },
-      glm::vec3 { 1, 1, -1 },
-      glm::vec3 { 1, -1, 1 },
-      glm::vec3 { 1, -1, -1 },
-      glm::vec3 { -1, 1, 1 },
-      glm::vec3 { -1, 1, -1 },
-      glm::vec3 { -1, -1, 1 },
-      glm::vec3 { -1, -1, -1 },
-  };
+    glm::mat4 matrix = viewproj * obj.transform;
 
-  glm::mat4 matrix = viewproj * obj.transform;
+    glm::vec3 min = { 1.5, 1.5, 1.5 };
+    glm::vec3 max = { -1.5, -1.5, -1.5 };
 
-  glm::vec3 min = { 1.5, 1.5, 1.5 };
-  glm::vec3 max = { -1.5, -1.5, -1.5 };
+    for (int c = 0; c < 8; c++) {
+        // project each corner into clip space
+        glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
 
-  for (int c = 0; c < 8; c++) {
-      // project each corner into clip space
-      glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
+        // perspective correction
+        v.x = v.x / v.w;
+        v.y = v.y / v.w;
+        v.z = v.z / v.w;
 
-      // perspective correction
-      v.x = v.x / v.w;
-      v.y = v.y / v.w;
-      v.z = v.z / v.w;
+        min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
+        max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
+    }
+    
 
-      min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
-      max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
-  }
-
-  // check the clip space box is within the view
-  if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) {
+    // check the clip space box is within the view
+    if (min.z > 1.f || max.z < 0.001f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
+    {
+      if (glm::distance(mainCamera.s_Position, obj.bounds.origin) < obj.bounds.sphereRadius)
+      {
+        return true; // FIXME: does this work??
+      }
       return false;
-  } else {
+    } else {
       return true;
-  }
+    }
 }
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)

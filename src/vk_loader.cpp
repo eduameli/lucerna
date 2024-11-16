@@ -258,9 +258,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         newSurface.material = materials[0];
       }
+
       glm::vec3  minpos = positions[initial_vtx];
       glm::vec3  maxpos = positions[initial_vtx];
-      for (int i = initial_vtx; i < vertices.size(); i++) {
+      for (int i = initial_vtx; i < positions.size(); i++) {
           minpos = glm::min(minpos, positions[i]);
           maxpos = glm::max(maxpos, positions[i]);
       }
@@ -630,7 +631,6 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
     def.material = &s.material->data;
     def.bounds = s.bounds;
-
     def.transform = nodeMatrix;
     def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
     def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
