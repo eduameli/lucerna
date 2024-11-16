@@ -11,7 +11,7 @@ namespace Aurora {
 
     if (std::filesystem::exists("configuration.toml"))
     {
-      AR_CORE_INFO("Config Exists!!!");
+      AR_CORE_INFO("Loading configuration.toml file...");
       auto toml = toml::parse_file("configuration.toml");
 
       config.scene_path = toml["startup"]["default_scene"].value_or("");

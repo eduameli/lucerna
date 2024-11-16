@@ -102,6 +102,6 @@ void main()
     return;
   }
   
-	outFragColor = vec4(color * lightValue + (ambient*texture(ssaoAmbient, gl_FragCoord.xy / vec2(1280, 800)).r), 1.0f);
+	outFragColor = vec4(color*texture(ssaoAmbient, gl_FragCoord.xy / vec2(1280, 800)).r * lightValue + (ambient*texture(ssaoAmbient, gl_FragCoord.xy / vec2(1280, 800)).r), 1.0f);
 
 }
