@@ -1,0 +1,15 @@
+[startup]
+scene_path = "assets/culling_minimal.glb"
+
+[cvars]
+
+# testing possible tables
+
+[init]
+[general]
+[window]
+[export]
+[audio]
+[scenes]
+[input]
+[physics]

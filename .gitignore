@@ -22,4 +22,6 @@
 !vendor/**/*
 !vendor/**
 
+!configuration.toml
+
 **.spv

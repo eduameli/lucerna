@@ -428,6 +428,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
   {
     // FIXME: does nothing rn but need to do culling from camera view!
+    // FIXME: shadow pass doesnt have frustum culling!!!
     //if (is_visible(mainDrawContext.OpaqueSurfaces[i], lightProj*lView))
     //{
       shadow_draws.push_back(i);
@@ -693,8 +694,6 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
 {
 
   //queue_debug_obb(glm::vec3{0.0f}, glm::vec3{2.0f});
-
-  AR_CORE_INFO("DEBUG POINTS {}", debugLines.size());
   if (debugLinesEnabled.get() == false || debugLines.size() == 0)
   {
     return;
@@ -818,10 +817,17 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     glm::vec3 min = { 1.5, 1.5, 1.5 };
     glm::vec3 max = { -1.5, -1.5, -1.5 };
 
+    bool inside = false;
+    
     for (int c = 0; c < 8; c++) {
         // project each corner into clip space
         glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
 
+        inside |= 
+          (-v.w < v.x && v.x < v.w) &&
+          (-v.w < v.y && v.y < v.w) &&
+          (0.0f < v.z && v.z < v.w);
+        
         // perspective correction
         v.x = v.x / v.w;
         v.y = v.y / v.w;
@@ -829,11 +835,17 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 
         min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
         max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
-    }
-    
 
+        
+    }
+
+    AR_CORE_INFO("INSIDE {}", inside);
+    return inside;
+
+    AR_CORE_INFO("culling info o {} e {} min {} max {}", glm::to_string(obj.bounds.origin), glm::to_string(obj.bounds.extents), glm::to_string(min), glm::to_string(max));
+    
     // check the clip space box is within the view
-    if (min.z > 1.f || max.z < 0.001f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
+    if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
     {
       /*if (glm::distance(mainCamera.s_Position, obj.bounds.origin) < obj.bounds.sphereRadius)
       {
