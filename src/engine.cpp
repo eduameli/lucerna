@@ -177,7 +177,7 @@ void Engine::resize_swapchain(int width, int height)
   m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR)
     .build();
   
   valid_swapchain = true;
@@ -812,22 +812,15 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         glm::vec3 { -1, -1, -1 },
     };
 
-    glm::mat4 matrix = viewproj * obj.transform;
-
-    glm::vec3 min = { 1.5, 1.5, 1.5 };
-    glm::vec3 max = { -1.5, -1.5, -1.5 };
-
-    bool inside = false;
+    glm::mat4 matrix = sceneData.viewproj * obj.transform;
     
+    glm::vec3 min = { 2.5, 2.5, 2.5 };
+    glm::vec3 max = { -2.5, -2.5, -2.5 };
+
     for (int c = 0; c < 8; c++) {
         // project each corner into clip space
         glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
 
-        inside |= 
-          (-v.w < v.x && v.x < v.w) &&
-          (-v.w < v.y && v.y < v.w) &&
-          (0.0f < v.z && v.z < v.w);
-        
         // perspective correction
         v.x = v.x / v.w;
         v.y = v.y / v.w;
@@ -839,23 +832,24 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         
     }
 
-    AR_CORE_INFO("INSIDE {}", inside);
-    return inside;
-
-    AR_CORE_INFO("culling info o {} e {} min {} max {}", glm::to_string(obj.bounds.origin), glm::to_string(obj.bounds.extents), glm::to_string(min), glm::to_string(max));
     
-    // check the clip space box is within the view
+    // check the clip space box is within the view is clip space box done correctly??
     if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
     {
-      /*if (glm::distance(mainCamera.s_Position, obj.bounds.origin) < obj.bounds.sphereRadius)
-      {
-        return true; // FIXME: does this work??
-      }*/
+      AR_CORE_INFO("INSIDE FALSE");
+      AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);
+      AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
       return false;
     } else {
+      AR_CORE_INFO("INSIDE TRUE!");
+      AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);      
+
       return true;
     }
 }
+
+
+
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
 {
@@ -1285,7 +1279,7 @@ void Engine::init_swapchain()
   m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR)
     .build();
     
   AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
