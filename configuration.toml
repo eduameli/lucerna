@@ -1,5 +1,5 @@
 [startup]
-scene_path = "assets/culling_minimal.glb"
+scene_path = "assets/sponza_normal.glb"
 
 [cvars]
 

@@ -2,6 +2,7 @@
 #include "application.h"
 #include "aurora_pch.h"
 #include "ar_asserts.h"
+#include "glm/ext/vector_float3.hpp"
 #include "logger.h"
 #include "window.h"
 #include "vk_initialisers.h"
@@ -226,10 +227,26 @@ void Engine::update_scene()
     {
       glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
       glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
-      glm::mat4 mat = mainDrawContext.OpaqueSurfaces[i].transform;
-      glm::vec4 origin = glm::vec4(o, 1.0) ;
-      glm::vec4 ext = glm::vec4(e, 1.0) * mat;      
-      queue_debug_obb(glm::vec3(origin.x, origin.y, origin.z), glm::vec3(ext.x, ext.y, ext.z));
+      glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
+
+      // Transform the origin using the full transformation matrix
+      glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
+      glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
+
+      // Extract the rotation part of the matrix (upper-left 3x3) and the scaling factor
+      glm::mat3 rotationMatrix = glm::mat3(m);  // Get the rotation matrix (upper-left 3x3 part)
+      glm::vec3 scale = glm::vec3(
+          glm::length(rotationMatrix[0]),
+          glm::length(rotationMatrix[1]),
+          glm::length(rotationMatrix[2])
+      );
+
+      // Scale the extents based on the scale of the transformation
+      glm::vec3 fExtents = e * scale;  // Apply scaling to the extents
+
+      // Queue the debug OBB with the transformed origin and scaled extents
+      queue_debug_obb(m, fOrigin, fExtents);
+      
 
     }
     
@@ -659,37 +676,48 @@ void Engine::queue_debug_frustum(glm::mat4 proj)
 
 }
 
-void Engine::queue_debug_obb(glm::vec3 origin, glm::vec3 extents)
+void Engine::queue_debug_obb(glm::mat4 transform, glm::vec3 origin, glm::vec3 extents)
 {
-  glm::vec3 v[8] = 
-  {
-    origin + glm::vec3{extents.x, extents.y, extents.z},
-    origin + glm::vec3{-extents.x, extents.y, extents.z},
-    origin + glm::vec3{-extents.x, -extents.y, extents.z},
-    origin + glm::vec3{extents.x, -extents.y, extents.z},
+    // Calculate the 8 vertices of the OBB from the origin and extents
+    glm::vec3 v[8] = 
+    {
+        origin + glm::vec3{extents.x, extents.y, extents.z},
+        origin + glm::vec3{-extents.x, extents.y, extents.z},
+        origin + glm::vec3{-extents.x, -extents.y, extents.z},
+        origin + glm::vec3{extents.x, -extents.y, extents.z},
 
-    origin + glm::vec3{extents.x, extents.y, -extents.z},
-    origin + glm::vec3{-extents.x, extents.y, -extents.z},
-    origin + glm::vec3{-extents.x, -extents.y, -extents.z},
-    origin + glm::vec3{extents.x, -extents.y, -extents.z},
-  };
+        origin + glm::vec3{extents.x, extents.y, -extents.z},
+        origin + glm::vec3{-extents.x, extents.y, -extents.z},
+        origin + glm::vec3{-extents.x, -extents.y, -extents.z},
+        origin + glm::vec3{extents.x, -extents.y, -extents.z},
+    };
 
-  queue_debug_line(v[0], v[1]);
-  queue_debug_line(v[1], v[2]);
-  queue_debug_line(v[2], v[3]);
-  queue_debug_line(v[3], v[0]);
+    // Transform the vertices using the provided transformation matrix
+    // for (int i = 0; i < 8; ++i) {
+    //     glm::vec4 transformedVertex = transform * glm::vec4(v[i], 1.0f); // Apply transform to each vertex
+    //     v[i] = glm::vec3(transformedVertex.x, transformedVertex.y, transformedVertex.z);
+    // }
 
-  queue_debug_line(v[4], v[5]);
-  queue_debug_line(v[5], v[6]);
-  queue_debug_line(v[6], v[7]);
-  queue_debug_line(v[7], v[4]);
-  
-  queue_debug_line(v[0], v[4]);
-  queue_debug_line(v[1], v[5]);
-  queue_debug_line(v[2], v[6]);
-  queue_debug_line(v[3], v[7]);
+    // Queue the debug lines for the OBB (lines between vertices)
+    queue_debug_line(v[0], v[1]);
+    queue_debug_line(v[1], v[2]);
+    queue_debug_line(v[2], v[3]);
+    queue_debug_line(v[3], v[0]);
+
+    queue_debug_line(v[4], v[5]);
+    queue_debug_line(v[5], v[6]);
+    queue_debug_line(v[6], v[7]);
+    queue_debug_line(v[7], v[4]);
+
+    queue_debug_line(v[0], v[4]);
+    queue_debug_line(v[1], v[5]);
+    queue_debug_line(v[2], v[6]);
+    queue_debug_line(v[3], v[7]);
 }
 
+
+
+// FIXME: should only be one buffer at a time renderdoc is cooked
 void Engine::draw_debug_lines(VkCommandBuffer cmd)
 {
 
@@ -813,6 +841,7 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     };
 
     glm::mat4 matrix = sceneData.viewproj * obj.transform;
+    AR_CORE_INFO("{}", glm::to_string(obj.transform));
     
     glm::vec3 min = { 2.5, 2.5, 2.5 };
     glm::vec3 max = { -2.5, -2.5, -2.5 };
