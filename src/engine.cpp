@@ -3,6 +3,7 @@
 #include "aurora_pch.h"
 #include "ar_asserts.h"
 #include "glm/ext/vector_float3.hpp"
+#include "glm/ext/vector_float4.hpp"
 #include "logger.h"
 #include "window.h"
 #include "vk_initialisers.h"
@@ -38,6 +39,7 @@ AutoCVar_Int shadowRotateLight("shadow_mapping.rotate_light", "rotate light arou
 AutoCVar_Float shadowSoftness("shadow_mapping.softness", "radius of pcf sampling", 0.0025, CVarFlags::None);
 
 AutoCVar_Int debugLinesEnabled("debug.show_lines", "", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int debugFrustumFreeze("debug.freeze_frustum", "", 0, CVarFlags::EditCheckbox);
 
 AutoCVar_Float cameraFOV("camera.fov", "camera fov in degrees", 70.0f, CVarFlags::Advanced);
 AutoCVar_Float cameraFar("camera.far", "", 10000.0, CVarFlags::Advanced);
@@ -198,6 +200,13 @@ void Engine::update_scene()
   sceneData.proj = projection;
   sceneData.viewproj = projection * view;
 
+  if (debugFrustumFreeze.get() == false)
+  {
+    lastDebugFrustum = sceneData.viewproj;
+  }
+  queue_debug_frustum(glm::inverse(lastDebugFrustum));
+
+  
   if (shadowViewFromLight.get() == true)
   {
     sceneData.viewproj = lightProj * lView;
@@ -671,8 +680,44 @@ void Engine::queue_debug_line(glm::vec3 p1, glm::vec3 p2)
   debugLines.push_back(p2);
 }
 
-void Engine::queue_debug_frustum(glm::mat4 proj)
+ void Engine::queue_debug_frustum(glm::mat4 proj)
 {
+  std::array<glm::vec3, 8> v {
+      glm::vec3 { 1, 1, -1 },
+      glm::vec3 { 1, 1, 0 },
+      glm::vec3 { 1, -1, -1 },
+      glm::vec3 { 1, -1, 0 },
+      glm::vec3 { -1, 1, -1 },
+      glm::vec3 { -1, 1, 0 },
+      glm::vec3 { -1, -1, -1 },
+      glm::vec3 { -1, -1, 0 },
+  };
+
+  for (glm::vec3& p : v)
+  {
+    glm::vec4 p2 = proj * glm::vec4(p, 1.0);
+    p = glm::vec3(p2.x, p2.y, p2.z) / glm::vec3(p2.w);
+    // AR_CORE_INFO("{}", glm::to_string(p));
+  }
+
+  queue_debug_line(v[0], v[1]);
+  queue_debug_line(v[2], v[3]);
+  queue_debug_line(v[4], v[5]);
+  queue_debug_line(v[6], v[7]);
+
+
+  queue_debug_line(v[0], v[2]);
+  queue_debug_line(v[2], v[6]);
+  queue_debug_line(v[6], v[2]);
+  queue_debug_line(v[2], v[0]);
+
+
+  queue_debug_line(v[1], v[3]);
+  queue_debug_line(v[3], v[7]);
+  queue_debug_line(v[7], v[5]);
+  queue_debug_line(v[5], v[1]);
+
+
 
 }
 
@@ -840,19 +885,18 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         glm::vec3 { -1, -1, -1 },
     };
 
-    glm::mat4 matrix = sceneData.viewproj * obj.transform;
-    AR_CORE_INFO("{}", glm::to_string(obj.transform));
     
-    glm::vec3 min = { 2.5, 2.5, 2.5 };
-    glm::vec3 max = { -2.5, -2.5, -2.5 };
+    glm::mat4 matrix = viewproj * obj.transform;
+
+    glm::vec3 min = { 1.5, 1.5, 1.5 };
+    glm::vec3 max = { -1.5, -1.5, -1.5 };
 
     for (int c = 0; c < 8; c++) {
         // project each corner into clip space
         glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
-
         // perspective correction
         v.x = v.x / v.w;
-        v.y = v.y / v.w;
+        v.y =  v.y / v.w;
         v.z = v.z / v.w;
 
         min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
@@ -861,17 +905,34 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         
     }
 
-    
+
+    // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);    
+    // AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
     // check the clip space box is within the view is clip space box done correctly??
+
+    // min.y > 1.0f NO
+    // min.y < 1.0f
+    // min.y > -1.0f
+    // min.y < -1.0f
+    
+    // max.y < -1.0f NO
+    // max.y < 1.0f
+    // max.y > 1.0f
+    // max.y > -1.0f
+
+    // two boxes
+
+    AR_CORE_WARN("BOX A [{}, {}], CVV [{}, {}]", glm::to_string(min), glm::to_string(max), glm::to_string(glm::vec3(-1, -1, 0)), glm::to_string(glm::vec3(1, 1, 1)));
+    
     if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
     {
-      AR_CORE_INFO("INSIDE FALSE");
-      AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);
-      AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
+      AR_CORE_INFO("CULLING");
+      // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);
+      // AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
       return false;
     } else {
-      AR_CORE_INFO("INSIDE TRUE!");
-      AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);      
+      AR_CORE_INFO("IS VISIBLE");
+      // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);      
 
       return true;
     }

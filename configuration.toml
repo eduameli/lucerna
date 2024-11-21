@@ -1,5 +1,5 @@
 [startup]
-scene_path = "assets/sponza_normal.glb"
+scene_path = "assets/green_cube.glb"
 
 [cvars]
 
@@ -13,3 +13,5 @@ scene_path = "assets/sponza_normal.glb"
 [scenes]
 [input]
 [physics]
+[renderer]
+[materials]

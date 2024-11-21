@@ -187,6 +187,9 @@ namespace Aurora {
       constexpr static bool m_UseValidationLayers = false;
       #endif
       
+
+      glm::mat4 lastDebugFrustum{1.0f};
+      
       VkFence m_ImmFence;
       VkCommandBuffer m_ImmCommandBuffer;
       VkCommandPool m_ImmCommandPool;
