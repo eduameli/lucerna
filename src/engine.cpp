@@ -902,7 +902,7 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
         max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
 
-        
+        AR_CORE_WARN("clip space coords({}):",std::to_string(i),  glm::to_string(v));
     }
 
 
@@ -924,7 +924,7 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 
     AR_CORE_WARN("BOX A [{}, {}], CVV [{}, {}]", glm::to_string(min), glm::to_string(max), glm::to_string(glm::vec3(-1, -1, 0)), glm::to_string(glm::vec3(1, 1, 1)));
     
-    if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
+    if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) // NOTE: remove last 2 and it sort of works badly. problem lies here 
     {
       AR_CORE_INFO("CULLING");
       // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);
