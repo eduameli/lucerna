@@ -2,6 +2,8 @@
 #include "application.h"
 #include "aurora_pch.h"
 #include "ar_asserts.h"
+#include "glm/ext/vector_float3.hpp"
+#include "glm/ext/vector_float4.hpp"
 #include "logger.h"
 #include "window.h"
 #include "vk_initialisers.h"
@@ -37,6 +39,7 @@ AutoCVar_Int shadowRotateLight("shadow_mapping.rotate_light", "rotate light arou
 AutoCVar_Float shadowSoftness("shadow_mapping.softness", "radius of pcf sampling", 0.0025, CVarFlags::None);
 
 AutoCVar_Int debugLinesEnabled("debug.show_lines", "", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int debugFrustumFreeze("debug.freeze_frustum", "", 0, CVarFlags::EditCheckbox);
 
 AutoCVar_Float cameraFOV("camera.fov", "camera fov in degrees", 70.0f, CVarFlags::Advanced);
 AutoCVar_Float cameraFar("camera.far", "", 10000.0, CVarFlags::Advanced);
@@ -197,6 +200,13 @@ void Engine::update_scene()
   sceneData.proj = projection;
   sceneData.viewproj = projection * view;
 
+  if (debugFrustumFreeze.get() == false)
+  {
+    lastDebugFrustum = sceneData.viewproj;
+  }
+  queue_debug_frustum(glm::inverse(lastDebugFrustum));
+
+  
   if (shadowViewFromLight.get() == true)
   {
     sceneData.viewproj = lightProj * lView;
@@ -224,12 +234,57 @@ void Engine::update_scene()
     // draw aabb
     if (debugLinesEnabled.get() == true)
     {
-      glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
-      glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
-      glm::mat4 mat = mainDrawContext.OpaqueSurfaces[i].transform;
-      glm::vec4 origin = glm::vec4(o, 1.0) ;
-      glm::vec4 ext = glm::vec4(e, 1.0) * mat;      
-      queue_debug_obb(glm::vec3(origin.x, origin.y, origin.z), glm::vec3(ext.x, ext.y, ext.z));
+      // glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
+      // glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
+      // glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
+
+      // // Transform the origin using the full transformation matrix
+      // glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
+      // glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
+
+      // // Extract the rotation part of the matrix (upper-left 3x3) and the scaling factor
+      // glm::mat3 rotationMatrix = glm::mat3(m);  // Get the rotation matrix (upper-left 3x3 part)
+      // glm::vec3 scale = glm::vec3(
+      //     glm::length(rotationMatrix[0]),
+      //     glm::length(rotationMatrix[1]),
+      //     glm::length(rotationMatrix[2])
+      // );
+
+      // // Scale the extents based on the scale of the transformation
+      // glm::vec3 fExtents = e * scale;  // Apply scaling to the extents
+
+      // // Queue the debug OBB with the transformed origin and scaled extents
+      // queue_debug_obb(m, fOrigin, fExtents);
+      // glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
+      // glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
+      // glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
+
+      // // Transform the origin using the full transformation matrix
+      // glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
+      // glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
+
+      // // Extract the rotation part of the matrix (upper-left 3x3)
+      // glm::mat3 rotationMatrix = glm::mat3(m);
+
+      // // Normalize and scale the rotation axes by the extents
+      // glm::vec3 axes[3] = {
+      //     glm::normalize(rotationMatrix[0]) * e.x,  // Scaled X-axis
+      //     glm::normalize(rotationMatrix[1]) * e.y,  // Scaled Y-axis
+      //     glm::normalize(rotationMatrix[2]) * e.z   // Scaled Z-axis
+      // };
+
+      // // Queue the debug OBB with the transformed origin and rotated axes
+      // queue_debug_obb(fOrigin, axes[0], axes[1], axes[2]);
+
+      glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin; // Local origin
+      glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents; // Local extents
+      glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform; // Transformation matrix
+
+
+      glm::vec3 fOrigin = m * glm::vec4(o, 1.0);
+      glm::vec3 fExtent = glm::mat3(m) * e;
+      // Queue the debug OBB
+      queue_debug_obb(m, fOrigin, fExtent);
 
     }
     
@@ -654,42 +709,88 @@ void Engine::queue_debug_line(glm::vec3 p1, glm::vec3 p2)
   debugLines.push_back(p2);
 }
 
-void Engine::queue_debug_frustum(glm::mat4 proj)
+ void Engine::queue_debug_frustum(glm::mat4 proj)
 {
-
-}
-
-void Engine::queue_debug_obb(glm::vec3 origin, glm::vec3 extents)
-{
-  glm::vec3 v[8] = 
-  {
-    origin + glm::vec3{extents.x, extents.y, extents.z},
-    origin + glm::vec3{-extents.x, extents.y, extents.z},
-    origin + glm::vec3{-extents.x, -extents.y, extents.z},
-    origin + glm::vec3{extents.x, -extents.y, extents.z},
-
-    origin + glm::vec3{extents.x, extents.y, -extents.z},
-    origin + glm::vec3{-extents.x, extents.y, -extents.z},
-    origin + glm::vec3{-extents.x, -extents.y, -extents.z},
-    origin + glm::vec3{extents.x, -extents.y, -extents.z},
+  std::array<glm::vec3, 8> v {
+      glm::vec3 { 1, 1, -1 },
+      glm::vec3 { 1, 1, 0 },
+      glm::vec3 { 1, -1, -1 },
+      glm::vec3 { 1, -1, 0 },
+      glm::vec3 { -1, 1, -1 },
+      glm::vec3 { -1, 1, 0 },
+      glm::vec3 { -1, -1, -1 },
+      glm::vec3 { -1, -1, 0 },
   };
 
-  queue_debug_line(v[0], v[1]);
-  queue_debug_line(v[1], v[2]);
-  queue_debug_line(v[2], v[3]);
-  queue_debug_line(v[3], v[0]);
+  // for (glm::vec3& p : v)
+  // {
+  //   glm::vec4 p2 = proj * glm::vec4(p, 1.0);
+  //   p = glm::vec3(p2.x, p2.y, p2.z) / glm::vec3(p2.w);
+  //   // AR_CORE_INFO("{}", glm::to_string(p));
+  // }
 
+  queue_debug_line(v[0], v[1]);
+  queue_debug_line(v[2], v[3]);
   queue_debug_line(v[4], v[5]);
-  queue_debug_line(v[5], v[6]);
   queue_debug_line(v[6], v[7]);
-  queue_debug_line(v[7], v[4]);
-  
-  queue_debug_line(v[0], v[4]);
-  queue_debug_line(v[1], v[5]);
+
+
+  queue_debug_line(v[0], v[2]);
   queue_debug_line(v[2], v[6]);
+  queue_debug_line(v[6], v[2]);
+  queue_debug_line(v[2], v[0]);
+
+
+  queue_debug_line(v[1], v[3]);
   queue_debug_line(v[3], v[7]);
+  queue_debug_line(v[7], v[5]);
+  queue_debug_line(v[5], v[1]);
+
+
+
 }
 
+void Engine::queue_debug_obb(glm::mat4 transform, glm::vec3 origin, glm::vec3 extents)
+{
+    // Calculate the 8 vertices of the OBB from the origin and extents
+    glm::vec3 v[8] = 
+    {
+        origin + glm::vec3{extents.x, extents.y, extents.z},
+        origin + glm::vec3{-extents.x, extents.y, extents.z},
+        origin + glm::vec3{-extents.x, -extents.y, extents.z},
+        origin + glm::vec3{extents.x, -extents.y, extents.z},
+
+        origin + glm::vec3{extents.x, extents.y, -extents.z},
+        origin + glm::vec3{-extents.x, extents.y, -extents.z},
+        origin + glm::vec3{-extents.x, -extents.y, -extents.z},
+        origin + glm::vec3{extents.x, -extents.y, -extents.z},
+    };
+
+    for (int i = 0; i < 8; ++i) {
+        glm::vec4 transformedVertex = transform * glm::vec4(v[i], 1.0f); // Apply the transformation
+        v[i] = glm::vec3(transformedVertex); // Store the transformed vertex back in v
+    }
+
+    // Queue the debug lines for the OBB (lines between vertices)
+    queue_debug_line(v[0], v[1]);
+    queue_debug_line(v[1], v[2]);
+    queue_debug_line(v[2], v[3]);
+    queue_debug_line(v[3], v[0]);
+
+    queue_debug_line(v[4], v[5]);
+    queue_debug_line(v[5], v[6]);
+    queue_debug_line(v[6], v[7]);
+    queue_debug_line(v[7], v[4]);
+
+    queue_debug_line(v[0], v[4]);
+    queue_debug_line(v[1], v[5]);
+    queue_debug_line(v[2], v[6]);
+    queue_debug_line(v[3], v[7]);
+}
+
+
+
+// FIXME: should only be one buffer at a time renderdoc is cooked
 void Engine::draw_debug_lines(VkCommandBuffer cmd)
 {
 
@@ -812,37 +913,54 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         glm::vec3 { -1, -1, -1 },
     };
 
-    glm::mat4 matrix = sceneData.viewproj * obj.transform;
     
-    glm::vec3 min = { 2.5, 2.5, 2.5 };
-    glm::vec3 max = { -2.5, -2.5, -2.5 };
+    glm::mat4 matrix = viewproj * obj.transform;
+
+    glm::vec3 min = { 1.5, 1.5, 1.5 };
+    glm::vec3 max = { -1.5, -1.5, -1.5 };
 
     for (int c = 0; c < 8; c++) {
         // project each corner into clip space
         glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
-
         // perspective correction
         v.x = v.x / v.w;
-        v.y = v.y / v.w;
+        v.y =  v.y / v.w;
         v.z = v.z / v.w;
 
         min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
         max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
 
-        
+        // AR_CORE_WARN("clip space coords({}):",std::to_string(i),  glm::to_string(v));
     }
 
-    
+
+    // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);    
+    // AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
     // check the clip space box is within the view is clip space box done correctly??
-    if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
+
+    // min.y > 1.0f NO
+    // min.y < 1.0f
+    // min.y > -1.0f
+    // min.y < -1.0f
+    
+    // max.y < -1.0f NO
+    // max.y < 1.0f
+    // max.y > 1.0f
+    // max.y > -1.0f
+
+    // two boxes
+
+    AR_CORE_WARN("BOX A [{}, {}], CVV [{}, {}]", glm::to_string(min), glm::to_string(max), glm::to_string(glm::vec3(-1, -1, 0)), glm::to_string(glm::vec3(1, 1, 1)));
+    
+    if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) // NOTE: remove last 2 and it sort of works badly. problem lies here 
     {
-      AR_CORE_INFO("INSIDE FALSE");
-      AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);
-      AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
+      AR_CORE_INFO("CULLING");
+      // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);
+      // AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
       return false;
     } else {
-      AR_CORE_INFO("INSIDE TRUE!");
-      AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);      
+      AR_CORE_INFO("IS VISIBLE");
+      // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);      
 
       return true;
     }

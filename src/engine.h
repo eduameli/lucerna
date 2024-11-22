@@ -67,7 +67,7 @@ namespace Aurora {
       // debug lines functions
       void queue_debug_line(glm::vec3 p1, glm::vec3 p2);
       void queue_debug_frustum(glm::mat4 frustum);    
-      void queue_debug_obb(glm::vec3 origin, glm::vec3 extents); 
+      void queue_debug_obb(glm::mat4 transform, glm::vec3 origin, glm::vec3 extents); 
 
     public:
       struct ComputePushConstants
@@ -186,6 +186,9 @@ namespace Aurora {
       #else
       constexpr static bool m_UseValidationLayers = false;
       #endif
+      
+
+      glm::mat4 lastDebugFrustum{1.0f};
       
       VkFence m_ImmFence;
       VkCommandBuffer m_ImmCommandBuffer;
