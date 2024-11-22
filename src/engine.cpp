@@ -453,12 +453,10 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
   {
-    // FIXME: does nothing rn but need to do culling from camera view!
-    // FIXME: shadow pass doesnt have frustum culling!!!
-    //if (is_visible(mainDrawContext.OpaqueSurfaces[i], lightProj*lView))
-    //{
+    if (is_visible(mainDrawContext.OpaqueSurfaces[i], lightProj*lView))
+    {
       shadow_draws.push_back(i);
-    //}
+    }
   }
 
   // NOTE: CMS Settings?? different mat proj or a scale to basic 1 or smth
@@ -872,7 +870,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   vkCmdEndRendering(cmd);
 }
 
-//FIXME: a simple flat plane 50x50 breaks it :sob: maybe it needs volume to work or smth??
+// FIXME: utterly scuffed, i ignore the min max .y for the aabb collision test between the cannonical viewing volume and the projected obb
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
     std::array<glm::vec3, 8> corners {
         glm::vec3 { 1, 1, 1 },
@@ -905,38 +903,8 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         // AR_CORE_WARN("clip space coords({}):",std::to_string(i),  glm::to_string(v));
     }
 
-
-    // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);    
-    // AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
-    // check the clip space box is within the view is clip space box done correctly??
-
-    // min.y > 1.0f NO
-    // min.y < 1.0f
-    // min.y > -1.0f
-    // min.y < -1.0f
-    
-    // max.y < -1.0f NO
-    // max.y < 1.0f
-    // max.y > 1.0f
-    // max.y > -1.0f
-
-    // two boxes
-
-    // AR_CORE_WARN("BOX A [{}, {}], CVV [{}, {}]", glm::to_string(min), glm::to_string(max), glm::to_string(glm::vec3(-1, -1, 0)), glm::to_string(glm::vec3(1, 1, 1)));
-    
-    if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f /*|| min.y > 1.f || max.y < -1.f*/) // NOTE: remove last 2 and it sort of works badly. problem lies here 
-    {
-      // AR_CORE_INFO("CULLING");
-      // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);
-      // AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
-      return false;
-    } else {
-      // AR_CORE_INFO("IS VISIBLE");
-      // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);      
-
-      return true;
-    }
-}
+    return !(min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f /*|| min.y > 1.f || max.y < -1.f*/);
+ }
 
 
 
