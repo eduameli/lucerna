@@ -234,57 +234,28 @@ void Engine::update_scene()
     // draw aabb
     if (debugLinesEnabled.get() == true)
     {
-      // glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
-      // glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
-      // glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
+      glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
+      glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
+      glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
 
-      // // Transform the origin using the full transformation matrix
-      // glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
-      // glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
+      // Transform the origin using the full transformation matrix
+      glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
+      glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
 
-      // // Extract the rotation part of the matrix (upper-left 3x3) and the scaling factor
-      // glm::mat3 rotationMatrix = glm::mat3(m);  // Get the rotation matrix (upper-left 3x3 part)
-      // glm::vec3 scale = glm::vec3(
-      //     glm::length(rotationMatrix[0]),
-      //     glm::length(rotationMatrix[1]),
-      //     glm::length(rotationMatrix[2])
-      // );
+      // Extract the rotation part of the matrix (upper-left 3x3) and the scaling factor
+      glm::mat3 rotationMatrix = glm::mat3(m);  // Get the rotation matrix (upper-left 3x3 part)
+      glm::vec3 scale = glm::vec3(
+          glm::length(rotationMatrix[0]),
+          glm::length(rotationMatrix[1]),
+          glm::length(rotationMatrix[2])
+      );
 
-      // // Scale the extents based on the scale of the transformation
-      // glm::vec3 fExtents = e * scale;  // Apply scaling to the extents
+      // Scale the extents based on the scale of the transformation
+      glm::vec3 fExtents = e * scale;  // Apply scaling to the extents
 
-      // // Queue the debug OBB with the transformed origin and scaled extents
-      // queue_debug_obb(m, fOrigin, fExtents);
-      // glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
-      // glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
-      // glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
-
-      // // Transform the origin using the full transformation matrix
-      // glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
-      // glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
-
-      // // Extract the rotation part of the matrix (upper-left 3x3)
-      // glm::mat3 rotationMatrix = glm::mat3(m);
-
-      // // Normalize and scale the rotation axes by the extents
-      // glm::vec3 axes[3] = {
-      //     glm::normalize(rotationMatrix[0]) * e.x,  // Scaled X-axis
-      //     glm::normalize(rotationMatrix[1]) * e.y,  // Scaled Y-axis
-      //     glm::normalize(rotationMatrix[2]) * e.z   // Scaled Z-axis
-      // };
-
-      // // Queue the debug OBB with the transformed origin and rotated axes
-      // queue_debug_obb(fOrigin, axes[0], axes[1], axes[2]);
-
-      glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin; // Local origin
-      glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents; // Local extents
-      glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform; // Transformation matrix
-
-
-      glm::vec3 fOrigin = m * glm::vec4(o, 1.0);
-      glm::vec3 fExtent = glm::mat3(m) * e;
-      // Queue the debug OBB
-      queue_debug_obb(m, fOrigin, fExtent);
+      // Queue the debug OBB with the transformed origin and scaled extents
+      queue_debug_obb(m, fOrigin, fExtents);
+      
 
     }
     
@@ -722,12 +693,12 @@ void Engine::queue_debug_line(glm::vec3 p1, glm::vec3 p2)
       glm::vec3 { -1, -1, 0 },
   };
 
-  // for (glm::vec3& p : v)
-  // {
-  //   glm::vec4 p2 = proj * glm::vec4(p, 1.0);
-  //   p = glm::vec3(p2.x, p2.y, p2.z) / glm::vec3(p2.w);
-  //   // AR_CORE_INFO("{}", glm::to_string(p));
-  // }
+  for (glm::vec3& p : v)
+  {
+    glm::vec4 p2 = proj * glm::vec4(p, 1.0);
+    p = glm::vec3(p2.x, p2.y, p2.z) / glm::vec3(p2.w);
+    // AR_CORE_INFO("{}", glm::to_string(p));
+  }
 
   queue_debug_line(v[0], v[1]);
   queue_debug_line(v[2], v[3]);
@@ -766,10 +737,11 @@ void Engine::queue_debug_obb(glm::mat4 transform, glm::vec3 origin, glm::vec3 ex
         origin + glm::vec3{extents.x, -extents.y, -extents.z},
     };
 
-    for (int i = 0; i < 8; ++i) {
-        glm::vec4 transformedVertex = transform * glm::vec4(v[i], 1.0f); // Apply the transformation
-        v[i] = glm::vec3(transformedVertex); // Store the transformed vertex back in v
-    }
+    // Transform the vertices using the provided transformation matrix
+    // for (int i = 0; i < 8; ++i) {
+    //     glm::vec4 transformedVertex = transform * glm::vec4(v[i], 1.0f); // Apply transform to each vertex
+    //     v[i] = glm::vec3(transformedVertex.x, transformedVertex.y, transformedVertex.z);
+    // }
 
     // Queue the debug lines for the OBB (lines between vertices)
     queue_debug_line(v[0], v[1]);

@@ -13,3 +13,5 @@ scene_path = "assets/sponza.glb"
 [scenes]
 [input]
 [physics]
+[renderer]
+[materials]
