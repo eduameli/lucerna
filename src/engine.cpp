@@ -902,7 +902,7 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
         min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
         max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
 
-        AR_CORE_WARN("clip space coords({}):",std::to_string(i),  glm::to_string(v));
+        // AR_CORE_WARN("clip space coords({}):",std::to_string(i),  glm::to_string(v));
     }
 
 
