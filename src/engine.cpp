@@ -922,16 +922,16 @@ bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 
     // two boxes
 
-    AR_CORE_WARN("BOX A [{}, {}], CVV [{}, {}]", glm::to_string(min), glm::to_string(max), glm::to_string(glm::vec3(-1, -1, 0)), glm::to_string(glm::vec3(1, 1, 1)));
+    // AR_CORE_WARN("BOX A [{}, {}], CVV [{}, {}]", glm::to_string(min), glm::to_string(max), glm::to_string(glm::vec3(-1, -1, 0)), glm::to_string(glm::vec3(1, 1, 1)));
     
-    if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f) // NOTE: remove last 2 and it sort of works badly. problem lies here 
+    if (min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f /*|| min.y > 1.f || max.y < -1.f*/) // NOTE: remove last 2 and it sort of works badly. problem lies here 
     {
-      AR_CORE_INFO("CULLING");
+      // AR_CORE_INFO("CULLING");
       // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);
       // AR_CORE_WARN("{} {} {} {} {} {}", min.z > 1.f, max.z < 0.0f, min.x > 1.f, max.x < -1.f, min.y > 1.f, max.y < -1.f);
       return false;
     } else {
-      AR_CORE_INFO("IS VISIBLE");
+      // AR_CORE_INFO("IS VISIBLE");
       // AR_CORE_WARN("{} {} {} {} {} {}", min.z, max.z, min.x, max.x, min.y, max.y);      
 
       return true;
