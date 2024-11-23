@@ -164,9 +164,17 @@ namespace Aurora {
       void create_instance();
       void create_device();
 
+
+      constexpr static uint32_t SAMPLER_BINDING = 0;
+      constexpr static uint32_t IMAGE_BINDING = 1;
+
+      constexpr static uint32_t SAMPLER_COUNT = 65536;
+      constexpr static uint32_t IMAGE_COUNT = 65536;
+      
       VkDescriptorPool bindless_descriptor_pool;
       VkDescriptorSetLayout bindless_descriptor_layout;
       VkDescriptorSet bindless_descriptor_set;
+      VkPipelineLayout bindless_pipeline_layout;
 
       std::vector<VkWriteDescriptorSet> descriptor_updates;
       

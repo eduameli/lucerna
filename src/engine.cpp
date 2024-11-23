@@ -100,6 +100,13 @@ void Engine::init()
   internalExtent = {1280, 800, 1};
 
   init_vulkan();
+
+
+ AR_CORE_WARN("setting up descriptor indexing!");
+  init_bindless_descriptors();
+  AR_CORE_WARN("finished setting up descriptor indexing!");
+
+  
   init_swapchain();
   init_commands();
   init_sync_structures();
@@ -1108,14 +1115,8 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   // queue descriptor update
   VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
 
-  bool is_storage = usage & VK_IMAGE_USAGE_STORAGE_BIT;
-  write.descriptorType = is_storage ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; 
-  write.descriptorCount = 1;
-  write.dstSet = bindless_descriptor_set;
-  write.dstBinding = is_storage ? 1 : 2; //FIXME: hmm is this correct?
-  write.dstArrayElement = is_storage ? freeImages.allocate() : freeSamplers.allocate();
 
-  descriptor_updates.push_back(write);
+  
 
   
   
@@ -1130,8 +1131,21 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
 
   VK_CHECK_RESULT(vkCreateImageView(device, &viewInfo, nullptr, &newImage.imageView));
 
+
+
+  bool is_img = usage & VK_IMAGE_USAGE_STORAGE_BIT;
+  VkDescriptorImageInfo iInfo{};
+  iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
+  write.descriptorType = is_img ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; 
+  write.descriptorCount = 1;
+  write.dstSet = bindless_descriptor_set;
+  write.dstBinding = is_img ? IMAGE_BINDING : SAMPLER_BINDING; //FIXME: hmm is this correct?
+  write.dstArrayElement = is_img ? freeImages.allocate() : freeSamplers.allocate();
+  iInfo.imageView = newImage.imageView;
+  vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+    
   return newImage;
-}
+} 
 
 AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
@@ -1165,6 +1179,20 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
     {
       vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
+
+
+    
+    bool is_img = usage & VK_IMAGE_USAGE_STORAGE_BIT;
+    VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+    VkDescriptorImageInfo iInfo{};
+    iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
+    write.descriptorType = is_img ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; 
+    write.descriptorCount = 1;
+    write.dstSet = bindless_descriptor_set;
+    write.dstBinding = is_img ? IMAGE_BINDING : SAMPLER_BINDING; //FIXME: hmm is this correct?
+    write.dstArrayElement = is_img ? freeImages.allocate() : freeSamplers.allocate();
+    iInfo.imageView = newImage.imageView;
+    vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
 
   });
   
@@ -1519,32 +1547,31 @@ ssbo - using bda
 */
 void Engine::init_bindless_descriptors()
 {
-  uint32_t bindless_max = 2048;
   
   std::array<VkDescriptorPoolSize, 2> pool_size_bindless =
   {
-    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 65536},
-    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindless_max}
+    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, SAMPLER_COUNT},
+    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, IMAGE_COUNT}
   };
 
   VkDescriptorPoolCreateInfo pool_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, .pNext = nullptr};
   pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-  pool_info.maxSets = 3;
+  pool_info.maxSets = 1;
   pool_info.poolSizeCount = pool_size_bindless.size();
   pool_info.pPoolSizes = pool_size_bindless.data();
 
   VK_CHECK_RESULT(vkCreateDescriptorPool(device, &pool_info, nullptr, &bindless_descriptor_pool));
 
-  VkDescriptorSetLayoutBinding binding[4];
-  VkDescriptorSetLayoutBinding& img_sampler = binding[0];
-  img_sampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  img_sampler.descriptorCount = bindless_max;
-  img_sampler.binding = 1;
+  VkDescriptorSetLayoutBinding binding[2]; // spec guarantees 4
+  VkDescriptorSetLayoutBinding& sampler_bind = binding[0];
+  sampler_bind.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  sampler_bind.descriptorCount = SAMPLER_COUNT;
+  sampler_bind.binding = 0;
 
-  VkDescriptorSetLayoutBinding& img_storage = binding[1];
-  img_storage.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  img_storage.descriptorCount = bindless_max;
-  img_storage.binding = 2;
+  VkDescriptorSetLayoutBinding& img_bind = binding[1];
+  img_bind.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  img_bind.descriptorCount = IMAGE_COUNT;
+  img_bind.binding = 1;
 
   VkDescriptorSetLayoutCreateInfo layout_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .pNext = nullptr};
   layout_info.bindingCount = pool_size_bindless.size();
@@ -1554,7 +1581,7 @@ void Engine::init_bindless_descriptors()
   VkDescriptorBindingFlags bindless_flags = 
     VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
 
-  VkDescriptorBindingFlags binding_flags[4];
+  VkDescriptorBindingFlags binding_flags[2];
   binding_flags[0] = bindless_flags;
   binding_flags[1] = bindless_flags;
 
@@ -1571,7 +1598,19 @@ void Engine::init_bindless_descriptors()
   alloc_info.descriptorSetCount = 1;
   alloc_info.pSetLayouts = &bindless_descriptor_layout;
   VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &alloc_info, &bindless_descriptor_set));
-  
+
+  VkPushConstantRange range{};
+  range.offset = 0;
+  range.size = 128;
+  range.stageFlags = VK_SHADER_STAGE_ALL;
+
+  VkPipelineLayoutCreateInfo inf{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, .pNext = nullptr};
+  inf.setLayoutCount = 1;
+  inf.pSetLayouts = &bindless_descriptor_layout;
+  inf.pushConstantRangeCount = 1;
+  inf.pPushConstantRanges = &range;
+  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &inf, nullptr, &bindless_pipeline_layout));
+ 
 }
 
 
