@@ -24,13 +24,14 @@ namespace Aurora {
   };
 } // namespace aurora
 
+
 #define STRINGIFY(x) #x
 
 #if (AR_LOG_LEVEL == 1)
   #define AR_CORE_FATAL(...)    ::Aurora::Logger::s_Logger->critical(__VA_ARGS__)
   #define AR_CORE_ERROR(...)    ::Aurora::Logger::s_Logger->error(__VA_ARGS__)
   #define AR_CORE_WARN(...)     ::Aurora::Logger::s_Logger->warn(__VA_ARGS__)
-  #define AR_CORE_INFO(...)     ::Aurora::Logger::s_Logger->info( __VA_ARGS__)
+  #define AR_CORE_INFO(...)     ::Aurora::Logger::s_Logger->info(__VA_ARGS__)
   #define AR_CORE_TRACE(...)    ::Aurora::Logger::s_Logger->trace(__VA_ARGS__)
 #else
   #define AR_CORE_FATAL(...)    
@@ -111,6 +112,8 @@ namespace Aurora {
 #else
   #define AR_PROFILE_SCOPE
 #endif
+
+
 
 namespace vklog {
   inline void label_image(VkDevice device, VkImage image, const char* name)

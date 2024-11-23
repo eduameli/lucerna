@@ -71,7 +71,6 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
   for (const auto& device : devices)
   {
     int score = rate_physical_device(device);
-    AR_CORE_INFO("COMPUTED SCORE! {}", score);
     if (score > highscore)
     {
       highscore = score;

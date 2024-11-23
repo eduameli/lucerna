@@ -27,7 +27,7 @@ namespace Aurora {
     }
     
     auto toml = result.table();
-    AR_CORE_TRACE("Loaded Aurora Configuration File");
+    AR_CORE_TRACE("Loaded configuration.toml");
 
     auto update_config = [] <typename T> (T* field, toml::node_view<toml::node> node){
       if (node.is_value())

@@ -28,6 +28,7 @@
 #include "glm/gtx/string_cast.hpp"
 #include "glm/packing.hpp"
 namespace Aurora
+
 {
 
 glm::vec2 octahedron_wrap(glm::vec2 v) {
@@ -48,7 +49,7 @@ glm::vec2 enconde_normal(glm::vec3 n) {
 
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
 {
-  AR_CORE_INFO("Loading GLTF File at {}", filepath.c_str());
+  AR_CORE_INFO("Loading GLTF at {}", filepath.c_str());
 
   std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
   scene->creator = engine;
@@ -115,7 +116,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     else
     {
       images.push_back(engine->m_ErrorCheckerboardImage);
-      AR_CORE_WARN("Failed to load a texture from GLTF");
+      AR_CORE_WARN("Failed to load a texture from GLTF, (using placeholder)");
     }
   }
   
@@ -470,8 +471,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
                   [](auto &arg) {
                     AR_LOG_ASSERT(
                         false,
-                        "std::visit not using fastgltf::sources::Array? - "
-                        "hint: only .glb supported");
+                        "GLTF Loading only supports GLB format");
                   },
                   // FIXME: in the tutorial this was fastgltf::sources::Vector
                   // because they asserted it would be casue of the options
@@ -503,7 +503,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
   );
 
   if (newImage.image == VK_NULL_HANDLE) {
-    AR_CORE_ERROR("Loaded image is VK_NULL_HANDLE");
+    AR_CORE_ERROR("[resource] Loaded image is VK_NULL_HANDLE");
     return {};
   } else {
     return newImage;
@@ -647,6 +647,5 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
   Node::queue_draw(topMatrix, ctx);
 }
-
 
 } // namespace aurora

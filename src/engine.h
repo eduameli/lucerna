@@ -43,6 +43,16 @@ namespace Aurora {
     float mesh_draw_time;
   };
 
+  
+  struct FrameGraph
+  {
+    static void add_sample(float sample);
+    static void render_graph();
+    static inline std::deque<float> frametimes{};
+    static inline float average = 0;
+  };
+
+
   // FIXME: some stuff is public that could be private!
   class Engine
   {

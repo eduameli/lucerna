@@ -14,6 +14,7 @@
 #include "vk_swapchain.h"
 #include "gfx_effects.h"
 #include <GLFW/glfw3.h>
+#include <algorithm>
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 
@@ -47,6 +48,39 @@ AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
 
 AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
 AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.5, CVarFlags::None);
+AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
+
+void FrameGraph::add_sample(float sample)
+{
+  frametimes.push_back(sample);
+  if (frametimes.size() == 120) frametimes.pop_front();
+}
+
+void FrameGraph::render_graph()
+{
+
+  float avg = std::accumulate(frametimes.begin(), frametimes.end(), 0.0f) / frametimes.size();
+  
+  double variance = 0.0;
+  std::for_each(frametimes.begin(), frametimes.end(), [&](const float& val) {
+      variance += std::pow(val - avg, 2);
+  });
+
+  variance /= frametimes.size();
+  float sd = glm::sqrt(variance);
+    
+  std::string str = fmt::format("avg ms:  {}", avg);
+  
+  ImGui::Begin("Frame Graph");
+    ImGui::PlotLines("", [](void *data, int idx) -> float {
+                    auto ft = static_cast<std::deque<float> *>(data);
+                    return idx < ft->size() ? ft->at(idx) : 0.0f;
+                }, &frametimes, frametimes.size(), 0, nullptr, avg - 10*sd, avg + 10*sd, ImVec2{150, 80});
+
+    ImGui::Text("avg: %f", avg);
+    ImGui::Text("sd: %f", sd);
+  ImGui::End();
+}
 
 static Engine* s_Instance = nullptr;
 Engine* Engine::get()
@@ -159,6 +193,8 @@ void Engine::run()
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     stats.frametime = elapsed.count() / 1000.0f;
+
+    FrameGraph::add_sample(stats.frametime);
   }
 }
 
@@ -331,11 +367,15 @@ void Engine::draw()
   vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   draw_shadow_pass(cmd);
   vkutil::transition_image(cmd, m_ShadowDepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
-  
-  vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
-  // depth based compute ss effects
-  ssao::run(cmd, m_DepthImage.imageView);
-  vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+
+  if (ssaoEnabled.get())
+  {
+    vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+    // depth based compute ss effects
+    ssao::run(cmd, m_DepthImage.imageView);
+    vkutil::transition_image(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+  }
 
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   draw_geometry(cmd);
@@ -858,6 +898,8 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
   CVarSystem::get()->draw_editor();
 
+  FrameGraph::render_graph();
+    
   ImGui::End();
 
   ImGui::Render(); 
@@ -1318,7 +1360,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
     .build();
 
   device = m_Device.logical;
@@ -1337,7 +1379,7 @@ void Engine::init_swapchain()
   m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
     .build();
     
   AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));

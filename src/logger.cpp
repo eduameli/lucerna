@@ -54,7 +54,7 @@ namespace Aurora {
       shutdown();
     
     isActive = true;
-    AR_CORE_ERROR(path.c_str());  
+    //AR_CORE_ERROR(path.c_str());  
     s_Logger = spdlog::basic_logger_mt(name.data(), path.c_str());
     s_Logger->set_pattern("%v"); 
     sessionName = name;
