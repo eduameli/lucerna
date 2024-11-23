@@ -71,11 +71,11 @@ void FrameGraph::render_graph()
     
   std::string str = fmt::format("avg ms:  {}", avg);
   
-  ImGui::Begin("Frame Graph");
+  ImGui::Begin("Frame Graph", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::PlotLines("", [](void *data, int idx) -> float {
                     auto ft = static_cast<std::deque<float> *>(data);
                     return idx < ft->size() ? ft->at(idx) : 0.0f;
-                }, &frametimes, frametimes.size(), 0, nullptr, avg - 10*sd, avg + 10*sd, ImVec2{150, 80});
+                }, &frametimes, frametimes.size(), 0, nullptr, avg - 8*sd, avg + 8*sd, ImVec2{190, 100});
 
     ImGui::Text("avg: %f", avg);
     ImGui::Text("sd: %f", sd);
@@ -861,7 +861,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
   
-  ImGui::Begin("Stats");
+  ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("frame: %zu", frameNumber);
     ImGui::Text("frametime %f ms", stats.frametime);
     ImGui::Text("draw time %f ms", stats.mesh_draw_time);
@@ -914,6 +914,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 // FIXME: utterly scuffed, i ignore the min max .y for the aabb collision test between the cannonical viewing volume and the projected obb
 bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
+    return true; // still gets false positives even when ignoring miny maxy
     std::array<glm::vec3, 8> corners {
         glm::vec3 { 1, 1, 1 },
         glm::vec3 { 1, 1, -1 },
