@@ -18,6 +18,7 @@ namespace Aurora
     VmaAllocation allocation;
     VkExtent3D imageExtent;
     VkFormat imageFormat;
+    uint32_t bindless_handle;
   };
   
   struct AllocatedBuffer
@@ -144,6 +145,29 @@ namespace Aurora
 #include "debug_line/debug_line.vert"
 #include "ssao/ssao.comp"
 #include "ssao/bilateral_filter.comp"
+
+
+struct free_list
+{
+    std::stack<uint32_t> free_idx;
+    uint32_t last;
+    
+    uint32_t allocate() {
+        if (free_idx.empty()) {
+            return last++;
+        } else {
+            int index = free_idx.top();
+            free_idx.pop();
+            return index;
+        }
+    }
+    
+    void deallocate(uint32_t idx)
+    {
+        free_idx.push(idx);
+    }
+};
+
 } // namespace aurora
 
 

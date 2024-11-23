@@ -6,6 +6,7 @@
 #include "vk_device.h"
 #include "vk_swapchain.h"
 #include "camera.h"
+#include <vulkan/vulkan_core.h>
 
 namespace Aurora {
   struct FrameData
@@ -163,6 +164,18 @@ namespace Aurora {
       void create_instance();
       void create_device();
 
+      VkDescriptorPool bindless_descriptor_pool;
+      VkDescriptorSetLayout bindless_descriptor_layout;
+      VkDescriptorSet bindless_descriptor_set;
+
+      std::vector<VkWriteDescriptorSet> descriptor_updates;
+      
+      free_list freeSamplers;
+      free_list freeImages;
+      
+      void init_bindless_descriptors();
+      void update_bindless_descriptors();
+
       inline bool should_quit();
       void draw();
       void draw_background(VkCommandBuffer cmd);
@@ -181,6 +194,7 @@ namespace Aurora {
       std::vector<const char*> m_InstanceExtensions = {};
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
       };
       std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",

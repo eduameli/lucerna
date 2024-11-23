@@ -60,6 +60,8 @@ void FrameGraph::render_graph()
 {
 
   float avg = std::accumulate(frametimes.begin(), frametimes.end(), 0.0f) / frametimes.size();
+  float min = *std::min_element(frametimes.begin(), frametimes.end());
+  float max = *std::max_element(frametimes.begin(), frametimes.end());
   
   double variance = 0.0;
   std::for_each(frametimes.begin(), frametimes.end(), [&](const float& val) {
@@ -77,8 +79,9 @@ void FrameGraph::render_graph()
                     return idx < ft->size() ? ft->at(idx) : 0.0f;
                 }, &frametimes, frametimes.size(), 0, nullptr, avg - 8*sd, avg + 8*sd, ImVec2{190, 100});
 
-    ImGui::Text("avg: %f", avg);
-    ImGui::Text("sd: %f", sd);
+    ImGui::Text("avg: %.3f", avg);
+    ImGui::Text(" sd: %.3f\t cv: %.3f", sd, sd/avg);
+    ImGui::Text("min: %.3f\tmax: %.3f", min, max);
   ImGui::End();
 }
 
@@ -195,6 +198,9 @@ void Engine::run()
     stats.frametime = elapsed.count() / 1000.0f;
 
     FrameGraph::add_sample(stats.frametime);
+
+
+    descriptor_updates.clear();
   }
 }
 
@@ -403,6 +409,11 @@ void Engine::draw()
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   draw_imgui(cmd, m_Swapchain.views[swapchainImageIndex]);
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+
+  // update descriptor sets?
+
+
 
   VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
@@ -1092,6 +1103,21 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   allocInfo.requiredFlags = VkMemoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
 
   VK_CHECK_RESULT(vmaCreateImage(m_Allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
+
+
+  // queue descriptor update
+  VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+
+  bool is_storage = usage & VK_IMAGE_USAGE_STORAGE_BIT;
+  write.descriptorType = is_storage ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; 
+  write.descriptorCount = 1;
+  write.dstSet = bindless_descriptor_set;
+  write.dstBinding = is_storage ? 1 : 2; //FIXME: hmm is this correct?
+  write.dstArrayElement = is_storage ? freeImages.allocate() : freeSamplers.allocate();
+
+  descriptor_updates.push_back(write);
+
+  
   
   VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
   if (format == VK_FORMAT_D32_SFLOAT)
@@ -1428,10 +1454,12 @@ void Engine::init_descriptors()
     m_DrawDescriptorLayout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
   }
   m_DrawDescriptors = globalDescriptorAllocator.allocate(device, m_DrawDescriptorLayout);
+
   // links the draw image to the descriptor for the compute shader in the pipeline!
   DescriptorWriter writer;
   writer.write_image(0, m_DrawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
   writer.update_set(device, m_DrawDescriptors);
+
 
   // scene data descriptor layout
   {
@@ -1476,6 +1504,85 @@ void Engine::init_descriptors()
   });
 
 }
+
+/*
+NOTE: uniforms layout
+binding 0 - sceneData (UBO)
+binding 1 - sampler img
+binding 2 - storage img
+
+set 1 samplers
+set 2 images
+anything else?
+
+ssbo - using bda
+*/
+void Engine::init_bindless_descriptors()
+{
+  uint32_t bindless_max = 2048;
+  
+  std::array<VkDescriptorPoolSize, 2> pool_size_bindless =
+  {
+    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 65536},
+    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindless_max}
+  };
+
+  VkDescriptorPoolCreateInfo pool_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, .pNext = nullptr};
+  pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+  pool_info.maxSets = 3;
+  pool_info.poolSizeCount = pool_size_bindless.size();
+  pool_info.pPoolSizes = pool_size_bindless.data();
+
+  VK_CHECK_RESULT(vkCreateDescriptorPool(device, &pool_info, nullptr, &bindless_descriptor_pool));
+
+  VkDescriptorSetLayoutBinding binding[4];
+  VkDescriptorSetLayoutBinding& img_sampler = binding[0];
+  img_sampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  img_sampler.descriptorCount = bindless_max;
+  img_sampler.binding = 1;
+
+  VkDescriptorSetLayoutBinding& img_storage = binding[1];
+  img_storage.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  img_storage.descriptorCount = bindless_max;
+  img_storage.binding = 2;
+
+  VkDescriptorSetLayoutCreateInfo layout_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .pNext = nullptr};
+  layout_info.bindingCount = pool_size_bindless.size();
+  layout_info.pBindings = binding;
+  layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+
+  VkDescriptorBindingFlags bindless_flags = 
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
+
+  VkDescriptorBindingFlags binding_flags[4];
+  binding_flags[0] = bindless_flags;
+  binding_flags[1] = bindless_flags;
+
+  VkDescriptorSetLayoutBindingFlagsCreateInfo extend_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO, .pNext = nullptr};
+  extend_info.bindingCount = pool_size_bindless.size();
+  extend_info.pBindingFlags = binding_flags;
+
+  layout_info.pNext = &extend_info;
+  VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &bindless_descriptor_layout));
+
+
+  VkDescriptorSetAllocateInfo alloc_info{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .pNext = nullptr};
+  alloc_info.descriptorPool = bindless_descriptor_pool;
+  alloc_info.descriptorSetCount = 1;
+  alloc_info.pSetLayouts = &bindless_descriptor_layout;
+  VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &alloc_info, &bindless_descriptor_set));
+  
+}
+
+
+void Engine::update_bindless_descriptors()
+{
+  // if ()
+}
+
+
+
+
 //FIXME: this whole function is wack i should divide it up .. or move to init_descriptors or smth
 void Engine::init_pipelines()
 {

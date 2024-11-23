@@ -10,13 +10,20 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
 {
   features.f1.wideLines = VK_TRUE;
   features.f1.fillModeNonSolid = VK_TRUE;
+  features.f12.descriptorIndexing = VK_TRUE;
+  features.f12.descriptorBindingPartiallyBound = VK_TRUE;
+  features.f12.runtimeDescriptorArray = VK_TRUE;
   features.f12.bufferDeviceAddress = VK_TRUE;
   features.f12.scalarBlockLayout = VK_TRUE;
   features.f13.dynamicRendering = VK_TRUE;
   features.f13.synchronization2 = VK_TRUE;
+  
 
   AR_CORE_WARN("Required Features: ");
   AR_CORE_WARN("\tfillModeNonSolid");
+  AR_CORE_WARN("\tdescriptorIndexing");
+  AR_CORE_WARN("\tdescriptorBindingPartiallyBound");
+  AR_CORE_WARN("\truntimeDescriptorArray");
   AR_CORE_WARN("\tbufferDeviceAddress");
   AR_CORE_WARN("\tscalarBlockLayout");
   AR_CORE_WARN("\tdynamicRendering");
@@ -30,6 +37,9 @@ bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
   vkGetPhysicalDeviceFeatures2(device, &query.get());
   return
     query.features.features.fillModeNonSolid &&
+    query.f12.descriptorIndexing &&
+    query.f12.descriptorBindingPartiallyBound &&
+    query.f12.runtimeDescriptorArray &&
     query.f12.bufferDeviceAddress &&
     query.f12.scalarBlockLayout &&
     query.f13.dynamicRendering &&
