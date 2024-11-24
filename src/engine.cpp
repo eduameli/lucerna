@@ -100,12 +100,28 @@ void Engine::init()
   internalExtent = {1280, 800, 1};
 
   init_vulkan();
-
-
- AR_CORE_WARN("setting up descriptor indexing!");
+  
   init_bindless_descriptors();
-  AR_CORE_WARN("finished setting up descriptor indexing!");
 
+  
+ VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
+  sampl.magFilter = VK_FILTER_NEAREST;
+  sampl.minFilter = VK_FILTER_NEAREST;
+  vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerNearest);
+
+  sampl.magFilter = VK_FILTER_LINEAR;
+  sampl.minFilter = VK_FILTER_LINEAR;
+  vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerLinear);
+
+  sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+
+  // NOTE: linear for now, it should be shadow billinear?? hardware!
+  sampl.magFilter = VK_FILTER_NEAREST;
+  sampl.minFilter = VK_FILTER_NEAREST;
+  vkCreateSampler(device, &sampl, nullptr, &m_ShadowSampler);
+  
   
   init_swapchain();
   init_commands();
@@ -1142,6 +1158,8 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   write.dstBinding = is_img ? IMAGE_BINDING : SAMPLER_BINDING; //FIXME: hmm is this correct?
   write.dstArrayElement = is_img ? freeImages.allocate() : freeSamplers.allocate();
   iInfo.imageView = newImage.imageView;
+  iInfo.sampler = is_img ? nullptr : m_DefaultSamplerLinear;
+  write.pImageInfo = &iInfo;
   vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
     
   return newImage;
@@ -1192,6 +1210,8 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
     write.dstBinding = is_img ? IMAGE_BINDING : SAMPLER_BINDING; //FIXME: hmm is this correct?
     write.dstArrayElement = is_img ? freeImages.allocate() : freeSamplers.allocate();
     iInfo.imageView = newImage.imageView;
+    iInfo.sampler = is_img ? nullptr : m_DefaultSamplerLinear;
+    write.pImageInfo = &iInfo;
     vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
 
   });
@@ -1208,6 +1228,7 @@ void Engine::destroy_image(const AllocatedImage& img) const
 
 void Engine::init_default_data()
 {
+   
   uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
   m_WhiteImage = create_image((void*)&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
   
@@ -1229,23 +1250,6 @@ void Engine::init_default_data()
   
   m_ErrorCheckerboardImage = create_image(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
-  VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
-  sampl.magFilter = VK_FILTER_NEAREST;
-  sampl.minFilter = VK_FILTER_NEAREST;
-  vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerNearest);
-
-  sampl.magFilter = VK_FILTER_LINEAR;
-  sampl.minFilter = VK_FILTER_LINEAR;
-  vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerLinear);
-  
-  sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-  sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-  sampl.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-
-  // NOTE: linear for now, it should be shadow billinear?? hardware!
-  sampl.magFilter = VK_FILTER_NEAREST;
-  sampl.minFilter = VK_FILTER_NEAREST;
-  vkCreateSampler(device, &sampl, nullptr, &m_ShadowSampler);
 
 
   GLTFMetallic_Roughness::MaterialResources materialResources;
@@ -1566,12 +1570,12 @@ void Engine::init_bindless_descriptors()
   VkDescriptorSetLayoutBinding& sampler_bind = binding[0];
   sampler_bind.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   sampler_bind.descriptorCount = SAMPLER_COUNT;
-  sampler_bind.binding = 0;
+  sampler_bind.binding = SAMPLER_BINDING;
 
   VkDescriptorSetLayoutBinding& img_bind = binding[1];
   img_bind.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   img_bind.descriptorCount = IMAGE_COUNT;
-  img_bind.binding = 1;
+  img_bind.binding = IMAGE_BINDING;
 
   VkDescriptorSetLayoutCreateInfo layout_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .pNext = nullptr};
   layout_info.bindingCount = pool_size_bindless.size();

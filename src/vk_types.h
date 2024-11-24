@@ -2,7 +2,7 @@
 #include <volk.h>
 #include "vk_mem_alloc.h"
 #include "aurora_pch.h"
-
+#include "logger.h"
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
@@ -150,14 +150,16 @@ namespace Aurora
 struct free_list
 {
     std::stack<uint32_t> free_idx;
-    uint32_t last;
+    uint32_t last{0};
     
     uint32_t allocate() {
         if (free_idx.empty()) {
+            AR_CORE_INFO("idx: {}", last + 1);
             return last++;
         } else {
             int index = free_idx.top();
             free_idx.pop();
+            AR_CORE_INFO("idx: {}", index);
             return index;
         }
     }
