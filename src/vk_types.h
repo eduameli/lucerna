@@ -145,7 +145,8 @@ namespace Aurora
 #include "debug_line/debug_line.vert"
 #include "ssao/ssao.comp"
 #include "ssao/bilateral_filter.comp"
-
+#include "bindless/bindless.vert"
+#include "bindless/bindless.frag"
 
 struct free_list
 {
