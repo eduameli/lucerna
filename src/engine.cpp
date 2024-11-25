@@ -654,34 +654,34 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   
   // descriptor set for scene data created every frame! temporal per frame data - skinned mesh? (UBO)
   
-  AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  get_current_frame().deletionQueue.push_function([=, this] {
-    destroy_buffer(gpuSceneDataBuffer);
-  });
+  // AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  // get_current_frame().deletionQueue.push_function([=, this] {
+  //   destroy_buffer(gpuSceneDataBuffer);
+  // });
 
-  AllocatedBuffer shadowSettings = create_buffer(sizeof(ShadowFragmentSettings), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  get_current_frame().deletionQueue.push_function([=, this] {
-    destroy_buffer(shadowSettings);
-  });
+  // AllocatedBuffer shadowSettings = create_buffer(sizeof(ShadowFragmentSettings), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  // get_current_frame().deletionQueue.push_function([=, this] {
+  //   destroy_buffer(shadowSettings);
+  // });
 
-  GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
-  *sceneUniformData = sceneData;
+  // GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
+  // *sceneUniformData = sceneData;
 
-  ShadowFragmentSettings* settings = (ShadowFragmentSettings*) shadowSettings.allocation->GetMappedData();
-  settings->lightViewProj = pcss_settings.lightViewProj;
-  settings->near = 0.1;
-  settings->far = 20.0;
-  settings->light_size = 0.1;
-  settings->enabled = shadowEnabled.get();
-  settings->softness = shadowSoftness.get();
+  // ShadowFragmentSettings* settings = (ShadowFragmentSettings*) shadowSettings.allocation->GetMappedData();
+  // settings->lightViewProj = pcss_settings.lightViewProj;
+  // settings->near = 0.1;
+  // settings->far = 20.0;
+  // settings->light_size = 0.1;
+  // settings->enabled = shadowEnabled.get();
+  // settings->softness = shadowSoftness.get();
 
-  VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
-  DescriptorWriter writer;
-  writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  writer.update_set(device, globalDescriptor);
+  // VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
+  // DescriptorWriter writer;
+  // writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  // writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  // writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  // writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  // writer.update_set(device, globalDescriptor);
   
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
   vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -693,20 +693,25 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   MaterialInstance* lastMaterial = nullptr;
   VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
+  // testing bindless - *breaking changes*
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std_pipeline);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &bindless_descriptor_set, 0, nullptr);  
+
   auto draw = [&](const RenderObject& draw) {
-    if (draw.material != lastMaterial)
-    {
-      lastMaterial = draw.material;
+    // if (draw.material != lastMaterial)
+    // {
+    //   lastMaterial = draw.material;
 
-      if (draw.material->pipeline != lastPipeline)
-      {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr); // NOTE: why inside the loop & not at the start
-      }
+    //   if (draw.material->pipeline != lastPipeline)
+    //   {
+    //     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+    //     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr); // NOTE: why inside the loop & not at the start
+    //   }
       
-      vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
+    //   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
 
-    }
+    // }
 
     if (draw.indexBuffer != lastIndexBuffer)
     {
@@ -714,10 +719,13 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
       vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
     }
 
-    std_material_pcs pcs{};
-    pcs.modelMatrix = draw.transform;
-    pcs.vertexBuffer = draw.vertexBufferAddress;
-    pcs.positionBuffer = draw.positionBufferAddress;
+    bindless_pcs pcs{};
+    pcs.matrix = sceneData.viewproj * draw.transform;
+    pcs.vertices = draw.vertexBufferAddress;
+    pcs.positions = draw.positionBufferAddress;
+    pcs.albedo_idx = 1;
+    // pcs.vertexBuffer = draw.vertexBufferAddress;
+    // pcs.positionBuffer = draw.positionBufferAddress;
     // world matrix is the model matrix??
 
     vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(std_material_pcs), &pcs);
@@ -1571,11 +1579,13 @@ void Engine::init_bindless_descriptors()
   sampler_bind.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   sampler_bind.descriptorCount = SAMPLER_COUNT;
   sampler_bind.binding = SAMPLER_BINDING;
+  sampler_bind.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
 
   VkDescriptorSetLayoutBinding& img_bind = binding[1];
   img_bind.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   img_bind.descriptorCount = IMAGE_COUNT;
   img_bind.binding = IMAGE_BINDING;
+  img_bind.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
 
   VkDescriptorSetLayoutCreateInfo layout_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .pNext = nullptr};
   layout_info.bindingCount = pool_size_bindless.size();
@@ -1635,6 +1645,46 @@ void Engine::init_pipelines()
   init_depth_prepass_pipeline();
   init_shadow_map_pipeline();
 
+
+  // init bindless pipelines
+
+  VkShaderModule bindlessFrag, bindlessVert;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/bindless/bindless.frag.spv", device, &bindlessFrag),
+    "Error when building the bindless shader module frag"
+  );
+
+  
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/bindless/bindless.vert.spv", device, &bindlessVert),
+    "Error when building the bindless shader module vert"
+  );
+
+  PipelineBuilder b;
+  b.set_shaders(bindlessVert, bindlessFrag);
+  // b.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  // b.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  // b.set_multisampling_none();
+  // b.disable_blending();
+  // b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  b.set_color_attachment_format(m_DrawImage.imageFormat);
+  b.set_depth_format(m_DepthImage.imageFormat);
+
+  
+  b.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  b.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE); // NOTE: backface culling?
+  //pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  b.set_multisampling_none();
+  b.disable_blending();
+  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL); // NOTE: bigger?
+
+  
+  b.PipelineLayout = bindless_pipeline_layout;
+  std_pipeline = b.build_pipeline(device);
+
+  
+  
   // init debug line pipeline
   
   VkShaderModule debugFrag;
