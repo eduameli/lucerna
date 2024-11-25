@@ -121,6 +121,15 @@ void Engine::init()
   sampl.magFilter = VK_FILTER_NEAREST;
   sampl.minFilter = VK_FILTER_NEAREST;
   vkCreateSampler(device, &sampl, nullptr, &m_ShadowSampler);
+
+  VkSamplerCreateInfo s{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
+  s.maxLod = VK_LOD_CLAMP_NONE;
+  s.minLod = 0;
+  s.magFilter = VK_FILTER_LINEAR;
+  s.minFilter = VK_FILTER_LINEAR;
+
+  s.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  vkCreateSampler(device, &s, nullptr, &bindless_sampler);  
   
   
   init_swapchain();
@@ -1157,16 +1166,17 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
 
 
 
-  bool is_img = usage & VK_IMAGE_USAGE_STORAGE_BIT;
+  bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
+  AR_CORE_WARN("is img 2 {}", is_sampled);
   VkDescriptorImageInfo iInfo{};
   iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
-  write.descriptorType = is_img ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; 
+  write.descriptorType = is_sampled ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; 
   write.descriptorCount = 1;
   write.dstSet = bindless_descriptor_set;
-  write.dstBinding = is_img ? IMAGE_BINDING : SAMPLER_BINDING; //FIXME: hmm is this correct?
-  write.dstArrayElement = is_img ? freeImages.allocate() : freeSamplers.allocate();
+  write.dstBinding = is_sampled ? SAMPLER_BINDING : IMAGE_BINDING; //FIXME: hmm is this correct?
+  write.dstArrayElement = is_sampled ? freeSamplers.allocate() : freeImages.allocate();
   iInfo.imageView = newImage.imageView;
-  iInfo.sampler = is_img ? nullptr : m_DefaultSamplerLinear;
+  iInfo.sampler = is_sampled ? bindless_sampler : nullptr;
   write.pImageInfo = &iInfo;
   vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
 
@@ -1174,6 +1184,23 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   
   return newImage;
 } 
+
+
+/*
+when u load gltf u add all textures to samplers
+
+descriptor indexing samplers
+
+or have it in the big ubo.. 
+how many samplers can i use?? idfk
+
+combined samplers---
+basically batch upload textures at the end of every frame .. 
+and link the sampler to the descriptor write in vkloader.
+or when creating an img
+allocatedimg has sampler_idx(-1) and image_idx(-1)
+
+*/
 
 AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
@@ -1210,17 +1237,18 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
 
 
     
-    bool is_img = usage & VK_IMAGE_USAGE_STORAGE_BIT;
+    bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
+    AR_CORE_INFO("is image? {}", is_sampled);
     VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
     VkDescriptorImageInfo iInfo{};
     iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
-    write.descriptorType = is_img ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; 
+    write.descriptorType = is_sampled ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     write.descriptorCount = 1;
     write.dstSet = bindless_descriptor_set;
-    write.dstBinding = is_img ? IMAGE_BINDING : SAMPLER_BINDING; //FIXME: hmm is this correct?
-    write.dstArrayElement = is_img ? freeImages.allocate() : freeSamplers.allocate();
+    write.dstBinding = is_sampled ? SAMPLER_BINDING : IMAGE_BINDING; //FIXME: hmm is this correct?
+    write.dstArrayElement = is_sampled ? freeSamplers.allocate() : freeImages.allocate();
     iInfo.imageView = newImage.imageView;
-    iInfo.sampler = is_img ? nullptr : m_DefaultSamplerLinear;
+    iInfo.sampler = is_sampled ? bindless_sampler : nullptr;
     write.pImageInfo = &iInfo;
 
     newImage.bindless_handle = write.dstArrayElement;

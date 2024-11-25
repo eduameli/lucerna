@@ -168,9 +168,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
     newMat->data = engine->metalRoughMaterial.write_material(engine->device, passType, materialResources, file.descriptorPool);
     newMat->data.albedo_idx = materialResources.colorImage.bindless_handle;
-  
+
     data_index++;
   }
+
+
+  // update descriptor set here .. with the sampler!
+  // for images do it 
+  
   
   std::vector<uint32_t> indices;
   std::vector<Vertex> vertices;

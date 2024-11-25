@@ -184,6 +184,7 @@ namespace Aurora {
       VkDescriptorSet bindless_descriptor_set;
       VkPipelineLayout bindless_pipeline_layout;
       VkPipeline std_pipeline;
+      VkSampler bindless_sampler;
 
       std::vector<VkWriteDescriptorSet> descriptor_updates;
       
