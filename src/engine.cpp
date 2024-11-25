@@ -18,7 +18,6 @@
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 
-#include <iostream>
 
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
