@@ -187,12 +187,14 @@ namespace Aurora {
       VkSampler bindless_sampler;
 
       std::vector<VkWriteDescriptorSet> descriptor_updates;
-      
+    public:
+      std::unordered_map<uint32_t, VkSampler> combined_sampler;
+    private:
       free_list freeSamplers;
       free_list freeImages;
       
       void init_bindless_descriptors();
-      void update_bindless_descriptors();
+      void update_descriptors();
 
       inline bool should_quit();
       void draw();

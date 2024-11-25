@@ -169,6 +169,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     newMat->data = engine->metalRoughMaterial.write_material(engine->device, passType, materialResources, file.descriptorPool);
     newMat->data.albedo_idx = materialResources.colorImage.bindless_handle;
 
+    Engine::get()->combined_sampler[materialResources.colorImage.bindless_handle] = materialResources.colorSampler;
+
+
+    // queue_descriptor_update(descriptor_write, optional sampler)
+    // at the end of the frame call updates
+    
     data_index++;
   }
 

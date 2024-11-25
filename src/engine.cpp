@@ -1252,7 +1252,8 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
     write.pImageInfo = &iInfo;
 
     newImage.bindless_handle = write.dstArrayElement;
-    
+
+    descriptor_updates.push_back(write);
     vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
 
   });
@@ -1661,13 +1662,17 @@ void Engine::init_bindless_descriptors()
 }
 
 
-void Engine::update_bindless_descriptors()
+void Engine::update_descriptors()
 {
-  // if ()
+  // // if ()
+  // for (int i = 0; i < descriptor_updates.size(); i++)
+  // {
+  //   if (descriptor_updates[i].descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+  //   {
+  //     des
+  //   }
+  // }
 }
-
-
-
 
 //FIXME: this whole function is wack i should divide it up .. or move to init_descriptors or smth
 void Engine::init_pipelines()
