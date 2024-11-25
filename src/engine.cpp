@@ -723,7 +723,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     pcs.matrix = sceneData.viewproj * draw.transform;
     pcs.vertices = draw.vertexBufferAddress;
     pcs.positions = draw.positionBufferAddress;
-    pcs.albedo_idx = 1;
+    pcs.albedo_idx = draw.texture_idxs.albedo_idx;
     // pcs.vertexBuffer = draw.vertexBufferAddress;
     // pcs.positionBuffer = draw.positionBufferAddress;
     // world matrix is the model matrix??
@@ -1169,7 +1169,9 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   iInfo.sampler = is_img ? nullptr : m_DefaultSamplerLinear;
   write.pImageInfo = &iInfo;
   vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
-    
+
+  newImage.bindless_handle = write.dstArrayElement;
+  
   return newImage;
 } 
 
@@ -1220,6 +1222,9 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
     iInfo.imageView = newImage.imageView;
     iInfo.sampler = is_img ? nullptr : m_DefaultSamplerLinear;
     write.pImageInfo = &iInfo;
+
+    newImage.bindless_handle = write.dstArrayElement;
+    
     vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
 
   });

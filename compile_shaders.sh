@@ -11,6 +11,7 @@ compile_shader() {
         --P "#extension GL_GOOGLE_include_directive: enable" \
         --P "#extension GL_EXT_scalar_block_layout: enable" \
         --P "#extension GL_EXT_buffer_reference: require" \
+        --P "#extension GL_EXT_nonuniform_qualifier: enable" \
         --glsl-version 460 \
         "$SHADER" -o "$OUTPUT_FILE"
 }

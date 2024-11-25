@@ -74,6 +74,7 @@ namespace Aurora
   {
     MaterialPipeline* pipeline;
     VkDescriptorSet materialSet;
+    uint32_t albedo_idx;
     MaterialPass passType;
   };
   

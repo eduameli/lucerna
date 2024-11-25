@@ -20,10 +20,18 @@ namespace Aurora {
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
 
+  struct BindlessMaterial
+  {
+    uint32_t albedo_idx;
+  };
+  
   struct RenderObject {
     uint32_t indexCount, firstIndex;
     VkBuffer indexBuffer;
     MaterialInstance* material;
+
+    BindlessMaterial texture_idxs;
+    
     Bounds bounds;
     glm::mat4 transform;
     VkDeviceAddress vertexBufferAddress, positionBufferAddress;

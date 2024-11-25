@@ -22,7 +22,7 @@ layout ( push_constant ) uniform constants
 };
 
 layout(location = 0) out vec2 outUV;
-layout(location = 1) out uint albedo_idx;
+layout(location = 1) out flat uint albedo_idx;
 
 void main() 
 {
