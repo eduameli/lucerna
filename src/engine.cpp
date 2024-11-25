@@ -629,7 +629,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     }
 
     depth_only_pcs pcs{};
-    pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
+    pcs.mvp= sceneData.viewproj * draw.transform; // worldMatrix == modelMatrix
     pcs.positions = draw.positionBufferAddress; 
 
 
@@ -729,7 +729,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     }
 
     bindless_pcs pcs{};
-    pcs.matrix = sceneData.viewproj * draw.transform;
+    pcs.mvp= sceneData.viewproj * draw.transform;
     pcs.vertices = draw.vertexBufferAddress;
     pcs.positions = draw.positionBufferAddress;
     pcs.albedo_idx = draw.texture_idxs.albedo_idx;
@@ -1696,26 +1696,13 @@ void Engine::init_pipelines()
   PipelineBuilder b;
   b.set_shaders(bindlessVert, bindlessFrag);
   b.set_color_attachment_format(m_DrawImage.imageFormat);
-  // b.set_depth_format(m_DepthImage.imageFormat);
-
-  
-  // b.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-  // b.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  // b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE); // NOTE: backface culling?
-  // //pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-  // b.set_multisampling_none();
-  // b.disable_blending(); // need transparent alternative?
-  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL); // NOTE: bigger?
-
-
-  
   b.set_depth_format(m_DepthImage.imageFormat);
   b.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   b.set_polygon_mode(VK_POLYGON_MODE_FILL);
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   b.set_multisampling_none();
   b.disable_blending();
-  b.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
   
   
   b.PipelineLayout = bindless_pipeline_layout;

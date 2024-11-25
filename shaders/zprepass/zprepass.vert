@@ -5,9 +5,9 @@ struct depth_only_pcs
 {
 #ifdef __cplusplus
   depth_only_pcs()
-    : modelMatrix{1.0f}, positions{0} {}
+    : mvp{1.0f}, positions{0} {}
 #endif
-  mat4_ar modelMatrix;
+  mat4_ar mvp;
   buffer_ar(PositionBuffer) positions;
 };
 
@@ -22,7 +22,7 @@ layout ( push_constant ) uniform constants
 void main() 
 {
 	vec4 position = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
-	gl_Position = sceneData.viewproj * pcs.modelMatrix * position;
+	gl_Position = pcs.mvp * position;
 }
 
 #endif

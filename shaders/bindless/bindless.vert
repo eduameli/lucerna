@@ -5,9 +5,9 @@ struct bindless_pcs
 {
 #ifdef __cplusplus
   bindless_pcs()
-    : matrix{1.0f}, positions{0} {}
+    : mvp{1.0f}, positions{0} {}
 #endif
-  mat4_ar matrix;
+  mat4_ar mvp;
   buffer_ar(PositionBuffer) positions;
   buffer_ar(VertexBuffer) vertices;
   uint albedo_idx;
@@ -29,7 +29,7 @@ void main()
     Vertex v = pcs.vertices.vertices[gl_VertexIndex];
     
 	vec4 position = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
-	gl_Position = pcs.matrix * position;
+	gl_Position = pcs.mvp * position;
 
     
 	outUV.x = v.normal_uv.z;
