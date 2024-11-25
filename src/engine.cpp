@@ -18,6 +18,8 @@
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 
+#include <iostream>
+
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
@@ -231,7 +233,7 @@ void Engine::run()
 
     FrameGraph::add_sample(stats.frametime);
 
-
+    
     descriptor_updates.clear();
   }
 }
@@ -444,7 +446,7 @@ void Engine::draw()
 
 
   // update descriptor sets?
-
+  update_descriptors();
 
 
   VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
@@ -1145,8 +1147,11 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   VK_CHECK_RESULT(vmaCreateImage(m_Allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
 
 
-  // queue descriptor update
-  VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+
+  
+  
+  // // queue descriptor update
+  // VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
 
 
   
@@ -1167,20 +1172,41 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
 
 
   bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
-  AR_CORE_WARN("is img 2 {}", is_sampled);
-  VkDescriptorImageInfo iInfo{};
-  iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
-  write.descriptorType = is_sampled ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; 
-  write.descriptorCount = 1;
-  write.dstSet = bindless_descriptor_set;
-  write.dstBinding = is_sampled ? SAMPLER_BINDING : IMAGE_BINDING; //FIXME: hmm is this correct?
-  write.dstArrayElement = is_sampled ? freeSamplers.allocate() : freeImages.allocate();
-  iInfo.imageView = newImage.imageView;
-  iInfo.sampler = is_sampled ? bindless_sampler : nullptr;
-  write.pImageInfo = &iInfo;
-  vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+  bool is_storage = usage & VK_IMAGE_USAGE_STORAGE_BIT;
 
-  newImage.bindless_handle = write.dstArrayElement;
+  if (is_sampled)
+  {
+    newImage.sampler_idx = freeSamplers.allocate();
+    combined_sampler[newImage.sampler_idx] = mipmapped ? bindless_sampler : m_DefaultSamplerLinear;
+    AR_CORE_INFO("new sampled: {}", newImage.sampler_idx);
+  }
+
+  if (is_storage)
+  {
+    newImage.image_idx = freeImages.allocate();
+    AR_CORE_INFO("new image: {}", newImage.image_idx);
+  }
+
+
+  descriptor_updates.push_back(newImage);
+    
+  // AR_CORE_WARN("is img 2 {}", is_sampled);
+  // VkDescriptorImageInfo iInfo{};
+  // iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
+  // write.descriptorType = is_sampled ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; 
+  // write.descriptorCount = 1;
+  // write.dstSet = bindless_descriptor_set;
+  // write.dstBinding = is_sampled ? SAMPLER_BINDING : IMAGE_BINDING; //FIXME: hmm is this correct?
+  // write.dstArrayElement = is_sampled ? freeSamplers.allocate() : freeImages.allocate();
+  // iInfo.imageView = newImage.imageView;
+  // iInfo.sampler = is_sampled ? bindless_sampler : nullptr;
+  // write.pImageInfo = &iInfo;
+  // vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+
+  // newImage.sampler_idx = write.dstArrayElement;
+
+
+  // desc_updates.push_back(newImage)
   
   return newImage;
 } 
@@ -1237,24 +1263,45 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
 
 
     
-    bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
-    AR_CORE_INFO("is image? {}", is_sampled);
-    VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
-    VkDescriptorImageInfo iInfo{};
-    iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
-    write.descriptorType = is_sampled ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    write.descriptorCount = 1;
-    write.dstSet = bindless_descriptor_set;
-    write.dstBinding = is_sampled ? SAMPLER_BINDING : IMAGE_BINDING; //FIXME: hmm is this correct?
-    write.dstArrayElement = is_sampled ? freeSamplers.allocate() : freeImages.allocate();
-    iInfo.imageView = newImage.imageView;
-    iInfo.sampler = is_sampled ? bindless_sampler : nullptr;
-    write.pImageInfo = &iInfo;
+    // bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
+    // AR_CORE_INFO("is image? {}", is_sampled);
+    // VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+    // VkDescriptorImageInfo iInfo{};
+    // iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
+    // write.descriptorType = is_sampled ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    // write.descriptorCount = 1;
+    // write.dstSet = bindless_descriptor_set;
+    // write.dstBinding = is_sampled ? SAMPLER_BINDING : IMAGE_BINDING; //FIXME: hmm is this correct?
+    // write.dstArrayElement = is_sampled ? freeSamplers.allocate() : freeImages.allocate();
+    // iInfo.imageView = newImage.imageView;
+    // iInfo.sampler = is_sampled ? bindless_sampler : nullptr;
+    // write.pImageInfo = &iInfo;
 
-    newImage.bindless_handle = write.dstArrayElement;
+    // newImage.sampler_idx = write.dstArrayElement;
 
-    descriptor_updates.push_back(write);
-    vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+    // descriptor_updates.push_back(write);
+    // vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+
+
+    
+    // bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
+    // bool is_storage = usage & VK_IMAGE_USAGE_STORAGE_BIT;
+
+    // if (is_sampled)
+    // {
+    //   newImage.sampler_idx = freeSamplers.allocate();
+    //   AR_CORE_INFO("new sampled: {}", newImage.sampler_idx);
+    // }
+
+    // if (is_storage)
+    // {
+    //   newImage.image_idx = freeImages.allocate();
+    //   AR_CORE_INFO("new image: {}", newImage.image_idx);
+    // }
+
+
+    
+    // bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
 
   });
   
@@ -1661,16 +1708,129 @@ void Engine::init_bindless_descriptors()
  
 }
 
-
+/*
+cooked also samplers dont work - probelm might be in vk_loader
+*/
 void Engine::update_descriptors()
 {
-  // // if ()
-  // for (int i = 0; i < descriptor_updates.size(); i++)
+
+  if (descriptor_updates.size() == 0) return;
+
+  AR_CORE_ERROR("UPDATING!!");
+
+
+  std::vector<VkWriteDescriptorSet> writes;
+  std::vector<VkDescriptorImageInfo> info;
+  writes.reserve(descriptor_updates.size() * 2);
+  info.reserve(descriptor_updates.size() * 2);
+
+  // FIXME: scuffed.. vector resize causes a realloc invalidating ptr
+  
+  for (int i = 0; i < descriptor_updates.size(); i++)
+  {
+    AllocatedImage img = descriptor_updates[i];
+
+    AR_CORE_INFO("IMAGES {} {}", img.sampler_idx, img.image_idx);
+    
+    if (img.sampler_idx != UINT32_MAX)
+    {
+      VkWriteDescriptorSet w;
+      w = {};
+      w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      w.pNext = nullptr;
+      w.dstSet = bindless_descriptor_set;
+      w.descriptorCount = 1;
+      w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+      w.dstArrayElement = img.sampler_idx;
+      w.dstBinding = SAMPLER_BINDING;
+
+
+      VkDescriptorImageInfo inf{};
+      inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+      inf.imageView = img.imageView;
+
+      AR_CORE_INFO("getting sampler at {} result: {}", img.sampler_idx, combined_sampler.contains(img.sampler_idx));
+      // inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler[img.sampler_idx] : m_DefaultSamplerLinear;
+      inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler[img.sampler_idx] : bindless_sampler;
+      
+      // AR_CORE_ERROR("combined? {}", combined_sampler.contains(img.sampler_idx));
+      info.push_back(inf);
+      w.pImageInfo = &info.back();
+      writes.push_back(w);
+
+
+      // vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);      
+    }
+
+    if (img.image_idx != UINT32_MAX)
+    {
+      VkWriteDescriptorSet w{};
+      w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      w.pNext = nullptr;
+      w.dstSet = bindless_descriptor_set;
+      w.descriptorCount = 1;
+      w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+      w.dstArrayElement = img.image_idx;
+      w.dstBinding = IMAGE_BINDING;
+
+      VkDescriptorImageInfo inf{};
+      inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+      inf.imageView = img.imageView;
+      inf.sampler = nullptr;
+
+      // w.pImageInfo = &inf;
+      info.push_back(inf);
+      w.pImageInfo = &info.back();
+      writes.push_back(w);
+
+      // vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
+     
+    }
+     
+  }
+
+
+
+  vkUpdateDescriptorSets(device, writes.size() , writes.data(), 0, nullptr);
+
+
+  // for (auto it = combined_sampler.begin(); it != combined_sampler.end(); ++it) {
+  //   std::cout << "Key: " << it->first << ", Value: " << it->second << std::endl;
+  // }
+  
+  // vkUpdateDescriptorSets(device, (uint32_t) descriptor_updates.size(), writes.data(), 0, nullptr);
+  
+  // for (int i = 0; i < img_desc_updates.size(); i++)
   // {
-  //   if (descriptor_updates[i].descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-  //   {
-  //     des
-  //   }
+  //   VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+  //   VkDescriptorImageInfo info{};
+  //   info.imageView = img_desc_updates[i];
+  //   info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+  //   w.descriptorCount = 1;
+  //   w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  //   w.dstArrayElement = freeImages.allocate();
+  //   w.dstBinding = IMAGE_BINDING;
+  //   w.dstSet = bindless_descriptor_set;
+  //   w.pImageInfo = &info;
+    
+  // }
+
+  // for (int i = 0; i < sampler_desc_updates.size(); i++)
+  // {
+  //   VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+  //   VkDescriptorImageInfo info{};
+  //   info.imageView = img_desc_updates[i];
+  //   info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  //   info.sampler = combined_sampler[]
+      
+  //   w.descriptorCount = 1;
+  //   w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  //   w.dstArrayElement = freeSamplers.allocate();
+  //   w.dstBinding = SAMPLER_BINDING;
+  //   w.dstSet = bindless_descriptor_set;
+  //   w.pImageInfo = &info;
+    
   // }
 }
 

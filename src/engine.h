@@ -184,15 +184,20 @@ namespace Aurora {
       VkDescriptorSet bindless_descriptor_set;
       VkPipelineLayout bindless_pipeline_layout;
       VkPipeline std_pipeline;
+    public:
       VkSampler bindless_sampler;
-
-      std::vector<VkWriteDescriptorSet> descriptor_updates;
+    private:
+      
+      std::vector<VkImageView> sampler_desc_updates; // NOTE: pass by value?
+      std::vector<VkImageView> img_desc_updates;
+      
+      std::vector<AllocatedImage> descriptor_updates;
     public:
       std::unordered_map<uint32_t, VkSampler> combined_sampler;
-    private:
+    // private:
       free_list freeSamplers;
       free_list freeImages;
-      
+    private:
       void init_bindless_descriptors();
       void update_descriptors();
 

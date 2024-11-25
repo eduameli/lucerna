@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <volk.h>
 #include "vk_mem_alloc.h"
 #include "aurora_pch.h"
@@ -18,7 +19,8 @@ namespace Aurora
     VmaAllocation allocation;
     VkExtent3D imageExtent;
     VkFormat imageFormat;
-    uint32_t bindless_handle;
+    uint32_t sampler_idx{UINT32_MAX};
+    uint32_t image_idx{UINT32_MAX};
   };
   
   struct AllocatedBuffer
@@ -156,12 +158,12 @@ struct free_list
     
     uint32_t allocate() {
         if (free_idx.empty()) {
-            AR_CORE_INFO("idx: {}", last + 1);
+            AR_CORE_INFO("allocated idx: {}");
             return last++;
         } else {
             int index = free_idx.top();
             free_idx.pop();
-            AR_CORE_INFO("idx: {}", index);
+            AR_CORE_INFO("allocated idx: {}", index);
             return index;
         }
     }
