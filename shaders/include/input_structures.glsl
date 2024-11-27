@@ -64,11 +64,6 @@ layout(scalar, buffer_reference) readonly buffer PositionBuffer {
   vec3 positions[];
 };
 
-// set 0 - per frame resources
-// set 1 - per pass resources
-// set 2 - per material resources
-// set 4 - per object resources (doesnt fit in pcs)
-
 layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
   GPUSceneData sceneData;
 }; 
@@ -81,7 +76,7 @@ layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
 layout(set = 0, binding = 3) uniform sampler2D ssaoAmbient;
 
 
-// MATERIAL SHADING
+// MATERIAL SHADING -- all of this replaced by ssbo indirect draw
 layout(set = 1, binding = 0) uniform GLTFMaterialData{   
 
 	vec4 colorFactors;
