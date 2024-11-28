@@ -1193,17 +1193,6 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   VK_CHECK_RESULT(vmaCreateImage(m_Allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
 
 
-
-  
-  
-  // // queue descriptor update
-  // VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
-
-
-  
-
-  
-  
   VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
   if (format == VK_FORMAT_D32_SFLOAT)
   {
@@ -1224,36 +1213,15 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   {
     newImage.sampler_idx = freeSamplers.allocate();
     combined_sampler[newImage.sampler_idx] = mipmapped ? bindless_sampler : m_DefaultSamplerLinear;
-    AR_CORE_INFO("new sampled: {}", newImage.sampler_idx);
   }
 
   if (is_storage)
   {
     newImage.image_idx = freeImages.allocate();
-    AR_CORE_INFO("new image: {}", newImage.image_idx);
   }
 
 
   descriptor_updates.push_back(newImage);
-    
-  // AR_CORE_WARN("is img 2 {}", is_sampled);
-  // VkDescriptorImageInfo iInfo{};
-  // iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
-  // write.descriptorType = is_sampled ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; 
-  // write.descriptorCount = 1;
-  // write.dstSet = bindless_descriptor_set;
-  // write.dstBinding = is_sampled ? SAMPLER_BINDING : IMAGE_BINDING; //FIXME: hmm is this correct?
-  // write.dstArrayElement = is_sampled ? freeSamplers.allocate() : freeImages.allocate();
-  // iInfo.imageView = newImage.imageView;
-  // iInfo.sampler = is_sampled ? bindless_sampler : nullptr;
-  // write.pImageInfo = &iInfo;
-  // vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
-
-  // newImage.sampler_idx = write.dstArrayElement;
-
-
-  // desc_updates.push_back(newImage)
-  
   return newImage;
 } 
 
@@ -1306,49 +1274,6 @@ AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format
     {
       vkutil::transition_image(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
-
-
-    
-    // bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
-    // AR_CORE_INFO("is image? {}", is_sampled);
-    // VkWriteDescriptorSet write{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
-    // VkDescriptorImageInfo iInfo{};
-    // iInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;                                
-    // write.descriptorType = is_sampled ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    // write.descriptorCount = 1;
-    // write.dstSet = bindless_descriptor_set;
-    // write.dstBinding = is_sampled ? SAMPLER_BINDING : IMAGE_BINDING; //FIXME: hmm is this correct?
-    // write.dstArrayElement = is_sampled ? freeSamplers.allocate() : freeImages.allocate();
-    // iInfo.imageView = newImage.imageView;
-    // iInfo.sampler = is_sampled ? bindless_sampler : nullptr;
-    // write.pImageInfo = &iInfo;
-
-    // newImage.sampler_idx = write.dstArrayElement;
-
-    // descriptor_updates.push_back(write);
-    // vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
-
-
-    
-    // bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
-    // bool is_storage = usage & VK_IMAGE_USAGE_STORAGE_BIT;
-
-    // if (is_sampled)
-    // {
-    //   newImage.sampler_idx = freeSamplers.allocate();
-    //   AR_CORE_INFO("new sampled: {}", newImage.sampler_idx);
-    // }
-
-    // if (is_storage)
-    // {
-    //   newImage.image_idx = freeImages.allocate();
-    //   AR_CORE_INFO("new image: {}", newImage.image_idx);
-    // }
-
-
-    
-    // bool is_sampled = usage & VK_IMAGE_USAGE_SAMPLED_BIT;
-
   });
   
   destroy_buffer(uploadBuffer);
@@ -1774,7 +1699,9 @@ void Engine::init_bindless_pipeline_layout()
 
 
 // batch (bindless) descriptor update
-// FIXME: kind of ass way to ensure pImageInfo is valid cus of vector realloc 
+// FIXME: kind of ass way to ensure pImageInfo is valid cus of vector realloc
+// FIXME: images are stored in gltf_file.images, instead of building a new vector of AllocatedImage and have duplicated data
+// it should ref ptr to that gltf
 void Engine::update_descriptors()
 {
 
@@ -1789,8 +1716,6 @@ void Engine::update_descriptors()
   for (int i = 0; i < descriptor_updates.size(); i++)
   {
     AllocatedImage img = descriptor_updates[i];
-
-    AR_CORE_INFO("IMAGES {} {}", img.sampler_idx, img.image_idx);
     
     if (img.sampler_idx != UINT32_MAX)
     {
@@ -1809,7 +1734,6 @@ void Engine::update_descriptors()
       inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
       inf.imageView = img.imageView;
 
-      AR_CORE_INFO("getting sampler at {} result: {}", img.sampler_idx, combined_sampler.contains(img.sampler_idx));
       inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler[img.sampler_idx] : bindless_sampler;
       
       info.push_back(inf);

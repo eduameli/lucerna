@@ -158,12 +158,10 @@ struct free_list
     
     uint32_t allocate() {
         if (free_idx.empty()) {
-            AR_CORE_INFO("allocated idx: {}");
             return last++;
         } else {
             int index = free_idx.top();
             free_idx.pop();
-            AR_CORE_INFO("allocated idx: {}", index);
             return index;
         }
     }

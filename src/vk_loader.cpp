@@ -171,8 +171,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     newMat->data.albedo_idx = materialResources.colorImage.sampler_idx;
 
     engine->combined_sampler[materialResources.colorImage.sampler_idx] = materialResources.colorSampler;
-    AR_CORE_INFO("setting sampler at  {}", materialResources.colorImage.sampler_idx);
-
     // queue_descriptor_update(descriptor_write, optional sampler)
     // at the end of the frame call updates
     
