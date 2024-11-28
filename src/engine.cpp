@@ -130,13 +130,14 @@ void Engine::init()
 
   s.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   vkCreateSampler(device, &s, nullptr, &bindless_sampler);  
+
+  
   
   
   init_swapchain();
   init_commands();
   init_sync_structures();
   init_descriptors();
-  init_bindless_descriptors();
   init_pipelines();
   init_imgui(); 
   init_default_data();
@@ -1413,6 +1414,7 @@ void Engine::init_default_data()
     vkDestroySampler(device, m_DefaultSamplerLinear, nullptr);
     vkDestroySampler(device, m_DefaultSamplerNearest, nullptr);
     vkDestroySampler(device, m_ShadowSampler, nullptr); 
+    vkDestroySampler(device, bindless_sampler, nullptr); // not created here? should it be destroyed here?
     // FIXME: metalRoughnessMaterial.clear_resources() instead!
     
     metalRoughMaterial.clear_resources(device);
@@ -1683,7 +1685,7 @@ anything else?
 
 ssbo - using bda
 */
-void Engine::init_bindless_descriptors()
+void Engine::init_bindless_pipeline_layout()
 {
   
   std::array<VkDescriptorPoolSize, 2> pool_size_bindless =
@@ -1697,7 +1699,6 @@ void Engine::init_bindless_descriptors()
   pool_info.maxSets = 1;
   pool_info.poolSizeCount = pool_size_bindless.size();
   pool_info.pPoolSizes = pool_size_bindless.data();
-
   VK_CHECK_RESULT(vkCreateDescriptorPool(device, &pool_info, nullptr, &bindless_descriptor_pool));
 
   VkDescriptorSetLayoutBinding binding[2]; // spec guarantees 4
@@ -1743,41 +1744,47 @@ void Engine::init_bindless_descriptors()
 
 
   global_descriptor_set = globalDescriptorAllocator.allocate(device, m_SceneDescriptorLayout);
-
   
   VkPushConstantRange range{};
   range.offset = 0;
   range.size = 128;
   range.stageFlags = VK_SHADER_STAGE_ALL;
 
-  VkDescriptorSetLayout lays[2] = {m_SceneDescriptorLayout, bindless_descriptor_layout};
+  std::array<VkDescriptorSetLayout, 2> layouts = 
+  {
+    m_SceneDescriptorLayout,
+    bindless_descriptor_layout,
+  };
   
   VkPipelineLayoutCreateInfo inf{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, .pNext = nullptr};
-  inf.setLayoutCount = 2;
-  inf.pSetLayouts = lays;
+  inf.setLayoutCount = layouts.size();
+  inf.pSetLayouts = layouts.data();
   inf.pushConstantRangeCount = 1;
   inf.pPushConstantRanges = &range;
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &inf, nullptr, &bindless_pipeline_layout));
+
+
+  m_DeletionQueue.push_function([=, this](){
+    vkDestroyDescriptorSetLayout(device, bindless_descriptor_layout, nullptr);
+    vkDestroyPipelineLayout(device, bindless_pipeline_layout, nullptr);
+    vkDestroyDescriptorPool(device, bindless_descriptor_pool, nullptr);
+  });
  
 }
 
-/*
-cooked also samplers dont work - probelm might be in vk_loader
-*/
+
+// batch (bindless) descriptor update
+// FIXME: kind of ass way to ensure pImageInfo is valid cus of vector realloc 
 void Engine::update_descriptors()
 {
 
   if (descriptor_updates.size() == 0) return;
-
-  AR_CORE_ERROR("UPDATING!!");
-
 
   std::vector<VkWriteDescriptorSet> writes;
   std::vector<VkDescriptorImageInfo> info;
   writes.reserve(descriptor_updates.size() * 2);
   info.reserve(descriptor_updates.size() * 2);
 
-  // FIXME: scuffed.. vector resize causes a realloc invalidating ptr
   
   for (int i = 0; i < descriptor_updates.size(); i++)
   {
@@ -1803,16 +1810,11 @@ void Engine::update_descriptors()
       inf.imageView = img.imageView;
 
       AR_CORE_INFO("getting sampler at {} result: {}", img.sampler_idx, combined_sampler.contains(img.sampler_idx));
-      // inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler[img.sampler_idx] : m_DefaultSamplerLinear;
       inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler[img.sampler_idx] : bindless_sampler;
       
-      // AR_CORE_ERROR("combined? {}", combined_sampler.contains(img.sampler_idx));
       info.push_back(inf);
       w.pImageInfo = &info.back();
       writes.push_back(w);
-
-
-      // vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);      
     }
 
     if (img.image_idx != UINT32_MAX)
@@ -1835,56 +1837,9 @@ void Engine::update_descriptors()
       info.push_back(inf);
       w.pImageInfo = &info.back();
       writes.push_back(w);
-
-      // vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
-     
     }
-     
   }
-
-
-
   vkUpdateDescriptorSets(device, writes.size() , writes.data(), 0, nullptr);
-
-
-  // for (auto it = combined_sampler.begin(); it != combined_sampler.end(); ++it) {
-  //   std::cout << "Key: " << it->first << ", Value: " << it->second << std::endl;
-  // }
-  
-  // vkUpdateDescriptorSets(device, (uint32_t) descriptor_updates.size(), writes.data(), 0, nullptr);
-  
-  // for (int i = 0; i < img_desc_updates.size(); i++)
-  // {
-  //   VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
-  //   VkDescriptorImageInfo info{};
-  //   info.imageView = img_desc_updates[i];
-  //   info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-  //   w.descriptorCount = 1;
-  //   w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  //   w.dstArrayElement = freeImages.allocate();
-  //   w.dstBinding = IMAGE_BINDING;
-  //   w.dstSet = bindless_descriptor_set;
-  //   w.pImageInfo = &info;
-    
-  // }
-
-  // for (int i = 0; i < sampler_desc_updates.size(); i++)
-  // {
-  //   VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
-  //   VkDescriptorImageInfo info{};
-  //   info.imageView = img_desc_updates[i];
-  //   info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  //   info.sampler = combined_sampler[]
-      
-  //   w.descriptorCount = 1;
-  //   w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  //   w.dstArrayElement = freeSamplers.allocate();
-  //   w.dstBinding = SAMPLER_BINDING;
-  //   w.dstSet = bindless_descriptor_set;
-  //   w.pImageInfo = &info;
-    
-  // }
 }
 
 //FIXME: this whole function is wack i should divide it up .. or move to init_descriptors or smth
@@ -1896,6 +1851,7 @@ void Engine::init_pipelines()
   init_depth_prepass_pipeline();
   init_shadow_map_pipeline();
 
+  init_bindless_pipeline_layout();
 
   // init bindless pipelines
 
@@ -1926,6 +1882,13 @@ void Engine::init_pipelines()
   b.PipelineLayout = bindless_pipeline_layout;
   std_pipeline = b.build_pipeline(device);
 
+
+  vkDestroyShaderModule(device, bindlessFrag, nullptr);
+  vkDestroyShaderModule(device, bindlessVert, nullptr);
+
+  m_DeletionQueue.push_function([=, this](){
+    vkDestroyPipeline(device, std_pipeline, nullptr);
+  });
 
 
   vklog::label_pipeline(device, std_pipeline, "bindless pipeline!");

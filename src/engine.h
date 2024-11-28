@@ -184,7 +184,6 @@ namespace Aurora {
       VkDescriptorSet bindless_descriptor_set;
       VkPipelineLayout bindless_pipeline_layout;
       VkPipeline std_pipeline;
-      // AllocatedBuffer sceneDataBuffer;
       VkDescriptorSet global_descriptor_set;
 
       
@@ -201,8 +200,9 @@ namespace Aurora {
     // private:
       free_list freeSamplers;
       free_list freeImages;
+
     private:
-      void init_bindless_descriptors();
+      void init_bindless_pipeline_layout();
       void update_descriptors();
 
       inline bool should_quit();
