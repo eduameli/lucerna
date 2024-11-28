@@ -5,10 +5,8 @@
 // layout(location = 0) in vec2 inUV;
 
 
-layout(binding = 0) uniform sampler2D global_textures[];
-layout(binding = 1, rgba16f) uniform image2D global_images[];
-
-
+layout(set = 1, binding = 0) uniform sampler2D global_textures[];
+layout(set = 1, binding = 1, rgba16f) uniform image2D global_images[];
 
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inColor;

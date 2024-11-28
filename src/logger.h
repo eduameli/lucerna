@@ -3,6 +3,7 @@
 #include "aurora_pch.h"
 #include "spdlog/logger.h"
 #include <volk.h>
+#include <vulkan/vulkan_core.h>
 
 // Console Logger
 namespace Aurora {
@@ -133,6 +134,18 @@ namespace vklog {
     VkDebugUtilsObjectNameInfoEXT nameInfo{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
     nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
     nameInfo.objectHandle = reinterpret_cast<uint64_t> (buffer);
+    nameInfo.pObjectName = name;
+    vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
+#endif
+  }
+
+  
+  inline void label_pipeline(VkDevice device, VkPipeline pipeline, const char* name)
+  {
+#ifdef AR_DEBUG 
+    VkDebugUtilsObjectNameInfoEXT nameInfo{ .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, .pNext = nullptr };
+    nameInfo.objectType = VK_OBJECT_TYPE_PIPELINE;
+    nameInfo.objectHandle = reinterpret_cast<uint64_t> (pipeline);
     nameInfo.pObjectName = name;
     vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
 #endif

@@ -3,16 +3,6 @@
 
 #include "common.h"
 
-struct Vertex
-{
-#ifdef __cplusplus
-  Vertex()
-    : normal_uv{0.0f}, color{1.0, 0.0, 1.0, 1.0} {}
-#endif
-  vec4_ar normal_uv;
-  vec4_ar color;
-};
-
 struct GPUSceneData
 {
 #ifdef __cplusplus

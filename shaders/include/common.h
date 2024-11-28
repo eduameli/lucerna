@@ -36,4 +36,17 @@
 #define PI 3.14159
 
 #endif // __CPLUSPLUS
+
+
+struct Vertex
+{
+#ifdef __cplusplus
+  Vertex()
+    : normal_uv{0.0f}, color{1.0, 0.0, 1.0, 1.0} {}
+#endif
+  vec4_ar normal_uv;
+  vec4_ar color;
+};
+
+
 #endif // COMMON_H

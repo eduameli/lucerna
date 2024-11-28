@@ -1,13 +1,46 @@
 #include "common.h"
-#include "input_structures.glsl"
+// #include "input_structures.glsl"
+
+#ifndef __cplusplus
+
+struct GPUSceneData
+{
+#ifdef __cplusplus
+  GPUSceneData()
+    : view{1.0f}, proj{1.0f}, viewproj{1.0f}, ambientColor{1.0f}, sunlightDirection{1.0f}, sunlightColor{1.0f} {}
+#endif
+  mat4_ar view;
+  mat4_ar proj;
+  mat4_ar viewproj;
+  vec4_ar ambientColor;
+  vec4_ar sunlightDirection;
+  vec4_ar sunlightColor;
+};
+
+
+layout(scalar, buffer_reference) readonly buffer VertexBuffer{ 
+	Vertex vertices[];
+};
+
+// NOTE: idk how to improve this 
+layout(scalar, buffer_reference) readonly buffer PositionBuffer {
+  vec3 positions[];
+};
+
+
+layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
+  GPUSceneData sceneData;
+}; 
+
+#endif
 
 struct bindless_pcs
 {
 #ifdef __cplusplus
   bindless_pcs()
-    : mvp{1.0f}, positions{0} {}
+    : modelMatrix{1.0f}, positions{0} {}
 #endif
-  mat4_ar mvp;
+  mat4_ar modelMatrix;
   buffer_ar(PositionBuffer) positions;
   buffer_ar(VertexBuffer) vertices;
   uint albedo_idx;
@@ -44,11 +77,11 @@ void main()
     Vertex v = pcs.vertices.vertices[gl_VertexIndex];
     
 	vec4 position = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
-	gl_Position = pcs.mvp * position;
+	gl_Position = sceneData.viewproj * pcs.modelMatrix * position;
 
 vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 	outNormal = (mat4(1.0f) * vec4(normal_unpacked, 0.f)).xyz;
-	outColor = v.color.xyz * materialData.colorFactors.xyz;	//NOTE: move to big fat ssbo
+	outColor = v.color.xyz; /* materialData.colorFactors.xyz*;*/	//NOTE: move to big fat ssbo
     
 	outUV.x = v.normal_uv.z;
 	outUV.y = v.normal_uv.w;
