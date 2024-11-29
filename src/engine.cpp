@@ -665,7 +665,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     }
 
     depth_only_pcs pcs{};
-    pcs.mvp= sceneData.viewproj * draw.transform; // worldMatrix == modelMatrix
+    pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.positions = draw.positionBufferAddress; 
 
 
