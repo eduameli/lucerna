@@ -28,6 +28,10 @@ layout(scalar, buffer_reference) readonly buffer PositionBuffer {
 };
 
 
+layout(scalar, buffer_reference) readonly buffer TransformBuffer {
+  mat4 transforms[];
+};
+
 layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
   GPUSceneData sceneData;
 }; 
@@ -43,6 +47,8 @@ struct bindless_pcs
   mat4_ar modelMatrix;
   buffer_ar(PositionBuffer) positions;
   buffer_ar(VertexBuffer) vertices;
+  buffer_ar(TransformBuffer) transforms;
+  uint transform_idx;
   uint albedo_idx;
 };
 
@@ -76,8 +82,9 @@ void main()
 {
     Vertex v = pcs.vertices.vertices[gl_VertexIndex];
     
-	vec4 position = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
-	gl_Position = sceneData.viewproj * pcs.modelMatrix * position;
+	vec4 positionLocal = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
+	vec4 positionWorld = pcs.transforms.transforms[pcs.transform_idx] * positionLocal;
+    gl_Position = sceneData.viewproj * positionWorld;
 
 vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 	outNormal = (mat4(1.0f) * vec4(normal_unpacked, 0.f)).xyz;

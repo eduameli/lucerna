@@ -30,7 +30,9 @@ namespace Aurora {
     VkBuffer indexBuffer;
     MaterialInstance* material;
 
-    BindlessMaterial texture_idxs;
+    // BindlessMaterial texture_idxs;
+    uint32_t albedo_idx;
+    uint32_t transform_idx;
     
     Bounds bounds;
     glm::mat4 transform;
@@ -41,7 +43,11 @@ namespace Aurora {
     std::vector<RenderObject> OpaqueSurfaces;
     std::vector<RenderObject> TransparentSurfaces;
     std::vector<uint32_t> opaque_draws;
+
+    // uploaded every frame.. might be bad.. but everntually i dont wanna have this immediate mode rendering adn use DrawSet
+    std::vector<glm::mat4> transforms;
   };
+  
 
   struct EngineStats
   {
@@ -154,6 +160,15 @@ namespace Aurora {
       VkExtent3D internalExtent{};
       VmaAllocator m_Allocator{};
       VkExtent2D m_DrawExtent{};
+
+
+
+
+      // BINDLESS BUFFERS 
+      AllocatedBuffer bigIndexBuffer{};
+      AllocatedBuffer bigTransformBuffer{};
+      AllocatedBuffer bigMaterialBuffer{};
+      AllocatedBuffer bigDrawDataBuffer{};
   
     private:
       void init_vulkan();

@@ -54,6 +54,11 @@ layout(scalar, buffer_reference) readonly buffer PositionBuffer {
   vec3 positions[];
 };
 
+
+layout(scalar, buffer_reference) readonly buffer TransformBuffer{ 
+	mat4 transforms[];
+};
+
 layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
   GPUSceneData sceneData;
 }; 

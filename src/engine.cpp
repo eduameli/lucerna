@@ -152,11 +152,21 @@ void Engine::init()
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
+  loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
+  // create material ssbo, drawdata ssbo and transform ssbo
+
+  // FIXME: use staging buffer instead...
+  bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4x3), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  glm::mat4x3* data = (glm::mat4x3*) bigTransformBuffer.info.pMappedData;
+  memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.transforms.size() * sizeof(glm::mat4x3));
+  vklog::label_buffer(device,bigTransformBuffer.buffer, "big transform buffer");
+  
   
   // prepare shadow uniform
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   m_DeletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass.buffer);
+    destroy_buffer(bigTransformBuffer);
   });
 
   // prepare gfx effects
@@ -296,38 +306,11 @@ void Engine::update_scene()
 	sceneData.ambientColor = glm::vec4(0.1f); // would it be like a skybox
   sceneData.sunlightColor = glm::vec4(1.0f);
 
+  //loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
 
-  
+  // mainDrawContext.opaque_draws.clear();
+  // mainDrawContext.opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
 
-  // sceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  
-  // m_DeletionQueue.push_function([=, this](){
-  //   destroy_buffer(sceneDataBuffer);
-  // });
-
-  // GPUSceneData* sceneUniformData = (GPUSceneData*) sceneDataBuffer.allocation->GetMappedData();
-  // *sceneUniformData = sceneData;
-
-
-  // vmaFlushAllocations(m_Allocator, 1, &sceneDataBuffer.allocation, nullptr, nullptr);
-
-
-
-  //  // global_descriptor_set = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
-  
-  // DescriptorWriter writer;
-  // writer.write_buffer(0, sceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  // writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  // writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  // writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  // writer.update_set(device, global_descriptor_set);
-  
-  
-
-  loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
-  
-  mainDrawContext.opaque_draws.clear(); 
-  mainDrawContext.opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
   
   // frustum culling for main camera
   for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
@@ -654,7 +637,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   writer.update_set(device, depth);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_DepthPrepassPipeline);
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipelineLayout, 0, 1, &depth, 0, nullptr);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 0, 1, &depth, 0, nullptr);
 
   VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
   auto draw = [&](const RenderObject& draw) {
@@ -666,7 +649,16 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 
     depth_only_pcs pcs{};
     pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
-    pcs.positions = draw.positionBufferAddress; 
+    pcs.positions = draw.positionBufferAddress;
+    pcs.transform_idx = draw.transform_idx;
+    pcs.transforms = (VkDeviceAddress) bigTransformBuffer.info.pMappedData;
+
+    
+    VkBufferDeviceAddressInfo attributesBDA {
+      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+      .buffer = bigTransformBuffer.buffer
+    };
+    pcs.transforms= vkGetBufferDeviceAddress(device, &attributesBDA);
 
 
     vkCmdPushConstants(cmd, zpassLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(depth_only_pcs), &pcs);
@@ -780,7 +772,17 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     pcs.modelMatrix = draw.transform;
     pcs.vertices = draw.vertexBufferAddress;
     pcs.positions = draw.positionBufferAddress;
-    pcs.albedo_idx = draw.texture_idxs.albedo_idx;
+    pcs.albedo_idx = draw.albedo_idx;
+    pcs.transform_idx = draw.transform_idx;
+    pcs.transforms = (VkDeviceAddress) bigTransformBuffer.info.pMappedData;
+
+    
+    VkBufferDeviceAddressInfo attributesBDA {
+      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+      .buffer = bigTransformBuffer.buffer
+    };
+    pcs.transforms= vkGetBufferDeviceAddress(device, &attributesBDA);
+    
     // pcs.vertexBuffer = draw.vertexBufferAddress;
     // pcs.positionBuffer = draw.positionBufferAddress;
     // world matrix is the model matrix??
@@ -1949,7 +1951,7 @@ void Engine::init_depth_prepass_pipeline()
  
   VkPushConstantRange range{};
   range.offset = 0;
-  range.size = sizeof(shadow_map_pcs);
+  range.size = sizeof(depth_only_pcs);
   range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
   VkPipelineLayoutCreateInfo layout = vkinit::pipeline_layout_create_info();

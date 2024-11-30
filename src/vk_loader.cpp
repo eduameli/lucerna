@@ -348,7 +348,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       node->refresh_transform(glm::mat4{1.0f});
     }
   }
-  
   return scene;
 }
 
@@ -635,6 +634,11 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
 void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
   glm::mat4 nodeMatrix = topMatrix * worldTransform;
+
+  AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4x3(nodeMatrix)));
+  ctx.transforms.push_back(nodeMatrix);
+  
+    
   for (auto& s : mesh->surfaces)
   {
     RenderObject def;
@@ -646,7 +650,8 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     def.transform = nodeMatrix;
     def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
     def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
-    def.texture_idxs = {s.material->data.albedo_idx};
+    def.albedo_idx = s.material->data.albedo_idx;
+    def.transform_idx = ctx.transforms.size() - 1;
     // need to have indices here or in ssbo for indirect - but can figure that out later...
     
     

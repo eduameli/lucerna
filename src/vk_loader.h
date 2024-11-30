@@ -20,9 +20,10 @@ struct LoadedGLTF : public IRenderable
   std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
 
   std::vector<std::shared_ptr<Node>> topNodes;
-
   std::vector<VkSampler> samplers;
 
+  std::vector<glm::mat4x3> gltf_transforms;
+  
   DescriptorAllocatorGrowable descriptorPool;
 
   AllocatedBuffer materialDataBuffer;

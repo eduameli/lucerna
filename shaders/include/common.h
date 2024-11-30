@@ -18,6 +18,7 @@
 #define vec3_ar glm::vec3
 #define vec4_ar glm::vec4
 #define mat4_ar glm::mat4x4
+#define mat4x3_ar glm::mat4x3
 
 #define buffer_ar(name) VkDeviceAddress
 
@@ -30,6 +31,7 @@
 #define vec3_ar vec3
 #define vec4_ar vec4
 #define mat4_ar mat4
+#define mat4x3_ar mat4x3
 
 #define buffer_ar(name) name 
 
