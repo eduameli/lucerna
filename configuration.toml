@@ -1,5 +1,5 @@
 [startup]
-scene_path = "assets/test_cube.glb"
+scene_path = "assets/sponza_normal.glb"
 
 [cvars]
 

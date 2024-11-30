@@ -263,14 +263,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
          fastgltf::iterateAccessorWithIndex<glm::vec4>(asset, asset.accessors[(*colors).accessorIndex], lambda);
       }
       
-      if (p.materialIndex.has_value())
-      {
-        newSurface.material = materials[p.materialIndex.value()];
-      }
-      else
-      {
-        newSurface.material = materials[0];
-      }
+      // if (p.materialIndex.has_value())
+      // {
+      //   newSurface.material = materials[p.materialIndex.value()];
+      // }
+      // else
+      // {
+      //   newSurface.material = materials[0];
+      // }
 
       glm::vec3  minpos = positions[initial_vtx];
       glm::vec3  maxpos = positions[initial_vtx];
@@ -636,34 +636,37 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
   glm::mat4 nodeMatrix = topMatrix * worldTransform;
 
   AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4(nodeMatrix)));
-  int mesh_idx = ctx.transforms.size();
-  ctx.transforms.push_back(nodeMatrix);
+  int mesh_idx = ctx.freeTransforms.allocate();
+  ctx.transforms[mesh_idx] = nodeMatrix;
   
-    
+
+  // this will basically go into DrawData buffer or Indirect Draw cmd buffer
   for (auto& s : mesh->surfaces)
   {
     RenderObject def;
     def.indexCount = s.count;
     def.firstIndex = s.startIndex;
     def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
-    def.material = &s.material->data;
+    // def.material = &s.material->data;
     def.bounds = s.bounds;
     def.transform = nodeMatrix;
     def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
     def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
-    def.albedo_idx = s.material->data.albedo_idx;
+    def.albedo_idx = 12;
     def.transform_idx = mesh_idx;
+    def.material_idx = 12;
     // need to have indices here or in ssbo for indirect - but can figure that out later...
     
-    
-    if (s.material->data.passType == MaterialPass::Transparent)
-    {
-      ctx.TransparentSurfaces.push_back(def);
-    }
-    else
-    {
-      ctx.OpaqueSurfaces.push_back(def);
-    }
+    // still need this to place it into the correct draw_set bucket
+    // if (s.material->data.passType == MaterialPass::Transparent)
+    // {
+    //   ctx.TransparentSurfaces.push_back(def);
+    // }
+    // else
+    // {
+    //   ctx.OpaqueSurfaces.push_back(def);
+    // }
+    ctx.OpaqueSurfaces.push_back(def);
   }
 
   Node::queue_draw(topMatrix, ctx);

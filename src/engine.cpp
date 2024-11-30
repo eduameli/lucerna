@@ -158,10 +158,14 @@ void Engine::init()
   // FIXME: use staging buffer instead...
   bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   glm::mat4* data = (glm::mat4*) bigTransformBuffer.info.pMappedData;
-  memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.transforms.size() * sizeof(glm::mat4));
+  memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.freeTransforms.size * sizeof(glm::mat4));
   vklog::label_buffer(device,bigTransformBuffer.buffer, "big transform buffer");
+
+  bigMaterialBuffer = create_buffer(mainDrawContext.materials.size() * sizeof(BindlessMaterial), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  BindlessMaterial* data2 = (BindlessMaterial*) bigMaterialBuffer.info.pMappedData;
+  memcpy(data2, mainDrawContext.materials.data(), mainDrawContext.freeMaterials.size * sizeof(BindlessMaterial));
   
-  
+
   // prepare shadow uniform
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   m_DeletionQueue.push_function([=, this] {
@@ -352,18 +356,20 @@ void Engine::update_scene()
    
   // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
   // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
-  std::sort(mainDrawContext.opaque_draws.begin(), mainDrawContext.opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-    const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
-    const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
-    if(A.material == B.material)
-    {
-      return A.indexBuffer < B.indexBuffer;
-    }
-    else
-    {
-      return A.material < B.material;
-    }
-  });
+
+  // NOTE: do i need to sort it anymore? no state changes.. no sorting?
+  // std::sort(mainDrawContext.opaque_draws.begin(), mainDrawContext.opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+  //   const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
+  //   const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
+  //   if(A.material == B.material)
+  //   {
+  //     return A.indexBuffer < B.indexBuffer;
+  //   }
+  //   else
+  //   {
+  //     return A.material < B.material;
+  //   }
+  // });
 
 
   auto end = std::chrono::system_clock::now();
@@ -596,7 +602,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     pcs.positions = draw.positionBufferAddress; 
    
     // scuffed way to not render ground plane to shadow map
-    vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(shadow_map_pcs), &pcs);
+    vkCmdPushConstants(cmd, m_ShadowPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(shadow_map_pcs), &pcs);
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
   };
   
@@ -784,13 +790,14 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     // pcs.positionBuffer = draw.positionBufferAddress;
     // world matrix is the model matrix??
 
-    vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(std_material_pcs), &pcs);
+    vkCmdPushConstants(cmd, bindless_pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(std_material_pcs), &pcs);
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
 
     stats.drawcall_count++;
     stats.triangle_count += draw.indexCount / 3;
   };
 
+  AR_CORE_INFO("opaque_draws size: {}", mainDrawContext.opaque_draws.size());
   for (auto& r : mainDrawContext.opaque_draws)
   {
     draw(mainDrawContext.OpaqueSurfaces[r]);

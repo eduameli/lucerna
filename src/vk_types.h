@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <volk.h>
+#include "ar_asserts.h"
 #include "vk_mem_alloc.h"
 #include "aurora_pch.h"
 #include "logger.h"
@@ -129,7 +130,7 @@ namespace Aurora
     uint32_t startIndex;
     uint32_t count;
     Bounds bounds;
-    std::shared_ptr<GLTFMaterial> material;
+    // std::shared_ptr<GLTFMaterial> material;
   };
 
   struct MeshAsset
@@ -154,21 +155,26 @@ namespace Aurora
 struct free_list
 {
     std::stack<uint32_t> free_idx;
+    size_t size;
     uint32_t last{0};
     
     uint32_t allocate() {
-        if (free_idx.empty()) {
-            return last++;
-        } else {
-            int index = free_idx.top();
-            free_idx.pop();
-            return index;
-        }
+      AR_LOG_ASSERT(size < 1000, "OVERFLOW!!!!!!");      
+
+      size++;
+      if (free_idx.empty()) {
+          return last++;
+      } else {
+          int index = free_idx.top();
+          free_idx.pop();
+          return index;
+      }
     }
     
     void deallocate(uint32_t idx)
     {
-        free_idx.push(idx);
+      free_idx.push(idx);
+      size--;
     }
 };
 
