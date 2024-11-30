@@ -4,6 +4,7 @@
 #include "vk_initialisers.h"
 #include "vk_types.h"
 
+#include <cstdint>
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
@@ -104,6 +105,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::vector<std::shared_ptr<Node>> nodes;
   std::vector<AllocatedImage> images;
   std::vector<std::shared_ptr<GLTFMaterial>> materials;
+  std::vector<std::shared_ptr<BindlessMaterial>> mats;
   
   for (fastgltf::Image& image : asset.images)
   {
@@ -124,9 +126,34 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   file.materialDataBuffer = engine->create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * asset.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   int data_index = 0;
   GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = (GLTFMetallic_Roughness::MaterialConstants*) file.materialDataBuffer.info.pMappedData;
+
+  std::vector<uint32_t> mat_idxs;
   
   for (fastgltf::Material& mat : asset.materials)
   {
+    //bindless material start
+    BindlessMaterial m;
+    AR_CORE_WARN("material...");
+    if (mat.pbrData.baseColorTexture.has_value())
+    {
+      
+      size_t img = asset.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
+      size_t sampler = asset.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
+
+      AllocatedImage i  = images[img];
+      VkSampler s = file.samplers[sampler];
+
+
+      m.albedo_idx = i.sampler_idx;
+    }
+    
+    uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
+    mat_idxs.push_back(mat_idx);
+    engine->mainDrawContext.materials[mat_idx] = m;
+
+    // bindless material end
+
+    
     std::shared_ptr<GLTFMaterial> newMat = std::make_shared<GLTFMaterial>();
     materials.push_back(newMat);
     file.materials[mat.name.c_str()] = newMat;
@@ -168,8 +195,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
 
     newMat->data = engine->metalRoughMaterial.write_material(engine->device, passType, materialResources, file.descriptorPool);
-    newMat->data.albedo_idx = materialResources.colorImage.sampler_idx;
 
+    
+    newMat->data.albedo_idx = materialResources.colorImage.sampler_idx;
     engine->combined_sampler[materialResources.colorImage.sampler_idx] = materialResources.colorSampler;
     // queue_descriptor_update(descriptor_write, optional sampler)
     // at the end of the frame call updates
@@ -272,6 +300,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       //   newSurface.material = materials[0];
       // }
 
+      if (p.materialIndex.has_value())
+      {
+        newSurface.mat_idx = mat_idxs[p.materialIndex.value()];
+      }
+      else
+      {
+        // use placeholder
+        newSurface.mat_idx = mat_idxs[0];
+      }
+
       glm::vec3  minpos = positions[initial_vtx];
       glm::vec3  maxpos = positions[initial_vtx];
       for (int i = initial_vtx; i < positions.size(); i++) {
@@ -350,6 +388,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   }
   return scene;
 }
+
+// if it already exist dont add to material buffer just return the same idx
+
 
 VkFilter extract_filter(fastgltf::Filter filter)
 {
@@ -654,7 +695,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
     def.albedo_idx = 12;
     def.transform_idx = mesh_idx;
-    def.material_idx = 12;
+    def.material_idx = s.mat_idx;
     // need to have indices here or in ssbo for indirect - but can figure that out later...
     
     // still need this to place it into the correct draw_set bucket

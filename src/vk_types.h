@@ -130,6 +130,7 @@ namespace Aurora
     uint32_t startIndex;
     uint32_t count;
     Bounds bounds;
+    uint32_t mat_idx;
     // std::shared_ptr<GLTFMaterial> material;
   };
 
@@ -155,7 +156,7 @@ namespace Aurora
 struct free_list
 {
     std::stack<uint32_t> free_idx;
-    size_t size;
+    size_t size{0};
     uint32_t last{0};
     
     uint32_t allocate() {
@@ -178,6 +179,26 @@ struct free_list
     }
 };
 
+
+  struct BindlessMaterial
+  {
+    uint32_t albedo_idx{0};
+
+  };
+
+  
+
 } // namespace aurora
 
-
+// FIXME:  no material cache for first impl
+namespace std
+{
+    template<>
+    struct hash<Aurora::BindlessMaterial>
+    {
+      size_t operator()(const Aurora::BindlessMaterial& key) const
+      {
+        return std::hash<uint32_t>()(key.albedo_idx);
+      }
+    };
+}

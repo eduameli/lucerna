@@ -171,6 +171,7 @@ void Engine::init()
   m_DeletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass.buffer);
     destroy_buffer(bigTransformBuffer);
+    destroy_buffer(bigMaterialBuffer);
   });
 
   // prepare gfx effects
@@ -772,12 +773,17 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     // pcs.modelMatrix = draw.transform;
     pcs.vertices = draw.vertexBufferAddress;
     pcs.positions = draw.positionBufferAddress;
-    pcs.albedo_idx = draw.albedo_idx;
     pcs.transform_idx = draw.transform_idx;
+    pcs.material_idx = draw.material_idx;
     // AR_CORE_INFO("draw transform {}", draw.albedo_idx);
 
     VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
 	  pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
+
+
+   VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigMaterialBuffer.buffer };
+    pcs.materials= vkGetBufferDeviceAddress(device, &bda2);
+	  
 
     
     // VkBufferDeviceAddressInfo attributesBDA {
@@ -797,7 +803,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     stats.triangle_count += draw.indexCount / 3;
   };
 
-  AR_CORE_INFO("opaque_draws size: {}", mainDrawContext.opaque_draws.size());
   for (auto& r : mainDrawContext.opaque_draws)
   {
     draw(mainDrawContext.OpaqueSurfaces[r]);
@@ -1740,7 +1745,7 @@ void Engine::update_descriptors()
       inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
       inf.imageView = img.imageView;
 
-      inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler[img.sampler_idx] : bindless_sampler;
+      inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler.at(img.sampler_idx) : bindless_sampler;
       
       info.push_back(inf);
       w.pImageInfo = &info.back();

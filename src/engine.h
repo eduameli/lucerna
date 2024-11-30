@@ -8,6 +8,10 @@
 #include "camera.h"
 #include <vulkan/vulkan_core.h>
 
+
+
+
+
 namespace Aurora {
   struct FrameData
   {
@@ -20,10 +24,7 @@ namespace Aurora {
   };
   constexpr uint32_t FRAME_OVERLAP = 2;
 
-  struct BindlessMaterial
-  {
-    uint32_t albedo_idx;
-  };
+
   
   struct RenderObject {
     uint32_t indexCount, firstIndex;
@@ -50,7 +51,6 @@ namespace Aurora {
     std::array<glm::mat4, 1000> transforms;
     std::array<BindlessMaterial, 1000> materials;
 
-    std::unordered_map<BindlessMaterial, uint32_t> material_cache;
     
     free_list freeTransforms{};
     free_list freeMaterials{};
@@ -308,3 +308,5 @@ namespace Aurora {
       } shadowPass;
   };
 } // namespace aurora
+
+

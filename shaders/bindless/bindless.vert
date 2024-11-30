@@ -32,6 +32,11 @@ layout(scalar, buffer_reference) readonly buffer TransformBuffer {
   mat4 transforms[];
 };
 
+
+layout(scalar, buffer_reference) readonly buffer MaterialBuffer {
+  uint albedos[];
+};
+
 layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
   GPUSceneData sceneData;
 }; 
@@ -42,13 +47,14 @@ struct bindless_pcs
 {
 #ifdef __cplusplus
   bindless_pcs()
-    : vertices{0}, positions{0}, transforms{0}, transform_idx{0}, albedo_idx{0} {} // use default img?
+    : vertices{0}, positions{0}, transforms{0}, materials{0}, transform_idx{0}, material_idx{0} {} // use default img?
 #endif
   buffer_ar(PositionBuffer) positions;
   buffer_ar(VertexBuffer) vertices;
   buffer_ar(TransformBuffer) transforms;
+  buffer_ar(MaterialBuffer) materials;
   uint transform_idx;
-  uint albedo_idx;
+  uint material_idx;
 };
 
 #ifndef __cplusplus
@@ -92,7 +98,7 @@ vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 	outUV.x = v.normal_uv.z;
 	outUV.y = v.normal_uv.w;
 
-	albedo_idx = pcs.albedo_idx;
+	albedo_idx = pcs.materials.albedos[pcs.material_idx];
 }
 
 #endif
