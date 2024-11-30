@@ -651,16 +651,9 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     // pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.positions = draw.positionBufferAddress;
     pcs.transform_idx = draw.transform_idx;
-    pcs.transforms = (VkDeviceAddress) bigTransformBuffer.info.pMappedData;
 
-
-    // FIXME: how do i use info.pMappedData...?
-    VkBufferDeviceAddressInfo attributesBDA {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = bigTransformBuffer.buffer
-    };
-    pcs.transforms= vkGetBufferDeviceAddress(device, &attributesBDA);
-
+    VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
+	  pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
 
     vkCmdPushConstants(cmd, zpassLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(depth_only_pcs), &pcs);
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
@@ -775,15 +768,17 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     pcs.positions = draw.positionBufferAddress;
     pcs.albedo_idx = draw.albedo_idx;
     pcs.transform_idx = draw.transform_idx;
-    AR_CORE_INFO("draw transform {}", draw.albedo_idx);
-    pcs.transforms = (VkDeviceAddress) bigTransformBuffer.info.pMappedData;
+    // AR_CORE_INFO("draw transform {}", draw.albedo_idx);
+
+    VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
+	  pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
 
     
-    VkBufferDeviceAddressInfo attributesBDA {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = bigTransformBuffer.buffer
-    };
-    pcs.transforms= vkGetBufferDeviceAddress(device, &attributesBDA);
+    // VkBufferDeviceAddressInfo attributesBDA {
+    //   .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+    //   .buffer = bigTransformBuffer.buffer
+    // };
+    // pcs.transforms= vkGetBufferDeviceAddress(device, &attributesBDA);
     
     // pcs.vertexBuffer = draw.vertexBufferAddress;
     // pcs.positionBuffer = draw.positionBufferAddress;
