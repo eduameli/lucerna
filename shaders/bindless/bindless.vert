@@ -42,9 +42,8 @@ struct bindless_pcs
 {
 #ifdef __cplusplus
   bindless_pcs()
-    : modelMatrix{1.0f}, positions{0} {}
+    : vertices{0}, positions{0}, transforms{0}, transform_idx{0}, albedo_idx{0} {} // use default img?
 #endif
-  mat4_ar modelMatrix;
   buffer_ar(PositionBuffer) positions;
   buffer_ar(VertexBuffer) vertices;
   buffer_ar(TransformBuffer) transforms;

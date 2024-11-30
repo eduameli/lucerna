@@ -156,9 +156,9 @@ void Engine::init()
   // create material ssbo, drawdata ssbo and transform ssbo
 
   // FIXME: use staging buffer instead...
-  bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4x3), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  glm::mat4x3* data = (glm::mat4x3*) bigTransformBuffer.info.pMappedData;
-  memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.transforms.size() * sizeof(glm::mat4x3));
+  bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  glm::mat4* data = (glm::mat4*) bigTransformBuffer.info.pMappedData;
+  memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.transforms.size() * sizeof(glm::mat4));
   vklog::label_buffer(device,bigTransformBuffer.buffer, "big transform buffer");
   
   
@@ -648,12 +648,13 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     }
 
     depth_only_pcs pcs{};
-    pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
+    // pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.positions = draw.positionBufferAddress;
     pcs.transform_idx = draw.transform_idx;
     pcs.transforms = (VkDeviceAddress) bigTransformBuffer.info.pMappedData;
 
-    
+
+    // FIXME: how do i use info.pMappedData...?
     VkBufferDeviceAddressInfo attributesBDA {
       .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
       .buffer = bigTransformBuffer.buffer
@@ -769,11 +770,12 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     }
 
     bindless_pcs pcs{};
-    pcs.modelMatrix = draw.transform;
+    // pcs.modelMatrix = draw.transform;
     pcs.vertices = draw.vertexBufferAddress;
     pcs.positions = draw.positionBufferAddress;
     pcs.albedo_idx = draw.albedo_idx;
     pcs.transform_idx = draw.transform_idx;
+    AR_CORE_INFO("draw transform {}", draw.albedo_idx);
     pcs.transforms = (VkDeviceAddress) bigTransformBuffer.info.pMappedData;
 
     
@@ -1803,6 +1805,7 @@ void Engine::init_pipelines()
   b.set_multisampling_none();
   b.disable_blending();
   b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  // b.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   
   
   b.PipelineLayout = bindless_pipeline_layout;

@@ -22,7 +22,7 @@ struct LoadedGLTF : public IRenderable
   std::vector<std::shared_ptr<Node>> topNodes;
   std::vector<VkSampler> samplers;
 
-  std::vector<glm::mat4x3> gltf_transforms;
+  std::vector<glm::mat4> gltf_transforms;
   
   DescriptorAllocatorGrowable descriptorPool;
 

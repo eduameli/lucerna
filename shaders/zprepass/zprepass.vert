@@ -5,9 +5,8 @@ struct depth_only_pcs
 {
 #ifdef __cplusplus
   depth_only_pcs()
-    : modelMatrix{1.0f}, positions{0} {}
+    : transforms{0}, positions{0}, transform_idx{0} {}
 #endif
-  mat4_ar modelMatrix;
   buffer_ar(PositionBuffer) positions;
   buffer_ar(TransformBuffer) transforms;
   uint transform_idx;

@@ -635,7 +635,8 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
   glm::mat4 nodeMatrix = topMatrix * worldTransform;
 
-  AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4x3(nodeMatrix)));
+  AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4(nodeMatrix)));
+  int mesh_idx = ctx.transforms.size();
   ctx.transforms.push_back(nodeMatrix);
   
     
@@ -651,7 +652,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
     def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
     def.albedo_idx = s.material->data.albedo_idx;
-    def.transform_idx = ctx.transforms.size() - 1;
+    def.transform_idx = mesh_idx;
     // need to have indices here or in ssbo for indirect - but can figure that out later...
     
     
