@@ -50,6 +50,7 @@ namespace Aurora {
     // FIXME: loading big scenes could break here... hardcoded limit.. :sob: maybe if limit is exceeded i need to do sm
     std::array<glm::mat4, 1000> transforms;
     std::array<BindlessMaterial, 1000> materials;
+    std::array<DrawData, 1000> draw_datas;
 
     
     free_list freeTransforms{};
@@ -178,6 +179,7 @@ namespace Aurora {
       AllocatedBuffer bigTransformBuffer{};
       AllocatedBuffer bigMaterialBuffer{};
       AllocatedBuffer bigDrawDataBuffer{};
+      AllocatedBuffer indirectDrawBuffer{};
   
     private:
       void init_vulkan();

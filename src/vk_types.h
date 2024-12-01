@@ -180,6 +180,33 @@ struct free_list
 };
 
 
+
+  struct IndirectDraw
+  {
+    uint32_t indexCount;
+    uint32_t instanceCount;
+    uint32_t firstIndex;
+    uint32_t vertexOffset;
+    uint32_t firstInstance;
+    VkDeviceAddress positionBDA;
+    VkDeviceAddress vertexBDA;
+  };
+
+// FIXME:  support for instanced? or draw indirect count
+struct DrawData
+{
+  uint32_t material_idx;
+  uint32_t transform_idx;
+  uint32_t indexCount;
+  uint32_t firstIndex;
+  // uint32_t vertexOffset; // what is this for?
+  VkDeviceAddress positionBDA;
+  VkDeviceAddress vertexBDA;
+  // draw data bda - one per gltf
+  // transform bda - one per gltf
+  // index buffer (bound)
+};
+
   struct BindlessMaterial
   {
     uint32_t albedo_idx{0};

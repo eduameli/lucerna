@@ -47,7 +47,7 @@ glm::vec2 enconde_normal(glm::vec3 n) {
 	return glm::vec2(n.x, n.y);
 }
 
-
+// FIXME: repeated vertex info buffers if meshes r repeated...
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
 {
   AR_CORE_INFO("Loading GLTF at {}", filepath.c_str());
@@ -693,7 +693,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     def.transform = nodeMatrix;
     def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
     def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
-    def.albedo_idx = 12;
+    def.albedo_idx = 10000;
     def.transform_idx = mesh_idx;
     def.material_idx = s.mat_idx;
     // need to have indices here or in ssbo for indirect - but can figure that out later...
@@ -708,6 +708,20 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     //   ctx.OpaqueSurfaces.push_back(def);
     // }
     ctx.OpaqueSurfaces.push_back(def);
+
+    AR_CORE_INFO(mesh_idx);
+
+    uint32_t draw_idx = ctx.freeDrawData.allocate();
+    ctx.draw_datas[draw_idx] = {
+      .material_idx = s.mat_idx,
+      .transform_idx = (uint32_t) mesh_idx,
+      .indexCount = s.count,
+      .firstIndex = s.startIndex,
+      .positionBDA = mesh->meshBuffers.positionBufferAddress,
+      .vertexBDA = mesh->meshBuffers.vertexBufferAddress,
+    };
+
+    
   }
 
   Node::queue_draw(topMatrix, ctx);

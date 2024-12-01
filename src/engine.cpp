@@ -156,6 +156,8 @@ void Engine::init()
   // create material ssbo, drawdata ssbo and transform ssbo
 
   // FIXME: use staging buffer instead...
+  // make this part of the gltfFile - only one gltf file laoded at once
+
   bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   glm::mat4* data = (glm::mat4*) bigTransformBuffer.info.pMappedData;
   memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.freeTransforms.size * sizeof(glm::mat4));
@@ -164,14 +166,46 @@ void Engine::init()
   bigMaterialBuffer = create_buffer(mainDrawContext.materials.size() * sizeof(BindlessMaterial), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   BindlessMaterial* data2 = (BindlessMaterial*) bigMaterialBuffer.info.pMappedData;
   memcpy(data2, mainDrawContext.materials.data(), mainDrawContext.freeMaterials.size * sizeof(BindlessMaterial));
-  
+  vklog::label_buffer(device, bigMaterialBuffer.buffer, "big material buffer");
 
+  bigDrawDataBuffer = create_buffer(mainDrawContext.draw_datas.size() * sizeof(DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  DrawData* data3 = (DrawData*) bigDrawDataBuffer.info.pMappedData;
+  memcpy(data3, mainDrawContext.draw_datas.data(), mainDrawContext.draw_datas.size() * sizeof(DrawData));
+  vklog::label_buffer(device, bigDrawDataBuffer.buffer, "big draw data buffer");
+
+  int max_commands = 1000;
+  indirectDrawBuffer = create_buffer(max_commands * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  VkDrawIndexedIndirectCommand* data4 = (VkDrawIndexedIndirectCommand*) indirectDrawBuffer.info.pMappedData;
+  // indexCount, instanceCount, firstIndex, vertexOffset, firstInstance
+
+
+  
+  std::vector<IndirectDraw> mem;
+  for (auto& dd : mainDrawContext.draw_datas)
+  {
+    IndirectDraw c{};
+    c.indexCount = dd.indexCount;
+    c.firstIndex = dd.firstIndex;
+    c.firstInstance = 0;
+    c.instanceCount = 1;
+    c.vertexOffset = 0;
+    c.positionBDA = dd.positionBDA;
+    c.vertexBDA = dd.vertexBDA;
+    mem.push_back(c);
+  }
+  memcpy(data4, mem.data(), mem.size() * sizeof(IndirectDraw));
+  vklog::label_buffer(device,indirectDrawBuffer.buffer, "big indirect draw cmd buffer");
+
+  // cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);  
+  
   // prepare shadow uniform
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   m_DeletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass.buffer);
     destroy_buffer(bigTransformBuffer);
     destroy_buffer(bigMaterialBuffer);
+    destroy_buffer(bigDrawDataBuffer);
+    destroy_buffer(indirectDrawBuffer);
   });
 
   // prepare gfx effects
@@ -747,8 +781,11 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std_pipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 1, 1, &bindless_descriptor_set, 0, nullptr);  
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
+
+  int i = 0;
   
   auto draw = [&](const RenderObject& draw) {
+    // return;
     // if (draw.material != lastMaterial)
     // {
     //   lastMaterial = draw.material;
@@ -767,6 +804,11 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     {
       lastIndexBuffer = draw.indexBuffer;
       vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+      i++;
+      // AR_CORE_INFO("new index buffer {}", i);
+      //  NOTE: one index buffer for the whole gltf model
+      // to keep it simple maybe make it so u can only load ONE GLTF scene 
+      // at a time.
     }
 
     bindless_pcs pcs{};
@@ -775,6 +817,9 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     pcs.positions = draw.positionBufferAddress;
     pcs.transform_idx = draw.transform_idx;
     pcs.material_idx = draw.material_idx;
+
+    AR_CORE_INFO("transform idx {}", draw.transform_idx);
+    
     // AR_CORE_INFO("draw transform {}", draw.albedo_idx);
 
     VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
@@ -784,18 +829,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
    VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigMaterialBuffer.buffer };
     pcs.materials= vkGetBufferDeviceAddress(device, &bda2);
 	  
-
+    // vkCmdDrawIndexedIndirect(cmd, bigDrawDataBuffer.buffer, VkDeviceOffset{0}, 1, sizeof(VkCmdDrawIndirect) )
     
-    // VkBufferDeviceAddressInfo attributesBDA {
-    //   .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-    //   .buffer = bigTransformBuffer.buffer
-    // };
-    // pcs.transforms= vkGetBufferDeviceAddress(device, &attributesBDA);
-    
-    // pcs.vertexBuffer = draw.vertexBufferAddress;
-    // pcs.positionBuffer = draw.positionBufferAddress;
-    // world matrix is the model matrix??
-
     vkCmdPushConstants(cmd, bindless_pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(std_material_pcs), &pcs);
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
 
