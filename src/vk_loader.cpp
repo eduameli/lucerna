@@ -243,6 +243,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
           });
       }
 
+
       {
         fastgltf::Accessor& posAccessor = asset.accessors[p.findAttribute("POSITION")->accessorIndex];
         vertices.resize(vertices.size() + posAccessor.count);
@@ -322,6 +323,22 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
       // calculate origin and extents from the min/max, use extent lenght for radius
       newmesh->surfaces.push_back(newSurface);
+
+
+      for (auto i : indices)
+      {
+        engine->mainDrawContext.indices.push_back(i + engine->mainDrawContext.vertices.size());
+      }
+
+      for (auto v : vertices)
+      {
+        engine->mainDrawContext.vertices.push_back(v);
+      }
+
+      for(auto p : positions)
+      {
+        engine->mainDrawContext.positions.push_back(p);
+      }
       
     }
     newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
@@ -693,7 +710,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     def.transform = nodeMatrix;
     def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
     def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
-    def.albedo_idx = 10000;
+    // def.albedo_idx = 10000;
     def.transform_idx = mesh_idx;
     def.material_idx = s.mat_idx;
     // need to have indices here or in ssbo for indirect - but can figure that out later...
@@ -717,8 +734,8 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
       .transform_idx = (uint32_t) mesh_idx,
       .indexCount = s.count,
       .firstIndex = s.startIndex,
-      .positionBDA = mesh->meshBuffers.positionBufferAddress,
-      .vertexBDA = mesh->meshBuffers.vertexBufferAddress,
+      // .positionBDA = mesh->meshBuffers.positionBufferAddress,
+      // .vertexBDA = mesh->meshBuffers.vertexBufferAddress,
     };
 
     

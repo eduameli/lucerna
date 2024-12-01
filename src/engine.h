@@ -51,7 +51,13 @@ namespace Aurora {
     std::array<glm::mat4, 10000> transforms;
     std::array<BindlessMaterial, 10000> materials;
     std::array<DrawData, 10000> draw_datas;
-    std::array<uint32_t, 1000000> indices;
+    
+    std::vector<uint32_t> indices;
+    std::vector<glm::vec3> positions;
+    std::vector<Vertex> vertices;
+
+    GPUMeshBuffers bigMeshes;
+    
     uint32_t idx_count;
 
     
@@ -178,6 +184,9 @@ namespace Aurora {
 
       // BINDLESS BUFFERS 
       AllocatedBuffer bigIndexBuffer{};
+      AllocatedBuffer bigVertexBuffer{};
+      AllocatedBuffer bigPositionBuffer{};
+      
       AllocatedBuffer bigTransformBuffer{};
       AllocatedBuffer bigMaterialBuffer{};
       AllocatedBuffer bigDrawDataBuffer{};

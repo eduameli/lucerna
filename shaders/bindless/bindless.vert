@@ -81,8 +81,6 @@ uint32_ar material_idx;
   uint32_ar transform_idx;
   uint32_ar indexCount;
   uint32_ar firstIndex;
-  PositionBuffer pos;
-  VertexBuffer verts;
 };
 
 layout(set = 0, binding = 4) readonly buffer drawDataBuffer {
@@ -96,6 +94,15 @@ layout(set = 0, binding = 6) readonly buffer materialBuffer {
 } materials;
 
 
+
+layout(set = 0, binding = 7) readonly buffer positionBuffer {
+  vec3_ar a[];
+} posit;
+
+
+layout(set = 0, binding = 8) readonly buffer vertexBuffer {
+  Vertex value[];
+} verts;
 
 vec3 decode_normal(vec2 f)
 {
@@ -120,7 +127,7 @@ void main()
 
 
     
-	vec4 positionLocal = vec4(dd.pos.positions[gl_VertexIndex + dd.firstIndex], 1.0);
+	vec4 positionLocal = vec4(posit.a[gl_VertexIndex + dd.firstIndex], 1.0);
 	vec4 positionWorld = transforms.mat[dd.transform_idx] * positionLocal;
     gl_Position = sceneData.viewproj * positionWorld;
 
@@ -128,7 +135,7 @@ void main()
     
     albedo_idx = materials.albedos[dd.material_idx];
 
-    Vertex v = dd.verts.vertices[gl_VertexIndex];
+    Vertex v = verts.value[gl_VertexIndex + dd.firstIndex];
     
 // 	vec4 positionLocal = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
 // 	vec4 positionWorld = pcs.transforms.transforms[pcs.transform_idx] * positionLocal;

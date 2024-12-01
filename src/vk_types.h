@@ -200,8 +200,6 @@ struct DrawData
   uint32_t indexCount;
   uint32_t firstIndex;
   // uint32_t vertexOffset; // what is this for?
-  VkDeviceAddress positionBDA;
-  VkDeviceAddress vertexBDA;
   // draw data bda - one per gltf
   // transform bda - one per gltf
   // index buffer (bound)

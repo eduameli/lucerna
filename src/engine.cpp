@@ -159,6 +159,8 @@ void Engine::init()
   // FIXME: use staging buffer instead...
   // make this part of the gltfFile - only one gltf file laoded at once
 
+  mainDrawContext.bigMeshes = upload_mesh(mainDrawContext.positions, mainDrawContext.vertices, mainDrawContext.indices);
+  
   bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   glm::mat4* data = (glm::mat4*) bigTransformBuffer.info.pMappedData;
   memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.freeTransforms.size * sizeof(glm::mat4));
@@ -205,6 +207,11 @@ void Engine::init()
     destroy_buffer(bigMaterialBuffer);
     destroy_buffer(bigDrawDataBuffer);
     destroy_buffer(indirectDrawBuffer);
+
+    
+    destroy_buffer(mainDrawContext.bigMeshes.indexBuffer);
+    destroy_buffer(mainDrawContext.bigMeshes.vertexBuffer);
+    destroy_buffer(mainDrawContext.bigMeshes.positionBuffer);
   });
 
   // prepare gfx effects
@@ -767,6 +774,10 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_buffer(4, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(5, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(6, bigMaterialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  
+  writer.write_buffer(7, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(8, mainDrawContext.bigMeshes.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  
   
   writer.update_set(device, globalDescriptor);
   
@@ -1624,6 +1635,9 @@ void Engine::init_descriptors()
     builder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     builder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     builder.add_binding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+    builder.add_binding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    builder.add_binding(8, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     m_SceneDescriptorLayout = builder.build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT); 
   }
   
