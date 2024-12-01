@@ -127,7 +127,7 @@ void main()
 
 
     
-	vec4 positionLocal = vec4(posit.a[gl_VertexIndex + dd.firstIndex], 1.0);
+	vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);
 	vec4 positionWorld = transforms.mat[dd.transform_idx] * positionLocal;
     gl_Position = sceneData.viewproj * positionWorld;
 
@@ -135,7 +135,7 @@ void main()
     
     albedo_idx = materials.albedos[dd.material_idx];
 
-    Vertex v = verts.value[gl_VertexIndex + dd.firstIndex];
+    Vertex v = verts.value[gl_VertexIndex];
     
 // 	vec4 positionLocal = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
 // 	vec4 positionWorld = pcs.transforms.transforms[pcs.transform_idx] * positionLocal;

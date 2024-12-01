@@ -225,6 +225,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     vertices.clear();
     positions.clear();
 
+    AR_CORE_WARN("NEW MESH");
+
     for (auto&& p : mesh.primitives)
     {
       GeoSurface newSurface{};
@@ -240,6 +242,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
         fastgltf::iterateAccessor<std::uint32_t>(asset, indexaccessor,
           [&](std::uint32_t idx) {
               indices.push_back(idx + initial_vtx);
+              AR_CORE_INFO("push idx {}", idx + initial_vtx);
           });
       }
 
@@ -324,10 +327,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       // calculate origin and extents from the min/max, use extent lenght for radius
       newmesh->surfaces.push_back(newSurface);
 
+      
+    }
+
+
+
 
       for (auto i : indices)
       {
         engine->mainDrawContext.indices.push_back(i + engine->mainDrawContext.vertices.size());
+        AR_CORE_INFO("appending {}", i);
       }
 
       for (auto v : vertices)
@@ -339,8 +348,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       {
         engine->mainDrawContext.positions.push_back(p);
       }
-      
-    }
+
+    
     newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
   }
   
@@ -737,6 +746,8 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
       // .positionBDA = mesh->meshBuffers.positionBufferAddress,
       // .vertexBDA = mesh->meshBuffers.vertexBufferAddress,
     };
+
+    AR_CORE_INFO("first index {}", s.startIndex);
 
     
   }
