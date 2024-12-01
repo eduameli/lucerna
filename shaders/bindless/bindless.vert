@@ -59,6 +59,8 @@ struct bindless_pcs
 
 #ifndef __cplusplus
 #extension GL_EXT_buffer_reference : require
+#extension GL_ARB_shader_draw_parameters: require
+#extension GL_EXT_debug_printf : enable
 
 layout ( push_constant ) uniform constants
 {
@@ -71,6 +73,28 @@ layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec2 outUV;
 
 layout(location = 3) out flat uint albedo_idx;
+
+struct DrawData
+{
+    
+uint32_ar material_idx;
+  uint32_ar transform_idx;
+  uint32_ar indexCount;
+  uint32_ar firstIndex;
+  PositionBuffer pos;
+  VertexBuffer verts;
+};
+
+layout(set = 0, binding = 4) readonly buffer drawDataBuffer {
+  DrawData yes[];
+} draws;
+layout(set = 0, binding = 5) readonly buffer transformBuffer {
+  mat4x4 mat[];
+} transforms;
+layout(set = 0, binding = 6) readonly buffer materialBuffer {
+  uint32_ar albedos[];
+} materials;
+
 
 
 vec3 decode_normal(vec2 f)
@@ -85,11 +109,30 @@ vec3 decode_normal(vec2 f)
 
 void main() 
 {
-    Vertex v = pcs.vertices.vertices[gl_VertexIndex];
+
+    DrawData dd = draws.yes[gl_DrawIDARB];
+    mat4 td = transforms.mat[dd.transform_idx];
+
+    // vec4 positionLocal = vec4(dd.pos.positions[gl_VertexIndex], 1.0);
+    // vec4 positionWorld = td * positionLocal;
+
+    // gl_Position = sceneData.viewproj * positionWorld;
+
+
     
-	vec4 positionLocal = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
-	vec4 positionWorld = pcs.transforms.transforms[pcs.transform_idx] * positionLocal;
+	vec4 positionLocal = vec4(dd.pos.positions[gl_VertexIndex + dd.firstIndex], 1.0);
+	vec4 positionWorld = transforms.mat[dd.transform_idx] * positionLocal;
     gl_Position = sceneData.viewproj * positionWorld;
+
+
+    
+    albedo_idx = materials.albedos[dd.material_idx];
+
+    Vertex v = dd.verts.vertices[gl_VertexIndex];
+    
+// 	vec4 positionLocal = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
+// 	vec4 positionWorld = pcs.transforms.transforms[pcs.transform_idx] * positionLocal;
+//     gl_Position = sceneData.viewproj * positionWorld;
 
 vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 	outNormal = (mat4(1.0f) * vec4(normal_unpacked, 0.f)).xyz;
@@ -98,7 +141,7 @@ vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 	outUV.x = v.normal_uv.z;
 	outUV.y = v.normal_uv.w;
 
-	albedo_idx = pcs.materials.albedos[pcs.material_idx];
+// 	albedo_idx = pcs.materials.albedos[pcs.material_idx];
 }
 
 #endif

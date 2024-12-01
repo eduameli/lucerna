@@ -48,9 +48,11 @@ namespace Aurora {
 
     // NOTE: previous arch was "immediate" now i wanna move to a draw_set and update changes to support loading and unlaoding meshes
     // FIXME: loading big scenes could break here... hardcoded limit.. :sob: maybe if limit is exceeded i need to do sm
-    std::array<glm::mat4, 1000> transforms;
-    std::array<BindlessMaterial, 1000> materials;
-    std::array<DrawData, 1000> draw_datas;
+    std::array<glm::mat4, 10000> transforms;
+    std::array<BindlessMaterial, 10000> materials;
+    std::array<DrawData, 10000> draw_datas;
+    std::array<uint32_t, 1000000> indices;
+    uint32_t idx_count;
 
     
     free_list freeTransforms{};
@@ -250,6 +252,7 @@ namespace Aurora {
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+        VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
       };
       std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",

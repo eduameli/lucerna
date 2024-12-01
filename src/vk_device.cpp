@@ -10,6 +10,9 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
 {
   features.f1.wideLines = VK_TRUE;
   features.f1.fillModeNonSolid = VK_TRUE;
+  features.f1.multiDrawIndirect = VK_TRUE;
+  
+  features.f11.shaderDrawParameters = VK_TRUE;
   
   features.f12.descriptorIndexing = VK_TRUE;
   features.f12.descriptorBindingPartiallyBound = VK_TRUE;
@@ -24,7 +27,10 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   
 
   AR_CORE_WARN("Required Features: ");
+  AR_CORE_WARN("\twideLines");
+  AR_CORE_WARN("\tmultiDrawIndirect");
   AR_CORE_WARN("\tfillModeNonSolid");
+  AR_CORE_WARN("\tshaderDrawParameters");
   AR_CORE_WARN("\tdescriptorIndexing");
   AR_CORE_WARN("\tdescriptorBindingPartiallyBound");
   AR_CORE_WARN("\tdescriptorBindingSampledImageUpdateAfterBind");
@@ -43,6 +49,9 @@ bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
   vkGetPhysicalDeviceFeatures2(device, &query.get());
   return
     query.features.features.fillModeNonSolid &&
+    query.features.features.wideLines &&
+    query.features.features.multiDrawIndirect &&
+    query.f11.shaderDrawParameters &&
     query.f12.descriptorIndexing &&
     query.f12.descriptorBindingPartiallyBound &&
     query.f12.descriptorBindingSampledImageUpdateAfterBind &&

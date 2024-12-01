@@ -15,6 +15,7 @@
 #include "gfx_effects.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <string>
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 
@@ -173,7 +174,7 @@ void Engine::init()
   memcpy(data3, mainDrawContext.draw_datas.data(), mainDrawContext.draw_datas.size() * sizeof(DrawData));
   vklog::label_buffer(device, bigDrawDataBuffer.buffer, "big draw data buffer");
 
-  int max_commands = 1000;
+  int max_commands = 10000;
   indirectDrawBuffer = create_buffer(max_commands * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   VkDrawIndexedIndirectCommand* data4 = (VkDrawIndexedIndirectCommand*) indirectDrawBuffer.info.pMappedData;
   // indexCount, instanceCount, firstIndex, vertexOffset, firstInstance
@@ -189,8 +190,6 @@ void Engine::init()
     c.firstInstance = 0;
     c.instanceCount = 1;
     c.vertexOffset = 0;
-    c.positionBDA = dd.positionBDA;
-    c.vertexBDA = dd.vertexBDA;
     mem.push_back(c);
   }
   memcpy(data4, mem.data(), mem.size() * sizeof(IndirectDraw));
@@ -764,6 +763,11 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  
+  writer.write_buffer(4, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(5, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(6, bigMaterialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  
   writer.update_set(device, globalDescriptor);
   
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
@@ -784,69 +788,74 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   int i = 0;
   
-  auto draw = [&](const RenderObject& draw) {
-    // return;
-    // if (draw.material != lastMaterial)
-    // {
-    //   lastMaterial = draw.material;
+  // auto draw = [&](const RenderObject& draw) {
+  //   // return;
+  //   // if (draw.material != lastMaterial)
+  //   // {
+  //   //   lastMaterial = draw.material;
 
-    //   if (draw.material->pipeline != lastPipeline)
-    //   {
-    //     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-    //     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr); // NOTE: why inside the loop & not at the start
-    //   }
+  //   //   if (draw.material->pipeline != lastPipeline)
+  //   //   {
+  //   //     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+  //   //     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr); // NOTE: why inside the loop & not at the start
+  //   //   }
       
-    //   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
+  //   //   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
 
-    // }
+  //   // }
 
-    if (draw.indexBuffer != lastIndexBuffer)
-    {
-      lastIndexBuffer = draw.indexBuffer;
-      vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-      i++;
-      // AR_CORE_INFO("new index buffer {}", i);
-      //  NOTE: one index buffer for the whole gltf model
-      // to keep it simple maybe make it so u can only load ONE GLTF scene 
-      // at a time.
-    }
+  //   if (draw.indexBuffer != lastIndexBuffer)
+  //   {
+  //     lastIndexBuffer = draw.indexBuffer;
+  //     vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+  //     i++;
+  //     // AR_CORE_INFO("new index buffer {}", i);
+  //     //  NOTE: one index buffer for the whole gltf model
+  //     // to keep it simple maybe make it so u can only load ONE GLTF scene 
+  //     // at a time.
+  //   }
 
-    bindless_pcs pcs{};
-    // pcs.modelMatrix = draw.transform;
-    pcs.vertices = draw.vertexBufferAddress;
-    pcs.positions = draw.positionBufferAddress;
-    pcs.transform_idx = draw.transform_idx;
-    pcs.material_idx = draw.material_idx;
+  //   bindless_pcs pcs{};
+  //   // pcs.modelMatrix = draw.transform;
+  //   pcs.vertices = draw.vertexBufferAddress;
+  //   pcs.positions = draw.positionBufferAddress;
+  //   pcs.transform_idx = draw.transform_idx;
+  //   pcs.material_idx = draw.material_idx;
 
-    AR_CORE_INFO("transform idx {}", draw.transform_idx);
+  //   AR_CORE_INFO("transform idx {}", draw.transform_idx);
     
-    // AR_CORE_INFO("draw transform {}", draw.albedo_idx);
+  //   // AR_CORE_INFO("draw transform {}", draw.albedo_idx);
 
-    VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
-	  pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
+  //   VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
+	 //  pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
 
 
-   VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigMaterialBuffer.buffer };
-    pcs.materials= vkGetBufferDeviceAddress(device, &bda2);
+  //  VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigMaterialBuffer.buffer };
+  //   pcs.materials= vkGetBufferDeviceAddress(device, &bda2);
 	  
-    // vkCmdDrawIndexedIndirect(cmd, bigDrawDataBuffer.buffer, VkDeviceOffset{0}, 1, sizeof(VkCmdDrawIndirect) )
+  //   // vkCmdDrawIndexedIndirect(cmd, bigDrawDataBuffer.buffer, VkDeviceOffset{0}, 1, sizeof(VkCmdDrawIndirect) )
     
-    vkCmdPushConstants(cmd, bindless_pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(std_material_pcs), &pcs);
-    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+  //   vkCmdPushConstants(cmd, bindless_pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(std_material_pcs), &pcs);
+  //   vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
 
-    stats.drawcall_count++;
-    stats.triangle_count += draw.indexCount / 3;
-  };
+  //   stats.drawcall_count++;
+  //   stats.triangle_count += draw.indexCount / 3;
+  // };
 
-  for (auto& r : mainDrawContext.opaque_draws)
-  {
-    draw(mainDrawContext.OpaqueSurfaces[r]);
-  }
+  // for (auto& r : mainDrawContext.opaque_draws)
+  // {
+  //   draw(mainDrawContext.OpaqueSurfaces[r]);
+  // }
 
-  for (auto& r : mainDrawContext.TransparentSurfaces)
-  {
-    draw(r);
-  }
+  // for (auto& r : mainDrawContext.TransparentSurfaces)
+  // {
+  //   draw(r);
+  // }
+
+  vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+  // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.freeDrawData.size, sizeof(IndirectDraw));
 
   vkCmdEndRendering(cmd);  
   mainDrawContext.OpaqueSurfaces.clear();
@@ -1215,7 +1224,9 @@ GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec3> positions, std::span<Ver
 
 
   vklog::label_buffer(device, newSurface.vertexBuffer.buffer, "VERTEX ATTRIBUTES");
-  vklog::label_buffer(device, newSurface.positionBuffer.buffer, "POSITION BUFFER");
+  std::string pos = "POSITION BUFFER";
+  
+  vklog::label_buffer(device, newSurface.positionBuffer.buffer, pos.c_str());
 
   return newSurface;
 }
@@ -1526,7 +1537,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
     .build();
 
   device = m_Device.logical;
@@ -1545,7 +1556,7 @@ void Engine::init_swapchain()
   m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR)
     .build();
     
   AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
@@ -1607,6 +1618,12 @@ void Engine::init_descriptors()
     builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     builder.add_binding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+
+    // for draw indirect
+    builder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    builder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    builder.add_binding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     m_SceneDescriptorLayout = builder.build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT); 
   }
   
@@ -1846,8 +1863,8 @@ void Engine::init_pipelines()
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   b.set_multisampling_none();
   b.disable_blending();
-  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
-  // b.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  b.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   
   
   b.PipelineLayout = bindless_pipeline_layout;

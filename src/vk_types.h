@@ -160,7 +160,7 @@ struct free_list
     uint32_t last{0};
     
     uint32_t allocate() {
-      AR_LOG_ASSERT(size < 1000, "OVERFLOW!!!!!!");      
+      AR_LOG_ASSERT(size < 10000, "OVERFLOW!!!!!!");      
 
       size++;
       if (free_idx.empty()) {
@@ -188,8 +188,8 @@ struct free_list
     uint32_t firstIndex;
     uint32_t vertexOffset;
     uint32_t firstInstance;
-    VkDeviceAddress positionBDA;
-    VkDeviceAddress vertexBDA;
+    // VkDeviceAddress positionBDA;
+    // VkDeviceAddress vertexBDA;
   };
 
 // FIXME:  support for instanced? or draw indirect count
@@ -210,7 +210,6 @@ struct DrawData
   struct BindlessMaterial
   {
     uint32_t albedo_idx{0};
-
   };
 
   
