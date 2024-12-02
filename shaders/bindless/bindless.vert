@@ -120,16 +120,16 @@ void main()
     DrawData dd = draws.yes[gl_DrawIDARB];
     mat4 td = transforms.mat[dd.transform_idx];
 
-	vec4 positionLocal = vec4(posit.a[gl_VertexIndex + dd.firstIndex], 1.0);
+	vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);
 	vec4 positionWorld = td * positionLocal;
 
     gl_Position = sceneData.viewproj * positionWorld;
 
 
-    debugPrintfEXT("%i", gl_VertexIndex);
+    // debugPrintfEXT("%i", gl_VertexIndex);
 
 
-    Vertex v = verts.value[gl_VertexIndex + dd.firstIndex];
+    Vertex v = verts.value[gl_VertexIndex];
     
     albedo_idx = materials.albedos[dd.material_idx];
 
