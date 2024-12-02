@@ -1,5 +1,6 @@
 #include "vk_loader.h"
 #include "aurora_pch.h"
+#include "cvars.h"
 #include "engine.h"
 #include "vk_initialisers.h"
 #include "vk_types.h"
@@ -227,14 +228,19 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
     AR_CORE_WARN("NEW MESH");
 
+    uint32_t initals_idx = 0;
+    
     for (auto&& p : mesh.primitives)
     {
+      AR_CORE_ERROR("new surface!");
+      
       GeoSurface newSurface{};
       newSurface.startIndex = static_cast<uint32_t>(indices.size());
       newSurface.count = static_cast<uint32_t>(asset.accessors[p.indicesAccessor.value()].count);
 
       size_t initial_vtx = vertices.size();
-
+      AR_CORE_WARN("inital vtx {}", initial_vtx);
+      
       {
         fastgltf::Accessor& indexaccessor = asset.accessors[p.indicesAccessor.value()];
         indices.reserve(indices.size() + indexaccessor.count);
@@ -242,7 +248,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
         fastgltf::iterateAccessor<std::uint32_t>(asset, indexaccessor,
           [&](std::uint32_t idx) {
               indices.push_back(idx + initial_vtx);
-              AR_CORE_INFO("push idx {}", idx + initial_vtx);
+              // AR_CORE_INFO("push idx {}", idx + initial_vtx);
           });
       }
 
@@ -333,26 +339,43 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
 
 
-      for (auto i : indices)
-      {
-        engine->mainDrawContext.indices.push_back(i + engine->mainDrawContext.vertices.size());
-        AR_CORE_INFO("appending {}", i);
-      }
+    for (auto i : indices)
+    {
+      engine->mainDrawContext.indices.push_back(i + initals_idx);
+      // AR_CORE_INFO("idx {}", i);
+    }
+    initals_idx = engine->mainDrawContext.indices.size();
+    // for (int idx = 0; idx < indices.size(); idx += 3)
+    // {
+    //   AR_CORE_INFO("f {} {} {}", indices[idx]+1, indices[idx+1]+1, indices[idx+2]+1);
+    // }
 
-      for (auto v : vertices)
-      {
-        engine->mainDrawContext.vertices.push_back(v);
-      }
+    // engine->mainDrawContext.indices.push_back(0);
+    // engine->mainDrawContext.indices.push_back(1);
+    // engine->mainDrawContext.indices.push_back(2);
+    // engine->mainDrawContext.indices.push_back(0);
+    // engine->mainDrawContext.indices.push_back(3);
+    // engine->mainDrawContext.indices.push_back(2);
 
-      for(auto p : positions)
-      {
-        engine->mainDrawContext.positions.push_back(p);
-      }
+
+    for (auto v : vertices)
+    {
+      engine->mainDrawContext.vertices.push_back(v);
+      // AR_CORE_INFO("idx {}", i);
+      // AR_CORE_INFO("idx {}", i);
+    }
+
+    for(auto p : positions)
+    {
+      engine->mainDrawContext.positions.push_back(p);
+      // AR_CORE_INFO("v {} {} {}", p.x, p.y, p.z);
+    }
 
     
     newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
   }
-  
+
+
   for (fastgltf::Node& node : asset.nodes)
   {
     std::shared_ptr<Node> newNode;
@@ -412,6 +435,61 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       node->refresh_transform(glm::mat4{1.0f});
     }
   }
+
+
+  // custom vertex and index and position buffer...
+  // auto& ctx = engine->mainDrawContext;
+  // ctx.indices.clear();
+  // ctx.vertices.clear();
+  // ctx.positions.clear();
+
+  // ctx.indices.shrink_to_fit();
+  // ctx.vertices.shrink_to_fit();
+  // ctx.positions.shrink_to_fit();
+
+  std::vector<uint32_t> ids;
+  std::vector<Vertex> verts;
+  std::vector<glm::vec3> pos;
+
+
+  pos = {
+    {-1, -1, -1},
+    {-1, -1,  1},
+    {-1,  1, -1},
+    // {-1,  1,  1},
+    // { 1, -1, -1},
+    // { 1, -1,  1},
+    // { 1,  1, -1},
+    // { 1,  1,  1} 
+  };
+
+
+   // ids = {
+   //  0, 1, 2,  // Face 1 (Front-left-bottom)
+   //  1, 3, 2,  // Face 2 (Front-right-bottom)
+   //  4, 5, 6,  // Face 3 (Back-left-bottom)
+   //  5, 7, 6,  // Face 4 (Back-right-bottom)
+   //  0, 1, 4,  // Face 5 (Bottom-left-front)
+   //  1, 5, 4   // Face 6 (Bottom-right-front)
+   //  };
+
+
+    ids = {
+    0, 1, 2, /* 1, 3, 2,  // Face 1 (Front-left-bottom)
+    4, 5, 6,  5, 7, 6,  // Face 2 (Back-left-bottom)
+    0, 2, 4,  2, 6, 4,  // Face 3 (Left-top-bottom)
+    1, 3, 5,  3, 7, 5,  // Face 4 (Right-top-bottom)
+    0, 1, 4,  1, 5, 4,  // Face 5 (Bottom-left-front)
+    2, 3, 6,  3, 7, 6   // Face 6 (Top-right-front)*/
+};
+
+    verts.resize(pos.size());
+
+    // ctx.indices = ids;
+    // ctx.vertices = verts;
+    // ctx.positions = pos;
+
+  
   return scene;
 }
 

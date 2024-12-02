@@ -18,24 +18,24 @@ struct GPUSceneData
 };
 
 
-layout(scalar, buffer_reference) readonly buffer VertexBuffer{ 
-	Vertex vertices[];
-};
+// layout(scalar, buffer_reference) readonly buffer VertexBuffer{ 
+//   Vertex vertices[];
+// } verts;
 
-// NOTE: idk how to improve this 
-layout(scalar, buffer_reference) readonly buffer PositionBuffer {
-  vec3 positions[];
-};
-
-
-layout(scalar, buffer_reference) readonly buffer TransformBuffer {
-  mat4 transforms[];
-};
+// // NOTE: idk how to improve this 
+// layout(scalar, buffer_reference) readonly buffer PositionBuffer {
+//   vec3_ar positions[];
+// } posit;
 
 
-layout(scalar, buffer_reference) readonly buffer MaterialBuffer {
-  uint albedos[];
-};
+// layout(scalar, buffer_reference) readonly buffer TransformBuffer {
+//   mat4x4 transforms[];
+// };
+
+
+// layout(scalar, buffer_reference) readonly buffer MaterialBuffer {
+//   uint32_ar albedos[];
+// };
 
 layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
   GPUSceneData sceneData;
@@ -43,29 +43,29 @@ layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
 
 #endif
 
-struct bindless_pcs
-{
-#ifdef __cplusplus
-  bindless_pcs()
-    : vertices{0}, positions{0}, transforms{0}, materials{0}, transform_idx{0}, material_idx{0} {} // use default img?
-#endif
-  buffer_ar(PositionBuffer) positions;
-  buffer_ar(VertexBuffer) vertices;
-  buffer_ar(TransformBuffer) transforms;
-  buffer_ar(MaterialBuffer) materials;
-  uint transform_idx;
-  uint material_idx;
-};
+// struct bindless_pcs
+// {
+// #ifdef __cplusplus
+//   bindless_pcs()
+//     : vertices{0}, positions{0}, transforms{0}, materials{0}, transform_idx{0}, material_idx{0} {} // use default img?
+// #endif
+//   buffer_ar(PositionBuffer) positions;
+//   buffer_ar(VertexBuffer) vertices;
+//   buffer_ar(TransformBuffer) transforms;
+//   buffer_ar(MaterialBuffer) materials;
+//   uint transform_idx;
+//   uint material_idx;
+// };
 
 #ifndef __cplusplus
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_shader_draw_parameters: require
 #extension GL_EXT_debug_printf : enable
 
-layout ( push_constant ) uniform constants
-{
-  bindless_pcs pcs;
-};
+// layout ( push_constant ) uniform constants
+// {
+//   bindless_pcs pcs;
+// };
 
 
 layout (location = 0) out vec3 outNormal;
@@ -76,8 +76,8 @@ layout(location = 3) out flat uint albedo_idx;
 
 struct DrawData
 {
-    
-uint32_ar material_idx;
+
+  uint32_ar material_idx;
   uint32_ar transform_idx;
   uint32_ar indexCount;
   uint32_ar firstIndex;
@@ -87,7 +87,7 @@ layout(set = 0, binding = 4) readonly buffer drawDataBuffer {
   DrawData yes[];
 } draws;
 layout(set = 0, binding = 5) readonly buffer transformBuffer {
-  mat4x4 mat[];
+  mat4 mat[];
 } transforms;
 layout(set = 0, binding = 6) readonly buffer materialBuffer {
   uint32_ar albedos[];
@@ -95,7 +95,7 @@ layout(set = 0, binding = 6) readonly buffer materialBuffer {
 
 
 
-layout(set = 0, binding = 7) readonly buffer positionBuffer {
+layout(set = 0, binding = 7, scalar) readonly buffer positionBuffer {
   vec3_ar a[];
 } posit;
 
@@ -120,35 +120,33 @@ void main()
     DrawData dd = draws.yes[gl_DrawIDARB];
     mat4 td = transforms.mat[dd.transform_idx];
 
-    // vec4 positionLocal = vec4(dd.pos.positions[gl_VertexIndex], 1.0);
-    // vec4 positionWorld = td * positionLocal;
+	vec4 positionLocal = vec4(posit.a[gl_VertexIndex + dd.firstIndex], 1.0);
+	vec4 positionWorld = td * positionLocal;
 
-    // gl_Position = sceneData.viewproj * positionWorld;
-
-
-    
-	vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);
-	vec4 positionWorld = transforms.mat[dd.transform_idx] * positionLocal;
     gl_Position = sceneData.viewproj * positionWorld;
 
 
+    debugPrintfEXT("%i", gl_VertexIndex);
+
+
+    Vertex v = verts.value[gl_VertexIndex + dd.firstIndex];
     
     albedo_idx = materials.albedos[dd.material_idx];
 
-    Vertex v = verts.value[gl_VertexIndex];
-    
-// 	vec4 positionLocal = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
-// 	vec4 positionWorld = pcs.transforms.transforms[pcs.transform_idx] * positionLocal;
-//     gl_Position = sceneData.viewproj * positionWorld;
 
-vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
-	outNormal = (mat4(1.0f) * vec4(normal_unpacked, 0.f)).xyz;
-	outColor = v.color.xyz; /* materialData.colorFactors.xyz*;*/	//NOTE: move to big fat ssbo
-    
-	outUV.x = v.normal_uv.z;
-	outUV.y = v.normal_uv.w;
+    vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 
-// 	albedo_idx = pcs.materials.albedos[pcs.material_idx];
+    outNormal = (td * vec4(normal_unpacked, 0.f)).xyz;
+    outColor = v.color.xyz;	
+    outUV.x = v.normal_uv.z;
+    outUV.y = v.normal_uv.w;
+
+    // outlightSpace = shadowSettings.lightViewProj * (pcs.modelMatrix * position);
+
+    // emission = pcs.emission;
+
+
+
 }
 
 #endif

@@ -147,11 +147,18 @@ void Engine::init()
 
   
   mainCamera.init();
+
+
+  mainDrawContext.indices.clear();
+  mainDrawContext.vertices.clear();
+  mainDrawContext.positions.clear();
+
    
   std::string structurePath = Application::config.scene_path;
   auto structureFile = load_gltf(this, structurePath);
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 
+  
   loadedScenes["structure"] = *structureFile;
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
   // create material ssbo, drawdata ssbo and transform ssbo
@@ -159,7 +166,17 @@ void Engine::init()
   // FIXME: use staging buffer instead...
   // make this part of the gltfFile - only one gltf file laoded at once
 
+
+  // mainDrawContext.indices = {
+  //   2, 5, 11, 2, 11, 8, 6, 9, 21, 6, 21, 18, 20, 23, 17, 20, 17, 14, 12, 15, 3, 12, 3, 0, 7, 19, 13, 7, 13, 1, 22, 10, 4, 22, 4, 16
+  // };
+  
+
+  AR_CORE_INFO("positions {} vertices {} indices {}", mainDrawContext.positions.size(), mainDrawContext.vertices.size(), mainDrawContext.indices.size());
   mainDrawContext.bigMeshes = upload_mesh(mainDrawContext.positions, mainDrawContext.vertices, mainDrawContext.indices);
+  vklog::label_buffer(device,mainDrawContext.bigMeshes.indexBuffer.buffer, "index buffer big");
+  vklog::label_buffer(device, mainDrawContext.bigMeshes.vertexBuffer.buffer, "vertex buffer big");
+  vklog::label_buffer(device, mainDrawContext.bigMeshes.positionBuffer.buffer, "position buffer big");
   
   bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   glm::mat4* data = (glm::mat4*) bigTransformBuffer.info.pMappedData;
@@ -183,10 +200,10 @@ void Engine::init()
 
 
   
-  std::vector<IndirectDraw> mem;
+  std::vector<VkDrawIndexedIndirectCommand> mem;
   for (auto& dd : mainDrawContext.draw_datas)
   {
-    IndirectDraw c{};
+    VkDrawIndexedIndirectCommand c{};
     c.indexCount = dd.indexCount;
     c.firstIndex = dd.firstIndex;
     c.firstInstance = 0;
@@ -194,7 +211,7 @@ void Engine::init()
     c.vertexOffset = 0;
     mem.push_back(c);
   }
-  memcpy(data4, mem.data(), mem.size() * sizeof(IndirectDraw));
+  memcpy(data4, mem.data(), mem.size() * sizeof(VkDrawIndexedIndirectCommand));
   vklog::label_buffer(device,indirectDrawBuffer.buffer, "big indirect draw cmd buffer");
 
   // cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);  
@@ -358,59 +375,59 @@ void Engine::update_scene()
 
   
   // frustum culling for main camera
-  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
-  {
-    if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
-    {
-      mainDrawContext.opaque_draws.push_back(i);
-    }
+  // for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
+  // {
+  //   if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
+  //   {
+  //     mainDrawContext.opaque_draws.push_back(i);
+  //   }
 
-    // draw aabb
-    if (debugLinesEnabled.get() == true)
-    {
-      glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
-      glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
-      glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
+  //   // draw aabb
+  //   if (debugLinesEnabled.get() == true)
+  //   {
+  //     glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
+  //     glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
+  //     glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
 
-      // Transform the origin using the full transformation matrix
-      glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
-      glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
+  //     // Transform the origin using the full transformation matrix
+  //     glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
+  //     glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
 
-      // Extract the rotation part of the matrix (upper-left 3x3) and the scaling factor
-      glm::mat3 rotationMatrix = glm::mat3(m);  // Get the rotation matrix (upper-left 3x3 part)
-      glm::vec3 scale = glm::vec3(
-          glm::length(rotationMatrix[0]),
-          glm::length(rotationMatrix[1]),
-          glm::length(rotationMatrix[2])
-      );
+  //     // Extract the rotation part of the matrix (upper-left 3x3) and the scaling factor
+  //     glm::mat3 rotationMatrix = glm::mat3(m);  // Get the rotation matrix (upper-left 3x3 part)
+  //     glm::vec3 scale = glm::vec3(
+  //         glm::length(rotationMatrix[0]),
+  //         glm::length(rotationMatrix[1]),
+  //         glm::length(rotationMatrix[2])
+  //     );
 
-      // Scale the extents based on the scale of the transformation
-      glm::vec3 fExtents = e * scale;  // Apply scaling to the extents
+  //     // Scale the extents based on the scale of the transformation
+  //     glm::vec3 fExtents = e * scale;  // Apply scaling to the extents
 
-      // Queue the debug OBB with the transformed origin and scaled extents
-      queue_debug_obb(m, fOrigin, fExtents);
+  //     // Queue the debug OBB with the transformed origin and scaled extents
+  //     queue_debug_obb(m, fOrigin, fExtents);
       
 
-    }
+  //   }
     
-    }
+  //   }
    
-  // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
-  // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
+  // // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
+  // // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
 
-  // NOTE: do i need to sort it anymore? no state changes.. no sorting?
-  // std::sort(mainDrawContext.opaque_draws.begin(), mainDrawContext.opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-  //   const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
-  //   const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
-  //   if(A.material == B.material)
-  //   {
-  //     return A.indexBuffer < B.indexBuffer;
-  //   }
-  //   else
-  //   {
-  //     return A.material < B.material;
-  //   }
-  // });
+  // // NOTE: do i need to sort it anymore? no state changes.. no sorting?
+  // // std::sort(mainDrawContext.opaque_draws.begin(), mainDrawContext.opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+  // //   const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
+  // //   const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
+  // //   if(A.material == B.material)
+  // //   {
+  // //     return A.indexBuffer < B.indexBuffer;
+  // //   }
+  // //   else
+  // //   {
+  // //     return A.material < B.material;
+  // //   }
+  // // });
 
 
   auto end = std::chrono::system_clock::now();
@@ -697,10 +714,15 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     depth_only_pcs pcs{};
     // pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
     pcs.positions = draw.positionBufferAddress;
+    // pcs.positions = bigPositionBuffer.
     pcs.transform_idx = draw.transform_idx;
 
     VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
 	  pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
+
+    // VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.bigMeshes.positionBuffer.buffer };
+    // pcs.positions = vkGetBufferDeviceAddress(device, &bda2);
+
 
     vkCmdPushConstants(cmd, zpassLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(depth_only_pcs), &pcs);
     vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
@@ -777,8 +799,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   
   writer.write_buffer(7, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(8, mainDrawContext.bigMeshes.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  
-  
   writer.update_set(device, globalDescriptor);
   
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
@@ -787,91 +807,27 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRect2D scissor = vkinit::dynamic_scissor(m_DrawExtent);
   vkCmdSetScissor(cmd , 0, 1, &scissor);
 
-  MaterialPipeline* lastPipeline = nullptr;
-  MaterialInstance* lastMaterial = nullptr;
-  VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
-  // testing bindless - *breaking changes*
-
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std_pipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 1, 1, &bindless_descriptor_set, 0, nullptr);  
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
 
-  int i = 0;
+
   
-  // auto draw = [&](const RenderObject& draw) {
-  //   // return;
-  //   // if (draw.material != lastMaterial)
-  //   // {
-  //   //   lastMaterial = draw.material;
-
-  //   //   if (draw.material->pipeline != lastPipeline)
-  //   //   {
-  //   //     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-  //   //     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr); // NOTE: why inside the loop & not at the start
-  //   //   }
-      
-  //   //   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
-
-  //   // }
-
-  //   if (draw.indexBuffer != lastIndexBuffer)
-  //   {
-  //     lastIndexBuffer = draw.indexBuffer;
-  //     vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-  //     i++;
-  //     // AR_CORE_INFO("new index buffer {}", i);
-  //     //  NOTE: one index buffer for the whole gltf model
-  //     // to keep it simple maybe make it so u can only load ONE GLTF scene 
-  //     // at a time.
-  //   }
-
-  //   bindless_pcs pcs{};
-  //   // pcs.modelMatrix = draw.transform;
-  //   pcs.vertices = draw.vertexBufferAddress;
-  //   pcs.positions = draw.positionBufferAddress;
-  //   pcs.transform_idx = draw.transform_idx;
-  //   pcs.material_idx = draw.material_idx;
-
-  //   AR_CORE_INFO("transform idx {}", draw.transform_idx);
-    
-  //   // AR_CORE_INFO("draw transform {}", draw.albedo_idx);
-
-  //   VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
-	 //  pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
-
-
-  //  VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigMaterialBuffer.buffer };
-  //   pcs.materials= vkGetBufferDeviceAddress(device, &bda2);
-	  
-  //   // vkCmdDrawIndexedIndirect(cmd, bigDrawDataBuffer.buffer, VkDeviceOffset{0}, 1, sizeof(VkCmdDrawIndirect) )
-    
-  //   vkCmdPushConstants(cmd, bindless_pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(std_material_pcs), &pcs);
-  //   vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
-
-  //   stats.drawcall_count++;
-  //   stats.triangle_count += draw.indexCount / 3;
-  // };
-
-  // for (auto& r : mainDrawContext.opaque_draws)
-  // {
-  //   draw(mainDrawContext.OpaqueSurfaces[r]);
-  // }
-
-  // for (auto& r : mainDrawContext.TransparentSurfaces)
-  // {
-  //   draw(r);
-  // }
-
-  vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
+  // const size_t vertexBufferSize = mainDrawContext.vertices.size() * sizeof(Vertex);
+  // const size_t positionBufferSize = mainDrawContext.positions.size() * sizeof(glm::vec3);
+ 
   vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
+  // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.freeDrawData.size, sizeof(IndirectDraw));
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, 5, sizeof(VkDrawIndexedIndirectCommand));
 
+  AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
+
+  // vkCmdDrawIndexed(cmd, 36, 1, 0, 0, 0);
+
+  
   vkCmdEndRendering(cmd);  
-  mainDrawContext.OpaqueSurfaces.clear();
+  // mainDrawContext.OpaqueSurfaces.clear();
   mainDrawContext.TransparentSurfaces.clear();
 
   auto end = std::chrono::system_clock::now();
@@ -1876,7 +1832,9 @@ void Engine::init_pipelines()
   b.set_depth_format(m_DepthImage.imageFormat);
   b.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   b.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  // b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  b.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+
   b.set_multisampling_none();
   b.disable_blending();
   // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
