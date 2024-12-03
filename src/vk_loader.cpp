@@ -19,6 +19,7 @@
 #include "vk_images.h"
 #include "stb_image.h"
 
+#include <filesystem>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -53,6 +54,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 {
   AR_CORE_INFO("Loading GLTF at {}", filepath.c_str());
 
+
+  std::filesystem::path current_path = std::filesystem::current_path();
+
+  // std::filesystem::current_path(filepath.parent_path());
+  AR_CORE_INFO(filepath.parent_path().c_str());
+  
+
   std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
   scene->creator = engine;
   LoadedGLTF& file = *scene.get();
@@ -63,7 +71,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   if (data.error() != fastgltf::Error::None)
   {
-    AR_CORE_ERROR("Error loading GLTF File!");
+    AR_CORE_ERROR("Error loading GLTF File! 1");
     return {};
   }
 
@@ -71,7 +79,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
   if (auto error = asset_exp.error(); error != fastgltf::Error::None)
   {
-    AR_CORE_ERROR("Error parsing GLTF File!");
+    AR_CORE_ERROR("Error parsing GLTF File! 2");
     return {};
   }
 
@@ -110,7 +118,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   for (fastgltf::Image& image : asset.images)
   {
-    std::optional<AllocatedImage> img = load_image(engine, asset, image);
+    std::optional<AllocatedImage> img = load_image(engine, asset, image, filepath);
     if (img.has_value())
     {
       images.push_back(*img);
@@ -147,6 +155,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
       m.albedo_idx = i.sampler_idx;
     }
+
+    m.colorTint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
+    AR_CORE_INFO("material tint {}", glm::to_string(m.colorTint));
+
     
     uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
     mat_idxs.push_back(mat_idx);
@@ -364,6 +376,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
     for (auto v : vertices)
     {
+      // AR_
       engine->mainDrawContext.vertices.push_back(v);
     }
 
@@ -435,59 +448,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   }
 
 
-  // custom vertex and index and position buffer...
-  // auto& ctx = engine->mainDrawContext;
-  // ctx.indices.clear();
-  // ctx.vertices.clear();
-  // ctx.positions.clear();
-
-  // ctx.indices.shrink_to_fit();
-  // ctx.vertices.shrink_to_fit();
-  // ctx.positions.shrink_to_fit();
-
-  std::vector<uint32_t> ids;
-  std::vector<Vertex> verts;
-  std::vector<glm::vec3> pos;
-
-
-  pos = {
-    {-1, -1, -1},
-    {-1, -1,  1},
-    {-1,  1, -1},
-    // {-1,  1,  1},
-    // { 1, -1, -1},
-    // { 1, -1,  1},
-    // { 1,  1, -1},
-    // { 1,  1,  1} 
-  };
-
-
-   // ids = {
-   //  0, 1, 2,  // Face 1 (Front-left-bottom)
-   //  1, 3, 2,  // Face 2 (Front-right-bottom)
-   //  4, 5, 6,  // Face 3 (Back-left-bottom)
-   //  5, 7, 6,  // Face 4 (Back-right-bottom)
-   //  0, 1, 4,  // Face 5 (Bottom-left-front)
-   //  1, 5, 4   // Face 6 (Bottom-right-front)
-   //  };
-
-
-    ids = {
-    0, 1, 2, /* 1, 3, 2,  // Face 1 (Front-left-bottom)
-    4, 5, 6,  5, 7, 6,  // Face 2 (Back-left-bottom)
-    0, 2, 4,  2, 6, 4,  // Face 3 (Left-top-bottom)
-    1, 3, 5,  3, 7, 5,  // Face 4 (Right-top-bottom)
-    0, 1, 4,  1, 5, 4,  // Face 5 (Bottom-left-front)
-    2, 3, 6,  3, 7, 6   // Face 6 (Top-right-front)*/
-};
-
-    verts.resize(pos.size());
-
-    // ctx.indices = ids;
-    // ctx.vertices = verts;
-    // ctx.positions = pos;
-
-  
+  std::filesystem::current_path(current_path);
   return scene;
 }
 
@@ -562,7 +523,7 @@ void LoadedGLTF::clearAll()
 
 }
 
-std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
+std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image, std::filesystem::path fpath)
 {
 
   AllocatedImage newImage{};
@@ -572,17 +533,23 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
     fastgltf::visitor{
         [](auto &arg) {},
         [&](fastgltf::sources::URI &filePath) {
-          AR_CORE_ERROR("from filepath! {}");
+          AR_CORE_ERROR("from filepath! {}", filePath.uri.c_str());
           assert(filePath.fileByteOffset ==
                  0); // We don't support offsets with stbi.
           assert(filePath.uri.isLocalPath()); // We're only capable of loading
                                               // local files.
 
-          const std::string path(filePath.uri.path().begin(),
-                                 filePath.uri.path().end()); // Thanks C++.
+          // const std::string path(filePath.uri.path().begin(),
+          //                        filePath.uri.path().end()); // Thanks C++.
+
+
+          const std::string path = fpath.parent_path().append(filePath.uri.string());
+
+          AR_CORE_INFO("final path {}", path);
           unsigned char *data =
               stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
           if (data) {
+            AR_CORE_INFO("LOADED IMG!!!");
             VkExtent3D imagesize;
             imagesize.width = width;
             imagesize.height = height;

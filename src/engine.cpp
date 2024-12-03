@@ -1005,37 +1005,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
 
 
-  ImGui::Begin("Memory Stats");
-
-  {
-    uint32_t heapCount = 0;
-
-    VkPhysicalDeviceMemoryProperties props{};
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &props);
-
-    
-    
-    // m_Allocator.
-    
-    VmaBudget* budgets = (VmaBudget*) calloc(props.memoryTypeCount, sizeof(VmaBudget));
-    
-    vmaGetHeapBudgets(m_Allocator, budgets);
-
-    for (int i = 0; i < props.memoryHeapCount; i++)
-    {
-      ImGui::Text("usage %lu", (uint64_t) budgets[i].usage);
-      ImGui::Text("budget %lu", (uint64_t) budgets[i].budget);
-      ImGui::Text("allocated bytes %lu", (uint64_t) budgets[i].statistics.allocationBytes);
-      ImGui::Text("allocated count %lu", (uint64_t) budgets[i].statistics.allocationCount);
-      ImGui::Text("block count %lu", (uint64_t) budgets[i].statistics.blockCount);
-      ImGui::Text("block bytes %lu", (uint64_t) budgets[i].statistics.blockBytes);
-      ImGui::Separator();
-    }
-
-  }
-  
-  ImGui::End();
-  
+   
   ImGui::End();
 
   ImGui::Render(); 

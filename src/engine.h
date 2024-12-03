@@ -288,7 +288,6 @@ namespace Aurora {
       #else
       constexpr static bool m_UseValidationLayers = false;
       #endif
-      
 
       glm::mat4 lastDebugFrustum{1.0f};
       

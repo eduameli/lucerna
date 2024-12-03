@@ -221,22 +221,10 @@ struct DrawData
 
   struct BindlessMaterial
   {
+    glm::vec3 colorTint{0.25, 0.1, 0.1};
     uint32_t albedo_idx{3};
   };
 
   
 
 } // namespace aurora
-
-// FIXME:  no material cache for first impl
-namespace std
-{
-    template<>
-    struct hash<Aurora::BindlessMaterial>
-    {
-      size_t operator()(const Aurora::BindlessMaterial& key) const
-      {
-        return std::hash<uint32_t>()(key.albedo_idx);
-      }
-    };
-}

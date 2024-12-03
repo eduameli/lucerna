@@ -43,36 +43,18 @@ layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
 
 #endif
 
-// struct bindless_pcs
-// {
-// #ifdef __cplusplus
-//   bindless_pcs()
-//     : vertices{0}, positions{0}, transforms{0}, materials{0}, transform_idx{0}, material_idx{0} {} // use default img?
-// #endif
-//   buffer_ar(PositionBuffer) positions;
-//   buffer_ar(VertexBuffer) vertices;
-//   buffer_ar(TransformBuffer) transforms;
-//   buffer_ar(MaterialBuffer) materials;
-//   uint transform_idx;
-//   uint material_idx;
-// };
-
 #ifndef __cplusplus
+
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_shader_draw_parameters: require
 #extension GL_EXT_debug_printf : enable
-
-// layout ( push_constant ) uniform constants
-// {
-//   bindless_pcs pcs;
-// };
 
 
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec2 outUV;
-
 layout(location = 3) out flat uint albedo_idx;
+layout(location = 4) out flat vec3 mat_tint;
 
 struct DrawData
 {
@@ -105,8 +87,15 @@ layout(set = 0, binding = 5) readonly buffer transformBuffer {
 } transforms;
 
 
-layout(set = 0, binding = 6) readonly buffer materialBuffer {
-  uint32_ar albedos[];
+
+struct BindlessMaterial
+{
+  vec3_ar tint;
+  uint32_ar albedo;
+};
+
+layout(set = 0, binding = 6, scalar) readonly buffer materialBuffer {
+  BindlessMaterial m[];
 } materials;
 
 
@@ -150,34 +139,25 @@ void main()
 	vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);
 	vec3 positionWorld = mat4x3(td.mat[0], td.mat[1], td.mat[2]) * positionLocal;
 
-
-
     gl_Position = sceneData.viewproj * vec4(positionWorld, 1.0f);
 
-
-
-
-    // debugPrintfEXT("%i", gl_VertexIndex);
-
-
     Vertex v = verts.value[gl_VertexIndex];
-    
-    albedo_idx = materials.albedos[dd.material_idx];
-
-
     vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 
-    outNormal = (mat4x3(td.mat[0], td.mat[1], td.mat[2]) * vec4(normal_unpacked, 1.0)).xyz;
-    outColor = v.color.xyz;	
+    outNormal = normalize((mat4x3(td.mat[0], td.mat[1], td.mat[2]) * vec4(normal_unpacked, 0.0)));
+    // outNormal = normal_unpacked;
+    outColor = v.color.xyz;
+
+    debugPrintfEXT("%f %f %f", outColor.x, outColor.y, outColor.z);
+    
     outUV.x = v.normal_uv.z;
     outUV.y = v.normal_uv.w;
 
+    
+    albedo_idx = materials.m[dd.material_idx].albedo;
+    mat_tint = materials.m[dd.material_idx].tint;
     // outlightSpace = shadowSettings.lightViewProj * (pcs.modelMatrix * position);
-
     // emission = pcs.emission;
-
-
-
 }
 
 #endif

@@ -47,8 +47,16 @@ layout(set = 0, binding = 1) readonly buffer transformBuffer {
   TransformData v[];
 } transforms;
 
-layout(set = 0, binding = 5) readonly buffer materialBuffer {
-  uint32_ar albedos[];
+
+struct BindlessMaterial
+{
+  vec3_ar tint;  
+  uint32_ar albedo;
+};
+
+
+layout(set = 0, binding = 5, scalar) readonly buffer materialBuffer {
+  BindlessMaterial m[];
 } materials;
 
 
@@ -113,7 +121,7 @@ void main()
     inUV.x = v.normal_uv.z;
     inUV.y = v.normal_uv.w;
 
-    albedo_idx = materials.albedos[dd.material_idx];
+    albedo_idx = materials.m[dd.material_idx].albedo;
 
 	
 }
