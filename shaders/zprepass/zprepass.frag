@@ -9,7 +9,7 @@ layout (location = 2) in flat uint albedo_idx;
 // NOTE: alpha cutoff would go here! if alpha < ... discard
 void main() 
 {
-    if (texture(global_textures[albedo_idx], inUV).w < 0.95)
+    if (texture(global_textures[albedo_idx], inUV).w < 0.5)
     {
         discard;
     }

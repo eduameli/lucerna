@@ -39,6 +39,20 @@ namespace Aurora
     VkDeviceAddress vertexBufferAddress{};
     VkDeviceAddress positionBufferAddress{};
   };
+
+
+
+  struct GPUSceneBuffers
+  {
+    AllocatedBuffer indexBuffer{};
+    AllocatedBuffer vertexBuffer{};
+    AllocatedBuffer positionBuffer{};
+    AllocatedBuffer materialBuffer{};
+    AllocatedBuffer transformBuffer{};
+    AllocatedBuffer drawDataBuffer{};
+    AllocatedBuffer indirectCmdBuffer{};
+  };
+  
  
   // FIXME: only needed in engine?? or maybe only types that are referenced multiple times, created many times
   // for now keep here as improved deletion queue could go here! one array per type of deletion to store less data / overhead

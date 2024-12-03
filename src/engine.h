@@ -97,6 +97,17 @@ namespace Aurora {
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
       GPUMeshBuffers upload_mesh(std::span<glm::vec3> positions, std::span<Vertex> vertices, std::span<uint32_t> indices);
+      
+      GPUSceneBuffers upload_scene(
+        std::span<glm::vec3> positions,
+        std::span<Vertex> vertices,
+        std::span<uint32_t> indices,
+        std::span<glm::mat4> transforms,
+        std::span<DrawData> draw_datas,
+        std::span<BindlessMaterial> materials,
+        std::span<VkDrawIndexedIndirectCommand> indirect_cmds
+      );
+      
       AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
       void destroy_image(const AllocatedImage& img) const;

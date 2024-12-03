@@ -173,29 +173,29 @@ void Engine::init()
   
 
   AR_CORE_INFO("positions {} vertices {} indices {}", mainDrawContext.positions.size(), mainDrawContext.vertices.size(), mainDrawContext.indices.size());
-  mainDrawContext.bigMeshes = upload_mesh(mainDrawContext.positions, mainDrawContext.vertices, mainDrawContext.indices);
-  vklog::label_buffer(device,mainDrawContext.bigMeshes.indexBuffer.buffer, "index buffer big");
-  vklog::label_buffer(device, mainDrawContext.bigMeshes.vertexBuffer.buffer, "vertex buffer big");
-  vklog::label_buffer(device, mainDrawContext.bigMeshes.positionBuffer.buffer, "position buffer big");
+  // mainDrawContext.bigMeshes = upload_mesh(mainDrawContext.positions, mainDrawContext.vertices, mainDrawContext.indices);
+  // vklog::label_buffer(device,mainDrawContext.bigMeshes.indexBuffer.buffer, "index buffer big");
+  // vklog::label_buffer(device, mainDrawContext.bigMeshes.vertexBuffer.buffer, "vertex buffer big");
+  // vklog::label_buffer(device, mainDrawContext.bigMeshes.positionBuffer.buffer, "position buffer big");
   
-  bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  glm::mat4* data = (glm::mat4*) bigTransformBuffer.info.pMappedData;
-  memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.freeTransforms.size * sizeof(glm::mat4));
-  vklog::label_buffer(device,bigTransformBuffer.buffer, "big transform buffer");
+  // bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  // glm::mat4* data = (glm::mat4*) bigTransformBuffer.info.pMappedData;
+  // memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.freeTransforms.size * sizeof(glm::mat4));
+  // vklog::label_buffer(device,bigTransformBuffer.buffer, "big transform buffer");
 
-  bigMaterialBuffer = create_buffer(mainDrawContext.materials.size() * sizeof(BindlessMaterial), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  BindlessMaterial* data2 = (BindlessMaterial*) bigMaterialBuffer.info.pMappedData;
-  memcpy(data2, mainDrawContext.materials.data(), mainDrawContext.freeMaterials.size * sizeof(BindlessMaterial));
-  vklog::label_buffer(device, bigMaterialBuffer.buffer, "big material buffer");
+  // bigMaterialBuffer = create_buffer(mainDrawContext.materials.size() * sizeof(BindlessMaterial), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  // BindlessMaterial* data2 = (BindlessMaterial*) bigMaterialBuffer.info.pMappedData;
+  // memcpy(data2, mainDrawContext.materials.data(), mainDrawContext.freeMaterials.size * sizeof(BindlessMaterial));
+  // vklog::label_buffer(device, bigMaterialBuffer.buffer, "big material buffer");
 
-  bigDrawDataBuffer = create_buffer(mainDrawContext.draw_datas.size() * sizeof(DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  DrawData* data3 = (DrawData*) bigDrawDataBuffer.info.pMappedData;
-  memcpy(data3, mainDrawContext.draw_datas.data(), mainDrawContext.draw_datas.size() * sizeof(DrawData));
-  vklog::label_buffer(device, bigDrawDataBuffer.buffer, "big draw data buffer");
+  // bigDrawDataBuffer = create_buffer(mainDrawContext.draw_datas.size() * sizeof(DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  // DrawData* data3 = (DrawData*) bigDrawDataBuffer.info.pMappedData;
+  // memcpy(data3, mainDrawContext.draw_datas.data(), mainDrawContext.draw_datas.size() * sizeof(DrawData));
+  // vklog::label_buffer(device, bigDrawDataBuffer.buffer, "big draw data buffer");
 
-  int max_commands = 10000;
-  indirectDrawBuffer = create_buffer(max_commands * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  VkDrawIndexedIndirectCommand* data4 = (VkDrawIndexedIndirectCommand*) indirectDrawBuffer.info.pMappedData;
+  // int max_commands = 10000;
+  // indirectDrawBuffer = create_buffer(max_commands * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  // VkDrawIndexedIndirectCommand* data4 = (VkDrawIndexedIndirectCommand*) indirectDrawBuffer.info.pMappedData;
   // indexCount, instanceCount, firstIndex, vertexOffset, firstInstance
 
 
@@ -211,9 +211,33 @@ void Engine::init()
     c.vertexOffset = 0;
     mem.push_back(c);
   }
-  memcpy(data4, mem.data(), mem.size() * sizeof(VkDrawIndexedIndirectCommand));
-  vklog::label_buffer(device,indirectDrawBuffer.buffer, "big indirect draw cmd buffer");
+  // memcpy(data4, mem.data(), mem.size() * sizeof(VkDrawIndexedIndirectCommand));
+  // vklog::label_buffer(device,indirectDrawBuffer.buffer, "big indirect draw cmd buffer");
 
+
+  
+  GPUSceneBuffers main = upload_scene(
+    mainDrawContext.positions,
+    mainDrawContext.vertices,
+    mainDrawContext.indices,
+    mainDrawContext.transforms,
+    mainDrawContext.draw_datas,
+    mainDrawContext.materials,
+    mem
+  );
+
+  mainDrawContext.bigMeshes.indexBuffer = main.indexBuffer;
+  mainDrawContext.bigMeshes.vertexBuffer = main.vertexBuffer;
+  mainDrawContext.bigMeshes.positionBuffer = main.positionBuffer;
+
+  indirectDrawBuffer = main.indirectCmdBuffer;
+  
+  bigTransformBuffer = main.transformBuffer;
+  bigMaterialBuffer = main.materialBuffer;
+  bigDrawDataBuffer = main.drawDataBuffer;
+
+
+  
   // cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);  
   
   // prepare shadow uniform
@@ -612,8 +636,6 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   sceneData.sunlightDirection = glm::normalize(glm::vec4{x_value, pcss_settings.distance, z_value, 1.0f}); // .w for sun power
 
-  AR_CORE_INFO("{}", glm::to_string(sceneData.sunlightDirection));
-  
   shadowPass.lightView = lightProj * lView; 
   pcss_settings.lightViewProj = lightProj * lView;
 
@@ -1102,6 +1124,153 @@ void Engine::destroy_buffer(const AllocatedBuffer& buffer)
   vmaDestroyBuffer(m_Allocator, buffer.buffer, buffer.allocation);
 }
 
+
+GPUSceneBuffers Engine::upload_scene(
+  std::span<glm::vec3> positions,
+  std::span<Vertex> vertices,
+  std::span<uint32_t> indices,
+  std::span<glm::mat4> transforms,
+  std::span<DrawData> draw_datas,
+  std::span<BindlessMaterial> materials,
+  std::span<VkDrawIndexedIndirectCommand> indirect_cmds)
+{
+  const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+  const size_t positionBufferSize = positions.size() * sizeof(glm::vec3);
+  const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+  const size_t transformBufferSize = transforms.size() * sizeof(glm::mat4);
+  const size_t drawDataBufferSize = draw_datas.size() * sizeof(DrawData);
+  const size_t materialBufferSize = materials.size() * sizeof(BindlessMaterial);
+  const size_t indirectCmdBufferSize = indirect_cmds.size() * sizeof(VkDrawIndexedIndirectCommand);
+  
+  GPUSceneBuffers scene;
+
+  scene.vertexBuffer = create_buffer(
+    vertexBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY
+  );
+
+  scene.positionBuffer = create_buffer(
+    positionBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY
+  );
+    
+  scene.indexBuffer = create_buffer(
+    indexBufferSize,
+    VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY
+  );
+    
+  scene.drawDataBuffer = create_buffer(
+    drawDataBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY
+  );
+
+  scene.transformBuffer = create_buffer(
+    transformBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY
+  );
+
+  scene.materialBuffer = create_buffer(
+    materialBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY
+  );
+  scene.indirectCmdBuffer = create_buffer(
+    indirectCmdBufferSize,
+    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY
+  );
+
+
+
+  AllocatedBuffer staging = create_buffer(
+    vertexBufferSize +
+    positionBufferSize +
+    indexBufferSize +
+    drawDataBufferSize +
+    transformBufferSize +
+    materialBufferSize +
+    indirectCmdBufferSize,
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    VMA_MEMORY_USAGE_CPU_ONLY);
+  void* data = staging.allocation->GetMappedData();
+
+  memcpy(data, positions.data(), positionBufferSize);
+  memcpy((char*) data + positionBufferSize, vertices.data(), vertexBufferSize);
+  memcpy((char*) data + positionBufferSize + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
+  // pos, vert, idx
+
+  // draw data, transform, material, indirect_cmd
+  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize, draw_datas.data(), drawDataBufferSize);
+  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize, transforms.data(), transformBufferSize);
+  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize, materials.data(), materialBufferSize);
+  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize + materialBufferSize, indirect_cmds.data(), indirectCmdBufferSize);
+
+
+
+  immediate_submit([&](VkCommandBuffer cmd){
+    VkBufferCopy positionCopy{};
+    positionCopy.dstOffset = 0;
+    positionCopy.srcOffset = 0;
+    positionCopy.size = positionBufferSize;
+    
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.positionBuffer.buffer, 1, &positionCopy);
+
+    VkBufferCopy vertexCopy{};
+    vertexCopy.dstOffset = 0;
+    vertexCopy.srcOffset = positionBufferSize;
+    vertexCopy.size = vertexBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.vertexBuffer.buffer, 1, &vertexCopy);
+    
+    VkBufferCopy indexCopy{};
+    indexCopy.dstOffset = 0;
+    indexCopy.srcOffset = positionBufferSize + vertexBufferSize;
+    indexCopy.size = indexBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.indexBuffer.buffer, 1, &indexCopy);
+
+
+    VkBufferCopy drawCopy{};
+    drawCopy.dstOffset = 0;
+    drawCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize;
+    drawCopy.size = drawDataBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.drawDataBuffer.buffer, 1, &drawCopy);
+    
+    VkBufferCopy transformCopy{};
+    transformCopy.dstOffset = 0;
+    transformCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize;
+    transformCopy.size = transformBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.transformBuffer.buffer, 1, &transformCopy);
+    
+    VkBufferCopy materialCopy{};
+    materialCopy.dstOffset = 0;
+    materialCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize;
+    materialCopy.size = materialBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.materialBuffer.buffer, 1, &materialCopy);
+
+    VkBufferCopy cmdCopy{};
+    cmdCopy.dstOffset = 0;
+    cmdCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize + materialBufferSize;
+    cmdCopy.size = indirectCmdBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.indirectCmdBuffer.buffer, 1, &cmdCopy);
+    
+  });
+
+
+
+
+
+  destroy_buffer(staging);
+
+
+  
+  return scene;
+}
+
+
 GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec3> positions, std::span<Vertex> vertices, std::span<uint32_t> indices)
 {
   // vertices interleaved(normal uv colour) | positions (only pos)
@@ -1543,7 +1712,10 @@ void Engine::init_descriptors()
 {
   std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = 
   {
-    {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
+    {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
+    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
+    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
   };
   globalDescriptorAllocator.init(device, 10, sizes);
 
