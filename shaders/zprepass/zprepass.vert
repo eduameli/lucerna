@@ -34,12 +34,17 @@ struct DrawData
   uint32_ar firstIndex;
 };
 
+struct TransformData
+{
+  vec4_ar mat[3];  
+};
+
 layout(set = 0, binding = 3) readonly buffer drawDataBuffer {
   DrawData yes[];
 } draws;
 
 layout(set = 0, binding = 1) readonly buffer transformBuffer {
-  mat4 mat[];
+  TransformData v[];
 } transforms;
 
 layout(set = 0, binding = 5) readonly buffer materialBuffer {
@@ -81,13 +86,28 @@ void main()
  //    gl_Position = sceneData.viewproj * positionWorld;
 
 
+ //    DrawData dd = draws.yes[gl_DrawIDARB];
+ //    // mat4 td = mat4x3(transforms.mat[dd.transform_idx], vec4(0.0f));
+
+ //    mat4x3 td = transforms.mat[dd.transform_idx];
+ //    // mat4 td = mat4(td1[0], td1[1], td1[2], vec4(0.0f));
+
+
+	// vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0f);
+	// vec3 positionWorld = td * positionLocal, 1.0f;
+
+
     DrawData dd = draws.yes[gl_DrawIDARB];
-    mat4 td = transforms.mat[dd.transform_idx];
+    TransformData td = transforms.v[dd.transform_idx];
+    // mat4x3 td = transforms.v[dd.transform_idx];
+    // mat4 td = mat4(td1[0], td1[1], td1[2], vec4(0.0f));
 
 	vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);
-	vec4 positionWorld = td * positionLocal;
+	vec3 positionWorld = mat4x3(td.mat[0], td.mat[1], td.mat[2]) * positionLocal;
 
-    gl_Position = sceneData.viewproj * positionWorld;
+
+
+    gl_Position = sceneData.viewproj * vec4(positionWorld, 1.0f);
 
     Vertex v = verts.value[gl_VertexIndex];
     inUV.x = v.normal_uv.z;

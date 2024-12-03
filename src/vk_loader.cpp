@@ -780,7 +780,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
   // AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4(nodeMatrix)));
   int mesh_idx = ctx.freeTransforms.allocate();
-  ctx.transforms[mesh_idx] = nodeMatrix;
+  ctx.transforms[mesh_idx] = glm::mat4x3(nodeMatrix);
   
 
   // this will basically go into DrawData buffer or Indirect Draw cmd buffer

@@ -48,7 +48,7 @@ namespace Aurora {
 
     // NOTE: previous arch was "immediate" now i wanna move to a draw_set and update changes to support loading and unlaoding meshes
     // FIXME: loading big scenes could break here... hardcoded limit.. :sob: maybe if limit is exceeded i need to do sm
-    std::array<glm::mat4, 10000> transforms;
+    std::array<glm::mat4x3, 10000> transforms;
     std::array<BindlessMaterial, 10000> materials;
     std::array<DrawData, 10000> draw_datas;
     
@@ -102,7 +102,7 @@ namespace Aurora {
         std::span<glm::vec3> positions,
         std::span<Vertex> vertices,
         std::span<uint32_t> indices,
-        std::span<glm::mat4> transforms,
+        std::span<glm::mat4x3> transforms,
         std::span<DrawData> draw_datas,
         std::span<BindlessMaterial> materials,
         std::span<VkDrawIndexedIndirectCommand> indirect_cmds

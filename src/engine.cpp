@@ -15,6 +15,7 @@
 #include "gfx_effects.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
@@ -173,30 +174,6 @@ void Engine::init()
   
 
   AR_CORE_INFO("positions {} vertices {} indices {}", mainDrawContext.positions.size(), mainDrawContext.vertices.size(), mainDrawContext.indices.size());
-  // mainDrawContext.bigMeshes = upload_mesh(mainDrawContext.positions, mainDrawContext.vertices, mainDrawContext.indices);
-  // vklog::label_buffer(device,mainDrawContext.bigMeshes.indexBuffer.buffer, "index buffer big");
-  // vklog::label_buffer(device, mainDrawContext.bigMeshes.vertexBuffer.buffer, "vertex buffer big");
-  // vklog::label_buffer(device, mainDrawContext.bigMeshes.positionBuffer.buffer, "position buffer big");
-  
-  // bigTransformBuffer = create_buffer(mainDrawContext.transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  // glm::mat4* data = (glm::mat4*) bigTransformBuffer.info.pMappedData;
-  // memcpy(data, mainDrawContext.transforms.data(), mainDrawContext.freeTransforms.size * sizeof(glm::mat4));
-  // vklog::label_buffer(device,bigTransformBuffer.buffer, "big transform buffer");
-
-  // bigMaterialBuffer = create_buffer(mainDrawContext.materials.size() * sizeof(BindlessMaterial), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  // BindlessMaterial* data2 = (BindlessMaterial*) bigMaterialBuffer.info.pMappedData;
-  // memcpy(data2, mainDrawContext.materials.data(), mainDrawContext.freeMaterials.size * sizeof(BindlessMaterial));
-  // vklog::label_buffer(device, bigMaterialBuffer.buffer, "big material buffer");
-
-  // bigDrawDataBuffer = create_buffer(mainDrawContext.draw_datas.size() * sizeof(DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  // DrawData* data3 = (DrawData*) bigDrawDataBuffer.info.pMappedData;
-  // memcpy(data3, mainDrawContext.draw_datas.data(), mainDrawContext.draw_datas.size() * sizeof(DrawData));
-  // vklog::label_buffer(device, bigDrawDataBuffer.buffer, "big draw data buffer");
-
-  // int max_commands = 10000;
-  // indirectDrawBuffer = create_buffer(max_commands * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  // VkDrawIndexedIndirectCommand* data4 = (VkDrawIndexedIndirectCommand*) indirectDrawBuffer.info.pMappedData;
-  // indexCount, instanceCount, firstIndex, vertexOffset, firstInstance
 
 
   
@@ -723,7 +700,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   VkDescriptorSet depth = get_current_frame().frameDescriptors.allocate(device, zpassDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
-  writer.write_buffer(1, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(1, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(2, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(3, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(4, mainDrawContext.bigMeshes.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -796,7 +773,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   
   writer.write_buffer(4, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(5, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(5, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(6, bigMaterialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   
   writer.write_buffer(7, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -1025,7 +1002,40 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   CVarSystem::get()->draw_editor();
 
   FrameGraph::render_graph();
+
+
+
+  ImGui::Begin("Memory Stats");
+
+  {
+    uint32_t heapCount = 0;
+
+    VkPhysicalDeviceMemoryProperties props{};
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &props);
+
     
+    
+    // m_Allocator.
+    
+    VmaBudget* budgets = (VmaBudget*) calloc(props.memoryTypeCount, sizeof(VmaBudget));
+    
+    vmaGetHeapBudgets(m_Allocator, budgets);
+
+    for (int i = 0; i < props.memoryHeapCount; i++)
+    {
+      ImGui::Text("usage %lu", (uint64_t) budgets[i].usage);
+      ImGui::Text("budget %lu", (uint64_t) budgets[i].budget);
+      ImGui::Text("allocated bytes %lu", (uint64_t) budgets[i].statistics.allocationBytes);
+      ImGui::Text("allocated count %lu", (uint64_t) budgets[i].statistics.allocationCount);
+      ImGui::Text("block count %lu", (uint64_t) budgets[i].statistics.blockCount);
+      ImGui::Text("block bytes %lu", (uint64_t) budgets[i].statistics.blockBytes);
+      ImGui::Separator();
+    }
+
+  }
+  
+  ImGui::End();
+  
   ImGui::End();
 
   ImGui::Render(); 
@@ -1129,7 +1139,7 @@ GPUSceneBuffers Engine::upload_scene(
   std::span<glm::vec3> positions,
   std::span<Vertex> vertices,
   std::span<uint32_t> indices,
-  std::span<glm::mat4> transforms,
+  std::span<glm::mat4x3> transforms,
   std::span<DrawData> draw_datas,
   std::span<BindlessMaterial> materials,
   std::span<VkDrawIndexedIndirectCommand> indirect_cmds)
@@ -1137,7 +1147,7 @@ GPUSceneBuffers Engine::upload_scene(
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
   const size_t positionBufferSize = positions.size() * sizeof(glm::vec3);
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
-  const size_t transformBufferSize = transforms.size() * sizeof(glm::mat4);
+  const size_t transformBufferSize = transforms.size() * sizeof(glm::mat4x3);
   const size_t drawDataBufferSize = draw_datas.size() * sizeof(DrawData);
   const size_t materialBufferSize = materials.size() * sizeof(BindlessMaterial);
   const size_t indirectCmdBufferSize = indirect_cmds.size() * sizeof(VkDrawIndexedIndirectCommand);

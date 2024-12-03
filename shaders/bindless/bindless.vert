@@ -83,12 +83,28 @@ struct DrawData
   uint32_ar firstIndex;
 };
 
+
+// struct TransformData
+// {
+//   vec4_ar mat[3];    
+// };
+
 layout(set = 0, binding = 4) readonly buffer drawDataBuffer {
   DrawData yes[];
 } draws;
+
+
+
+struct TransformData
+{
+  vec4_ar mat[3];  
+};
+
 layout(set = 0, binding = 5) readonly buffer transformBuffer {
-  mat4 mat[];
+  TransformData v[];
 } transforms;
+
+
 layout(set = 0, binding = 6) readonly buffer materialBuffer {
   uint32_ar albedos[];
 } materials;
@@ -117,13 +133,28 @@ vec3 decode_normal(vec2 f)
 void main() 
 {
 
-    DrawData dd = draws.yes[gl_DrawIDARB];
-    mat4 td = transforms.mat[dd.transform_idx];
+ //    DrawData dd = draws.yes[gl_DrawIDARB];
+ //    TransformData td = transforms.v[dd.transform_idx];
+ //    // mat4x3 td = transforms.v[dd.transform_idx];
+ //    // mat4 td = mat4(td1[0], td1[1], td1[2], vec4(0.0f));
 
+	// vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);
+	// vec3 positionWorld = mat4x3(td.mat[0], td.mat[1], td.mat[2]) * positionLocal;
+
+ //    gl_Position = sceneData.viewproj * vec4(positionWorld, 1.0f);
+
+
+
+ DrawData dd = draws.yes[gl_DrawIDARB];
+    TransformData td = transforms.v[dd.transform_idx];
 	vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);
-	vec4 positionWorld = td * positionLocal;
+	vec3 positionWorld = mat4x3(td.mat[0], td.mat[1], td.mat[2]) * positionLocal;
 
-    gl_Position = sceneData.viewproj * positionWorld;
+
+
+    gl_Position = sceneData.viewproj * vec4(positionWorld, 1.0f);
+
+
 
 
     // debugPrintfEXT("%i", gl_VertexIndex);
@@ -136,7 +167,7 @@ void main()
 
     vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 
-    outNormal = (td * vec4(normal_unpacked, 0.f)).xyz;
+    outNormal = (mat4x3(td.mat[0], td.mat[1], td.mat[2]) * vec4(normal_unpacked, 1.0)).xyz;
     outColor = v.color.xyz;	
     outUV.x = v.normal_uv.z;
     outUV.y = v.normal_uv.w;
