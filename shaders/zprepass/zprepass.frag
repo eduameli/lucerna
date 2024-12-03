@@ -23,7 +23,7 @@ layout (location = 2) in flat uint albedo_idx;
 
 void main() 
 {
-    if (texture(global_textures[albedo_idx], inUV).w < 0.5))
+    if (texture(global_textures[albedo_idx], inUV).w < 0.5)
     {
         discard;
     }
