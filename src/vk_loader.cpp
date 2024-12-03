@@ -350,7 +350,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     // }
 
     // per primitive
-    newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
+    // newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
   }
 
 
@@ -786,18 +786,18 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
   // this will basically go into DrawData buffer or Indirect Draw cmd buffer
   for (auto& s : mesh->surfaces)
   {
-    RenderObject def;
-    def.indexCount = s.count;
-    def.firstIndex = s.startIndex;
-    def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
-    // def.material = &s.material->data;
-    def.bounds = s.bounds;
-    def.transform = nodeMatrix;
-    def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
-    def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
-    // def.albedo_idx = 10000;
-    def.transform_idx = mesh_idx;
-    def.material_idx = s.mat_idx;
+    // RenderObject def;
+    // def.indexCount = s.count;
+    // def.firstIndex = s.startIndex;
+    // // def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
+    // // def.material = &s.material->data;
+    // def.bounds = s.bounds;
+    // def.transform = nodeMatrix;
+    // // def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
+    // // def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
+    // // def.albedo_idx = 10000;
+    // def.transform_idx = mesh_idx;
+    // def.material_idx = s.mat_idx;
     // need to have indices here or in ssbo for indirect - but can figure that out later...
     
     // still need this to place it into the correct draw_set bucket
@@ -809,7 +809,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     // {
     //   ctx.OpaqueSurfaces.push_back(def);
     // }
-    ctx.OpaqueSurfaces.push_back(def);
+    // ctx.OpaqueSurfaces.push_back(def);
 
     // AR_CORE_INFO(mesh_idx);
 
