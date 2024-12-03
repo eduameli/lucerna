@@ -611,6 +611,9 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   );
   
   sceneData.sunlightDirection = glm::normalize(glm::vec4{x_value, pcss_settings.distance, z_value, 1.0f}); // .w for sun power
+
+  AR_CORE_INFO("{}", glm::to_string(sceneData.sunlightDirection));
+  
   shadowPass.lightView = lightProj * lView; 
   pcss_settings.lightViewProj = lightProj * lView;
 
@@ -701,53 +704,16 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   writer.write_buffer(1, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(2, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(3, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  
+  writer.write_buffer(4, mainDrawContext.bigMeshes.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(5, bigMaterialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.update_set(device, depth);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_DepthPrepassPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 0, 1, &depth, 0, nullptr);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 1, 1, &bindless_descriptor_set, 0, nullptr); 
 
-
-
-
-
-
-
-
-  VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
   vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  // auto draw = [&](const RenderObject& draw) {
-    // if (draw.indexBuffer != lastIndexBuffer)
-    // {
-    //   lastIndexBuffer = draw.indexBuffer;
-    //   vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    // }
-
-    // depth_only_pcs pcs{};
-    // pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
-    // pcs.positions = draw.positionBufferAddress;
-    // pcs.positions = bigPositionBuffer.
-    // pcs.transform_idx = draw.transform_idx;
-
-   //  VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
-	  // pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
-
-   //  VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.bigMeshes.positionBuffer.buffer };
-   //  pcs.positions = vkGetBufferDeviceAddress(device, &bda2);
-
-
-    // vkCmdPushConstants(cmd, zpassLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(depth_only_pcs), &pcs);
-  // vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
   vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.freeDrawData.size, sizeof(VkDrawIndexedIndirectCommand));
-    // vkCmdDrawIndexedIndirect(cmd, bi)
-  // };
-  
-
-  // for (auto& r : mainDrawContext.opaque_draws)
-  // {
-  //   draw(mainDrawContext.OpaqueSurfaces[r]);
-  // }
-
   vkCmdEndRendering(cmd);
 }
 
@@ -1821,11 +1787,12 @@ void Engine::init_pipelines()
 {
   init_background_pipelines(); // compute backgrounds
   metalRoughMaterial.build_pipelines(this);
-  
+
+  init_bindless_pipeline_layout();
   init_depth_prepass_pipeline();
   init_shadow_map_pipeline();
 
-  init_bindless_pipeline_layout();
+  // init_bindless_pipeline_layout();
 
   // init bindless pipelines
 
@@ -2000,6 +1967,9 @@ void Engine::init_depth_prepass_pipeline()
 layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+layoutBuilder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
     zpassDescriptorLayout = layoutBuilder.build(device, VK_SHADER_STAGE_VERTEX_BIT);
   }
  
@@ -2008,9 +1978,12 @@ layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   range.size = sizeof(depth_only_pcs);
   range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+
+  std::array<VkDescriptorSetLayout, 2> layouts = {zpassDescriptorLayout, bindless_descriptor_layout};
+  
   VkPipelineLayoutCreateInfo layout = vkinit::pipeline_layout_create_info();
-  layout.setLayoutCount = 1;
-  layout.pSetLayouts = &zpassDescriptorLayout;
+  layout.setLayoutCount = layouts.size();
+  layout.pSetLayouts = layouts.data();
   layout.pPushConstantRanges = &range;
   layout.pushConstantRangeCount = 1;
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &layout, nullptr, &zpassLayout));

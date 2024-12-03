@@ -1,6 +1,10 @@
 [startup]
-# scene_path = "assets/sponza_tg.glb"
-scene_path = "assets/structure.glb"
+scene_path = "assets/sponza_tg.glb"
+
+
+# doesnt work
+# scene_path = "assets/deccer-cubes/SM_Deccer_Cubes_Colored.glb"
+
 # scene_path = "assets/.glb"
 [cvars]
 

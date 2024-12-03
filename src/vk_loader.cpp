@@ -134,7 +134,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   {
     //bindless material start
     BindlessMaterial m;
-    AR_CORE_WARN("material...");
+    // AR_CORE_WARN("material...");
     if (mat.pbrData.baseColorTexture.has_value())
     {
       
@@ -228,20 +228,20 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     // vertices.clear();
     // positions.clear();
 
-    AR_CORE_WARN("NEW MESH");
+    // AR_CORE_WARN("NEW MESH");
 
     uint32_t initals_idx = 0;
     
     for (auto&& p : mesh.primitives)
     {
-      AR_CORE_ERROR("new surface!");
+      // AR_CORE_ERROR("new surface!");
       
       GeoSurface newSurface{};
       newSurface.startIndex = static_cast<uint32_t>(indices.size());
       newSurface.count = static_cast<uint32_t>(asset.accessors[p.indicesAccessor.value()].count);
 
       size_t initial_vtx = vertices.size();
-      AR_CORE_WARN("inital vtx {}", initial_vtx);
+      // AR_CORE_WARN("inital vtx {}", initial_vtx);
       
       {
         fastgltf::Accessor& indexaccessor = asset.accessors[p.indicesAccessor.value()];
@@ -778,7 +778,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
   glm::mat4 nodeMatrix = topMatrix * worldTransform;
 
-  AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4(nodeMatrix)));
+  // AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4(nodeMatrix)));
   int mesh_idx = ctx.freeTransforms.allocate();
   ctx.transforms[mesh_idx] = nodeMatrix;
   
@@ -811,7 +811,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     // }
     ctx.OpaqueSurfaces.push_back(def);
 
-    AR_CORE_INFO(mesh_idx);
+    // AR_CORE_INFO(mesh_idx);
 
     uint32_t draw_idx = ctx.freeDrawData.allocate();
     ctx.draw_datas[draw_idx] = {
@@ -823,7 +823,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
       // .vertexBDA = mesh->meshBuffers.vertexBufferAddress,
     };
 
-    AR_CORE_INFO("first index {}", s.startIndex);
+    // AR_CORE_INFO("first index {}", s.startIndex);
 
     
   }

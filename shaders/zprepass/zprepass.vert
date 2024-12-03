@@ -23,7 +23,8 @@ struct depth_only_pcs
 //   depth_only_pcs pcs;
 // };
 
-
+layout(location = 1) out vec2 inUV;
+layout (location = 2) out flat uint albedo_idx;
 struct DrawData
 {
 
@@ -41,15 +42,21 @@ layout(set = 0, binding = 1) readonly buffer transformBuffer {
   mat4 mat[];
 } transforms;
 
-// layout(set = 0, binding = 6) readonly buffer materialBuffer {
-//   uint32_ar albedos[];
-// } materials;
+layout(set = 0, binding = 5) readonly buffer materialBuffer {
+  uint32_ar albedos[];
+} materials;
 
 
 
 layout(set = 0, binding = 2, scalar) readonly buffer positionBuffer {
   vec3_ar a[];
 } posit;
+
+
+
+layout(set = 0, binding = 4) readonly buffer vertexBuffer {
+  Vertex value[];
+} verts;
 
 
 // layout(set = 0, binding = 8) readonly buffer vertexBuffer {
@@ -81,8 +88,12 @@ void main()
 	vec4 positionWorld = td * positionLocal;
 
     gl_Position = sceneData.viewproj * positionWorld;
- 
-    
+
+    Vertex v = verts.value[gl_VertexIndex];
+    inUV.x = v.normal_uv.z;
+    inUV.y = v.normal_uv.w;
+
+    albedo_idx = materials.albedos[dd.material_idx];
 
 	
 }
