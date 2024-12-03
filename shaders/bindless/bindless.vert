@@ -148,7 +148,6 @@ void main()
     // outNormal = normal_unpacked;
     outColor = v.color.xyz;
 
-    debugPrintfEXT("%f %f %f", outColor.x, outColor.y, outColor.z);
     
     outUV.x = v.normal_uv.z;
     outUV.y = v.normal_uv.w;

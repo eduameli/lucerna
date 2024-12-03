@@ -369,67 +369,6 @@ void Engine::update_scene()
 	sceneData.ambientColor = glm::vec4(0.1f); // would it be like a skybox
   sceneData.sunlightColor = glm::vec4(1.0f);
 
-  //loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext);
-
-  // mainDrawContext.opaque_draws.clear();
-  // mainDrawContext.opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
-
-  
-  // frustum culling for main camera
-  // for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
-  // {
-  //   if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj))
-  //   {
-  //     mainDrawContext.opaque_draws.push_back(i);
-  //   }
-
-  //   // draw aabb
-  //   if (debugLinesEnabled.get() == true)
-  //   {
-  //     glm::vec3 o = mainDrawContext.OpaqueSurfaces[i].bounds.origin;
-  //     glm::vec3 e = mainDrawContext.OpaqueSurfaces[i].bounds.extents;
-  //     glm::mat4 m = mainDrawContext.OpaqueSurfaces[i].transform;
-
-  //     // Transform the origin using the full transformation matrix
-  //     glm::vec4 tOrigin = m * glm::vec4(o, 1.0f);
-  //     glm::vec3 fOrigin = glm::vec3(tOrigin.x, tOrigin.y, tOrigin.z);
-
-  //     // Extract the rotation part of the matrix (upper-left 3x3) and the scaling factor
-  //     glm::mat3 rotationMatrix = glm::mat3(m);  // Get the rotation matrix (upper-left 3x3 part)
-  //     glm::vec3 scale = glm::vec3(
-  //         glm::length(rotationMatrix[0]),
-  //         glm::length(rotationMatrix[1]),
-  //         glm::length(rotationMatrix[2])
-  //     );
-
-  //     // Scale the extents based on the scale of the transformation
-  //     glm::vec3 fExtents = e * scale;  // Apply scaling to the extents
-
-  //     // Queue the debug OBB with the transformed origin and scaled extents
-  //     queue_debug_obb(m, fOrigin, fExtents);
-      
-
-  //   }
-    
-  //   }
-   
-  // // FIXME: Another way of doing this is that we would calculate a sort key , and then our opaque_draws would be something like 20 bits draw index,
-  // // and 44 bits for sort key/hash. That way would be faster than this as it can be sorted through faster methods.
-
-  // // NOTE: do i need to sort it anymore? no state changes.. no sorting?
-  // // std::sort(mainDrawContext.opaque_draws.begin(), mainDrawContext.opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-  // //   const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
-  // //   const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
-  // //   if(A.material == B.material)
-  // //   {
-  // //     return A.indexBuffer < B.indexBuffer;
-  // //   }
-  // //   else
-  // //   {
-  // //     return A.material < B.material;
-  // //   }
-  // // });
-
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
