@@ -695,44 +695,58 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   
   // FIXME: dont create a new uniform buffer every time :sob:
 
-  VkDescriptorSet depth = get_current_frame().frameDescriptors.allocate(device, m_ShadowSetLayout);
+  VkDescriptorSet depth = get_current_frame().frameDescriptors.allocate(device, zpassDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
+  writer.write_buffer(1, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(2, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(3, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  
   writer.update_set(device, depth);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_DepthPrepassPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 0, 1, &depth, 0, nullptr);
 
+
+
+
+
+
+
+
   VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-  auto draw = [&](const RenderObject& draw) {
-    if (draw.indexBuffer != lastIndexBuffer)
-    {
-      lastIndexBuffer = draw.indexBuffer;
-      vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    }
+  vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  // auto draw = [&](const RenderObject& draw) {
+    // if (draw.indexBuffer != lastIndexBuffer)
+    // {
+    //   lastIndexBuffer = draw.indexBuffer;
+    //   vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    // }
 
-    depth_only_pcs pcs{};
+    // depth_only_pcs pcs{};
     // pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
-    pcs.positions = draw.positionBufferAddress;
+    // pcs.positions = draw.positionBufferAddress;
     // pcs.positions = bigPositionBuffer.
-    pcs.transform_idx = draw.transform_idx;
+    // pcs.transform_idx = draw.transform_idx;
 
-    VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
-	  pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
+   //  VkBufferDeviceAddressInfo bda{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
+	  // pcs.transforms = vkGetBufferDeviceAddress(device, &bda);
 
-    // VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.bigMeshes.positionBuffer.buffer };
-    // pcs.positions = vkGetBufferDeviceAddress(device, &bda2);
+   //  VkBufferDeviceAddressInfo bda2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.bigMeshes.positionBuffer.buffer };
+   //  pcs.positions = vkGetBufferDeviceAddress(device, &bda2);
 
 
-    vkCmdPushConstants(cmd, zpassLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(depth_only_pcs), &pcs);
-    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
-  };
+    // vkCmdPushConstants(cmd, zpassLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(depth_only_pcs), &pcs);
+  // vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.freeDrawData.size, sizeof(VkDrawIndexedIndirectCommand));
+    // vkCmdDrawIndexedIndirect(cmd, bi)
+  // };
   
 
-  for (auto& r : mainDrawContext.opaque_draws)
-  {
-    draw(mainDrawContext.OpaqueSurfaces[r]);
-  }
+  // for (auto& r : mainDrawContext.opaque_draws)
+  // {
+  //   draw(mainDrawContext.OpaqueSurfaces[r]);
+  // }
 
   vkCmdEndRendering(cmd);
 }
@@ -1833,13 +1847,13 @@ void Engine::init_pipelines()
   b.set_depth_format(m_DepthImage.imageFormat);
   b.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   b.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  // b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-  b.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  // b.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
   b.set_multisampling_none();
   b.disable_blending();
-  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
-  b.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  // b.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   
   
   b.PipelineLayout = bindless_pipeline_layout;
@@ -1983,6 +1997,9 @@ void Engine::init_depth_prepass_pipeline()
   {
     DescriptorLayoutBuilder layoutBuilder;
     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     zpassDescriptorLayout = layoutBuilder.build(device, VK_SHADER_STAGE_VERTEX_BIT);
   }
  
@@ -2037,6 +2054,10 @@ void Engine::init_shadow_map_pipeline()
   { 
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    // builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    // builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    // builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
     m_ShadowSetLayout = builder.build(device, VK_SHADER_STAGE_VERTEX_BIT);
   }
 

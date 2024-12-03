@@ -207,7 +207,7 @@ struct DrawData
 
   struct BindlessMaterial
   {
-    uint32_t albedo_idx{0};
+    uint32_t albedo_idx{3};
   };
 
   
