@@ -817,12 +817,12 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // const size_t positionBufferSize = mainDrawContext.positions.size() * sizeof(glm::vec3);
  
   vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  AR_CORE_INFO("indeces {}", mainDrawContext.indices.size());
+  // AR_CORE_INFO("indeces {}", mainDrawContext.indices.size());
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
   vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.freeDrawData.size, sizeof(VkDrawIndexedIndirectCommand));
 
-  AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
+  // AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
 
   // vkCmdDrawIndexed(cmd, 36, 1, 0, 0, 0);
 

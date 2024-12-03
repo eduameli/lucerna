@@ -215,6 +215,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::vector<Vertex> vertices;
   std::vector<glm::vec3> positions;
 
+  uint32_t idx_counter = 0;
+  
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
     std::shared_ptr<MeshAsset> newmesh = std::make_shared<MeshAsset>();
@@ -222,9 +224,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     file.meshes[mesh.name.c_str()] = newmesh;
     newmesh->name = mesh.name;
     
-    indices.clear();
-    vertices.clear();
-    positions.clear();
+    // indices.clear();
+    // vertices.clear();
+    // positions.clear();
 
     AR_CORE_WARN("NEW MESH");
 
@@ -300,15 +302,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
          fastgltf::iterateAccessorWithIndex<glm::vec4>(asset, asset.accessors[(*colors).accessorIndex], lambda);
       }
-      
-      // if (p.materialIndex.has_value())
-      // {
-      //   newSurface.material = materials[p.materialIndex.value()];
-      // }
-      // else
-      // {
-      //   newSurface.material = materials[0];
-      // }
 
       if (p.materialIndex.has_value())
       {
@@ -339,41 +332,46 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
 
 
-    for (auto i : indices)
-    {
-      engine->mainDrawContext.indices.push_back(i + initals_idx);
-      // AR_CORE_INFO("idx {}", i);
-    }
-    initals_idx = engine->mainDrawContext.indices.size();
-    // for (int idx = 0; idx < indices.size(); idx += 3)
+    // for (auto i : indices)
     // {
-    //   AR_CORE_INFO("f {} {} {}", indices[idx]+1, indices[idx+1]+1, indices[idx+2]+1);
+    //   engine->mainDrawContext.indices.push_back(i + initals_idx);
+    //   // AR_CORE_INFO("idx {}", i);
+    // }
+    // initals_idx = engine->mainDrawContext.indices.size();
+
+    // for (auto v : vertices)
+    // {
+    //   engine->mainDrawContext.vertices.push_back(v);
     // }
 
-    // engine->mainDrawContext.indices.push_back(0);
-    // engine->mainDrawContext.indices.push_back(1);
-    // engine->mainDrawContext.indices.push_back(2);
-    // engine->mainDrawContext.indices.push_back(0);
-    // engine->mainDrawContext.indices.push_back(3);
-    // engine->mainDrawContext.indices.push_back(2);
+    // for(auto p : positions)
+    // {
+    //   engine->mainDrawContext.positions.push_back(p);
+    // }
 
+    // per primitive
+    newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
+  }
+
+
+
+ for (auto i : indices)
+    {
+      engine->mainDrawContext.indices.push_back(i);
+      // AR_CORE_INFO("idx {}", i);
+    }
+    // initals_idx = engine->mainDrawContext.indices.size();
 
     for (auto v : vertices)
     {
       engine->mainDrawContext.vertices.push_back(v);
-      // AR_CORE_INFO("idx {}", i);
-      // AR_CORE_INFO("idx {}", i);
     }
 
     for(auto p : positions)
     {
       engine->mainDrawContext.positions.push_back(p);
-      // AR_CORE_INFO("v {} {} {}", p.x, p.y, p.z);
     }
-
-    
-    newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
-  }
+  
 
 
   for (fastgltf::Node& node : asset.nodes)
