@@ -78,13 +78,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
   fastgltf::Asset& asset = asset_exp.get();
   
-  std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
-    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3},
-    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
-    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
-  };
-  file.descriptorPool.init(engine->device, asset.materials.size(), sizes);
-  
 
   for (fastgltf::Sampler& sampler : asset.samplers)
   {
@@ -106,7 +99,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::vector<std::shared_ptr<MeshAsset>> meshes;
   std::vector<std::shared_ptr<Node>> nodes;
   std::vector<AllocatedImage> images;
-  std::vector<std::shared_ptr<GLTFMaterial>> materials;
+  // std::vector<std::shared_ptr<GLTFMaterial>> materials;
   std::vector<std::shared_ptr<BindlessMaterial>> mats;
   
   for (fastgltf::Image& image : asset.images)
@@ -383,8 +376,6 @@ void LoadedGLTF::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 void LoadedGLTF::clearAll()
 {
   // cleanup gpu memory
-  descriptorPool.destroy_pools(creator->device);
-  creator->destroy_buffer(materialDataBuffer);
 
   for (auto& [k, v] : meshes)
   {

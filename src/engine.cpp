@@ -163,19 +163,7 @@ void Engine::init()
 
   loadedScenes["structure"] = *structureFile;
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
-
   
-  // create material ssbo, drawdata ssbo and transform ssbo
-
-  // FIXME: use staging buffer instead...
-  // make this part of the gltfFile - only one gltf file laoded at once
-
-
-  // mainDrawContext.indices = {
-  //   2, 5, 11, 2, 11, 8, 6, 9, 21, 6, 21, 18, 20, 23, 17, 20, 17, 14, 12, 15, 3, 12, 3, 0, 7, 19, 13, 7, 13, 1, 22, 10, 4, 22, 4, 16
-  // };
-  
-
   AR_CORE_INFO("positions {} vertices {} indices {}", mainDrawContext.positions.size(), mainDrawContext.vertices.size(), mainDrawContext.indices.size());
 
 
@@ -1850,15 +1838,10 @@ void Engine::update_descriptors()
 void Engine::init_pipelines()
 {
   init_background_pipelines(); // compute backgrounds
-  // metalRoughMaterial.build_pipelines(this);
 
   init_bindless_pipeline_layout();
   init_depth_prepass_pipeline();
   init_shadow_map_pipeline();
-
-  // init_bindless_pipeline_layout();
-
-  // init bindless pipelines
 
   VkShaderModule bindlessFrag, bindlessVert;
   AR_LOG_ASSERT(
@@ -1879,12 +1862,9 @@ void Engine::init_pipelines()
   b.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   b.set_polygon_mode(VK_POLYGON_MODE_FILL);
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-  // b.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-
   b.set_multisampling_none();
   b.disable_blending();
   b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
-  // b.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
   
   
   b.PipelineLayout = bindless_pipeline_layout;

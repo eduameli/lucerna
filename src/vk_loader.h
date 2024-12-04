@@ -17,19 +17,11 @@ struct LoadedGLTF : public IRenderable
   std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
   std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
   std::unordered_map<std::string, AllocatedImage> images;
-  std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
 
   std::vector<std::shared_ptr<Node>> topNodes;
   std::vector<VkSampler> samplers;
-
-  std::vector<glm::mat4> gltf_transforms;
-  
-  DescriptorAllocatorGrowable descriptorPool;
-
-  AllocatedBuffer materialDataBuffer;
-
   Engine* creator;
-  
+
   void clearAll();
 
   ~LoadedGLTF() {clearAll();}

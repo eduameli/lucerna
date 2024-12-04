@@ -81,20 +81,6 @@ namespace Aurora
     Other,
   }; 
 
-  struct MaterialPipeline 
-  {
-    VkPipeline pipeline;
-    VkPipelineLayout layout;
-  };
-
-  struct MaterialInstance
-  {
-    MaterialPipeline* pipeline;
-    VkDescriptorSet materialSet;
-    uint32_t albedo_idx;
-    MaterialPass passType;
-  };
-  
   struct DrawContext;
   class IRenderable
   {
@@ -127,10 +113,6 @@ namespace Aurora
     }
   };
 
-  struct GLTFMaterial
-  {
-    MaterialInstance data;
-  };
 
   struct Bounds
   {
@@ -202,8 +184,6 @@ struct free_list
     uint32_t firstIndex;
     uint32_t vertexOffset;
     uint32_t firstInstance;
-    // VkDeviceAddress positionBDA;
-    // VkDeviceAddress vertexBDA;
   };
 
 // FIXME:  support for instanced? or draw indirect count
@@ -213,10 +193,6 @@ struct DrawData
   uint32_t transform_idx;
   uint32_t indexCount;
   uint32_t firstIndex;
-  // uint32_t vertexOffset; // what is this for?
-  // draw data bda - one per gltf
-  // transform bda - one per gltf
-  // index buffer (bound)
 };
 
   struct BindlessMaterial
