@@ -18,24 +18,6 @@ struct GPUSceneData
 };
 
 
-// layout(scalar, buffer_reference) readonly buffer VertexBuffer{ 
-//   Vertex vertices[];
-// } verts;
-
-// // NOTE: idk how to improve this 
-// layout(scalar, buffer_reference) readonly buffer PositionBuffer {
-//   vec3_ar positions[];
-// } posit;
-
-
-// layout(scalar, buffer_reference) readonly buffer TransformBuffer {
-//   mat4x4 transforms[];
-// };
-
-
-// layout(scalar, buffer_reference) readonly buffer MaterialBuffer {
-//   uint32_ar albedos[];
-// };
 
 layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
   GPUSceneData sceneData;

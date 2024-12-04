@@ -422,9 +422,16 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
           //                        filePath.uri.path().end()); // Thanks C++.
 
           // FIXME: handle loading dds or ktx textures here no mips.
+          
+          std::string path = fpath.parent_path().append(filePath.uri.string());
+          path.pop_back();
+          path.pop_back();
+          path.pop_back();
+          path.push_back('p');
+          path.push_back('n');
+          path.push_back('g');
 
-          const std::string path = fpath.parent_path().append(filePath.uri.string());
-
+          
           AR_CORE_INFO("final path1 {}", path);
           unsigned char *data =
               stbi_load(path.c_str(), &width, &height, &nrChannels, 4);

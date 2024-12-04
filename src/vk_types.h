@@ -142,7 +142,6 @@ namespace Aurora
 #include "common.h"
 #include "zprepass/zprepass.vert"
 #include "shadow/shadow_map.vert"
-#include "meshes/std_material.vert"
 #include "debug_line/debug_line.vert"
 #include "ssao/ssao.comp"
 #include "ssao/bilateral_filter.comp"
@@ -176,15 +175,6 @@ struct free_list
 };
 
 
-
-  struct IndirectDraw
-  {
-    uint32_t indexCount;
-    uint32_t instanceCount;
-    uint32_t firstIndex;
-    uint32_t vertexOffset;
-    uint32_t firstInstance;
-  };
 
 // FIXME:  support for instanced? or draw indirect count
 struct DrawData

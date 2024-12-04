@@ -79,40 +79,7 @@ layout(set = 1, binding = 0) uniform GLTFMaterialData{
 	
 } materialData;
 
-layout(set = 1, binding = 1) uniform sampler2D colorTex;
-layout(set = 1, binding = 2) uniform sampler2D metalRoughTex;
 
-// struct DrawData
-// {
-    
-// uint32_ar material_idx;
-//   uint32_ar transform_idx;
-//   uint32_ar indexCount;
-//   uint32_ar firstIndex;
-//   PositionBuffer pos;
-//   VertexBuffer verts;
-// };
-
-// layout(set = 1, binding = 4) readonly buffer drawDataBuffer {
-//   DrawData buffer[];
-// };
-// layout(set = 1, binding = 5) readonly buffer transformBuffer {
-//   mat4x4 transform[];
-// };
-// layout(set = 1, binding = 6) readonly buffer materialBuffer {
-//   uint32_ar albedo_idx[];
-// };
 
 #endif // is glsl
 #endif // input structs
-
-/*
-
-  uint32_t material_idx;
-  uint32_t transform_idx;
-  uint32_t indexCount;
-  uint32_t firstIndex;
-  // uint32_t vertexOffset; // what is this for?
-  VkDeviceAddress positionBDA;
-  VkDeviceAddress vertexBDA;
-  */

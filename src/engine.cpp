@@ -1511,7 +1511,7 @@ void Engine::init_vulkan()
 void Engine::create_instance()
 {
   VkApplicationInfo app{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .pNext = nullptr};
-  app.pEngineName = "aurora";
+  app.pEngineName = "Lucerna";
   app.engineVersion = VK_MAKE_VERSION(0, 0, 1);
   app.apiVersion = VK_API_VERSION_1_3;
 
