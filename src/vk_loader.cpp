@@ -529,9 +529,10 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
 
   std::visit(
     fastgltf::visitor{
-        [](auto &arg) {},
+        [](auto &arg) {
+          AR_CORE_INFO("bruh");
+        },
         [&](fastgltf::sources::URI &filePath) {
-          AR_CORE_ERROR("from filepath! {}", filePath.uri.c_str());
           assert(filePath.fileByteOffset ==
                  0); // We don't support offsets with stbi.
           assert(filePath.uri.isLocalPath()); // We're only capable of loading
@@ -540,10 +541,11 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
           // const std::string path(filePath.uri.path().begin(),
           //                        filePath.uri.path().end()); // Thanks C++.
 
+          // FIXME: handle loading dds or ktx textures here no mips.
 
           const std::string path = fpath.parent_path().append(filePath.uri.string());
 
-          AR_CORE_INFO("final path {}", path);
+          AR_CORE_INFO("final path1 {}", path);
           unsigned char *data =
               stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
           if (data) {
