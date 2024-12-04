@@ -38,14 +38,12 @@ layout (location = 0) out vec4 outFragColor;
 
 void main() 
 {
+  // FIXME: is it correct to multiply by this??
   vec4 albedo = texture(global_textures[albedo_idx], inUV) * vec4(inColor, 1.0) * vec4(mat_tint, 1.0);
-  // vec4 albedo = vec4(0.7, 1.0, 0.25, 1.0);
   
   float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
   
   outFragColor = albedo * lightValue;
-  // outFragColor = vec4(mat_tint, 1.0);
-  // outFragColor = vec4(inNormal, 1.0);
 }
 
 #endif

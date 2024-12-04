@@ -203,19 +203,17 @@ void Engine::init()
     mem
   );
 
+
+  AR_CORE_INFO("[resource] Finished uploading scene buffers to gpu!");
+
   mainDrawContext.bigMeshes.indexBuffer = main.indexBuffer;
   mainDrawContext.bigMeshes.vertexBuffer = main.vertexBuffer;
   mainDrawContext.bigMeshes.positionBuffer = main.positionBuffer;
-
   indirectDrawBuffer = main.indirectCmdBuffer;
-  
   bigTransformBuffer = main.transformBuffer;
   bigMaterialBuffer = main.materialBuffer;
   bigDrawDataBuffer = main.drawDataBuffer;
-
-
   
-  // cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);  
   
   // prepare shadow uniform
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -1151,35 +1149,36 @@ GPUSceneBuffers Engine::upload_scene(
     indexCopy.size = indexBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.indexBuffer.buffer, 1, &indexCopy);
 
-
+                
     VkBufferCopy drawCopy{};
     drawCopy.dstOffset = 0;
     drawCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize;
     drawCopy.size = drawDataBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.drawDataBuffer.buffer, 1, &drawCopy);
-    
-    VkBufferCopy transformCopy{};
-    transformCopy.dstOffset = 0;
-    transformCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize;
-    transformCopy.size = transformBufferSize;
-    vkCmdCopyBuffer(cmd, staging.buffer, scene.transformBuffer.buffer, 1, &transformCopy);
-    
+
     VkBufferCopy materialCopy{};
     materialCopy.dstOffset = 0;
     materialCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize;
     materialCopy.size = materialBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.materialBuffer.buffer, 1, &materialCopy);
 
+    VkBufferCopy transformCopy{};
+    transformCopy.dstOffset = 0;
+    transformCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize;
+    transformCopy.size = transformBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.transformBuffer.buffer, 1, &transformCopy);
+
+
     VkBufferCopy cmdCopy{};
     cmdCopy.dstOffset = 0;
     cmdCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize + materialBufferSize;
     cmdCopy.size = indirectCmdBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.indirectCmdBuffer.buffer, 1, &cmdCopy);
-    
+
+
   });
 
-
-
+  
 
 
   destroy_buffer(staging);

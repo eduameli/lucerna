@@ -58,7 +58,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::filesystem::path current_path = std::filesystem::current_path();
 
   // std::filesystem::current_path(filepath.parent_path());
-  AR_CORE_INFO(filepath.parent_path().c_str());
   
 
   std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
@@ -157,7 +156,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
 
     m.colorTint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
-    AR_CORE_INFO("material tint {}", glm::to_string(m.colorTint));
 
     
     uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
