@@ -5,6 +5,7 @@
 #include "glm/ext/vector_float3.hpp"
 #include "glm/ext/vector_float4.hpp"
 #include "logger.h"
+#include "vk_loader.h"
 #include "window.h"
 #include "vk_initialisers.h"
 #include "vk_images.h"
@@ -16,6 +17,7 @@
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
@@ -159,9 +161,10 @@ void Engine::init()
   auto structureFile = load_gltf(this, structurePath);
   AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
 
-  
   loadedScenes["structure"] = *structureFile;
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
+
+  
   // create material ssbo, drawdata ssbo and transform ssbo
 
   // FIXME: use staging buffer instead...
@@ -554,15 +557,15 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   pcss_settings.lightViewProj = lightProj * lView;
 
   std::vector<uint32_t> shadow_draws;
-  shadow_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
+  // shadow_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
   
-  for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
-  {
-    if (is_visible(mainDrawContext.OpaqueSurfaces[i], lightProj*lView))
-    {
-      shadow_draws.push_back(i);
-    }
-  }
+  // for (uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++)
+  // {
+  //   if (is_visible(mainDrawContext.OpaqueSurfaces[i], lightProj*lView))
+  //   {
+  //     shadow_draws.push_back(i);
+  //   }
+  // }
 
   // NOTE: CMS Settings?? different mat proj or a scale to basic 1 or smth
   
@@ -604,10 +607,10 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   };
   
 
-  for (auto& r : shadow_draws)
-  {
-    draw(mainDrawContext.OpaqueSurfaces[r]);
-  }
+  // for (auto& r : shadow_draws)
+  // {
+  //   draw(mainDrawContext.OpaqueSurfaces[r]);
+  // }
 
   vkCmdEndRendering(cmd);
 }
@@ -744,8 +747,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   
   vkCmdEndRendering(cmd);  
-  // mainDrawContext.OpaqueSurfaces.clear();
-  mainDrawContext.TransparentSurfaces.clear();
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1405,38 +1406,11 @@ void Engine::init_default_data()
   m_ErrorCheckerboardImage = create_image(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
 
-
-  GLTFMetallic_Roughness::MaterialResources materialResources;
-  materialResources.colorImage = m_WhiteImage;
-  materialResources.colorSampler = m_DefaultSamplerLinear;
-  materialResources.metalRoughImage = m_WhiteImage;
-  materialResources.metalRoughSampler = m_DefaultSamplerLinear;
-
-  AllocatedBuffer materialConstants = create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = (GLTFMetallic_Roughness::MaterialConstants*) materialConstants.allocation->GetMappedData();
-  sceneUniformData->colorFactors = glm::vec4{1, 1, 1, 1};
-  sceneUniformData->metal_rough_factors = glm::vec4{1, 0.5, 0, 1};
-  
-  m_DeletionQueue.push_function([=, this]{
-    destroy_buffer(materialConstants);
-  });
-  
-  materialResources.dataBuffer = materialConstants.buffer;
-  materialResources.dataBufferOffset = 0;
-
-  defaultData = metalRoughMaterial.write_material(device, MaterialPass::MainColour, materialResources, globalDescriptorAllocator);
-
-
-
-
   m_DeletionQueue.push_function([&]{
     vkDestroySampler(device, m_DefaultSamplerLinear, nullptr);
     vkDestroySampler(device, m_DefaultSamplerNearest, nullptr);
     vkDestroySampler(device, m_ShadowSampler, nullptr); 
     vkDestroySampler(device, bindless_sampler, nullptr); // not created here? should it be destroyed here?
-    // FIXME: metalRoughnessMaterial.clear_resources() instead!
-    
-    metalRoughMaterial.clear_resources(device);
 
     destroy_image(m_WhiteImage);
     destroy_image(m_GreyImage);
@@ -1876,7 +1850,7 @@ void Engine::update_descriptors()
 void Engine::init_pipelines()
 {
   init_background_pipelines(); // compute backgrounds
-  metalRoughMaterial.build_pipelines(this);
+  // metalRoughMaterial.build_pipelines(this);
 
   init_bindless_pipeline_layout();
   init_depth_prepass_pipeline();

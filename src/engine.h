@@ -42,28 +42,20 @@ namespace Aurora {
   };
 
   struct DrawContext {
-    std::vector<RenderObject> OpaqueSurfaces;
-    std::vector<RenderObject> TransparentSurfaces;
-    std::vector<uint32_t> opaque_draws;
+    // std::vector<RenderObject> OpaqueSurfaces;
+    // std::vector<RenderObject> TransparentSurfaces;
+    // std::vector<uint32_t> opaque_draws;
 
     // NOTE: previous arch was "immediate" now i wanna move to a draw_set and update changes to support loading and unlaoding meshes
     // FIXME: loading big scenes could break here... hardcoded limit.. :sob: maybe if limit is exceeded i need to do sm
     std::vector<glm::mat4x3> transforms;
     std::vector<BindlessMaterial> materials;
-    std::vector<DrawData> draw_datas;
-    
+    std::vector<DrawData> draw_datas; // seperate into different draw_sets? (opaque, transparent, alpha cutoff, shadows?)
     std::vector<uint32_t> indices;
     std::vector<glm::vec3> positions;
     std::vector<Vertex> vertices;
 
     GPUMeshBuffers bigMeshes;
-    
-    uint32_t idx_count;
-
-    
-    // free_list freeTransforms{};
-    // free_list freeMaterials{};
-    // free_list freeDrawData{};
   };
   
 
@@ -177,7 +169,7 @@ namespace Aurora {
       VkDescriptorSetLayout m_SingleImageDescriptorLayout;
 
       MaterialInstance defaultData;
-      GLTFMetallic_Roughness metalRoughMaterial;
+      // GLTFMetallic_Roughness metalRoughMaterial;
       
       // NOTE move to pcss_settings & add hard shadow setting
       glm::mat4 lView{ 1.0f };

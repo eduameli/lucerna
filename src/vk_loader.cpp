@@ -54,12 +54,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 {
   AR_CORE_INFO("Loading GLTF at {}", filepath.c_str());
 
-
-  std::filesystem::path current_path = std::filesystem::current_path();
-
-  // std::filesystem::current_path(filepath.parent_path());
-  
-
   std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
   scene->creator = engine;
   LoadedGLTF& file = *scene.get();
@@ -122,7 +116,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     {
       images.push_back(*img);
       file.images[image.name.c_str()] = *img;
-      
     }
     else
     {
@@ -130,18 +123,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       AR_CORE_WARN("Failed to load a texture from GLTF, (using placeholder)");
     }
   }
-  
-  file.materialDataBuffer = engine->create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * asset.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  int data_index = 0;
-  GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = (GLTFMetallic_Roughness::MaterialConstants*) file.materialDataBuffer.info.pMappedData;
 
   std::vector<uint32_t> mat_idxs;
   
   for (fastgltf::Material& mat : asset.materials)
   {
-    //bindless material start
     BindlessMaterial m;
-    // AR_CORE_WARN("material...");
     if (mat.pbrData.baseColorTexture.has_value())
     {
       
@@ -150,76 +137,18 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
       AllocatedImage i  = images[img];
       VkSampler s = file.samplers[sampler];
-
-
       m.albedo_idx = i.sampler_idx;
+
+      
+      engine->combined_sampler[i.sampler_idx] = s;
     }
-
     m.colorTint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
-
-    
     // uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
     mat_idxs.push_back(engine->mainDrawContext.materials.size());
     engine->mainDrawContext.materials.push_back(m);
-
-    // bindless material end
-
-    
-    std::shared_ptr<GLTFMaterial> newMat = std::make_shared<GLTFMaterial>();
-    materials.push_back(newMat);
-    file.materials[mat.name.c_str()] = newMat;
-    
-    GLTFMetallic_Roughness::MaterialConstants constants;
-    constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
-    constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
-    constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
-    constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
-    
-
-    constants.metal_rough_factors.x = mat.pbrData.metallicFactor * 10.0f;
-    constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
-
-    sceneMaterialConstants[data_index] = constants;
-
-    MaterialPass passType = MaterialPass::MainColour;
-    if (mat.alphaMode == fastgltf::AlphaMode::Blend)
-    {
-      passType = MaterialPass::Transparent;
-    }
-
-    GLTFMetallic_Roughness::MaterialResources materialResources;
-    materialResources.colorImage = engine->m_WhiteImage;
-    materialResources.colorSampler = engine->m_DefaultSamplerLinear;
-    materialResources.metalRoughImage = engine->m_WhiteImage;
-    materialResources.metalRoughSampler = engine->m_DefaultSamplerLinear;
-
-    materialResources.dataBuffer = file.materialDataBuffer.buffer;
-    materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
-
-    if (mat.pbrData.baseColorTexture.has_value())
-    {
-      size_t img = asset.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
-      size_t sampler = asset.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
-
-      materialResources.colorImage = images[img];
-      materialResources.colorSampler = file.samplers[sampler];
-    }
-
-    newMat->data = engine->metalRoughMaterial.write_material(engine->device, passType, materialResources, file.descriptorPool);
-
-    
-    newMat->data.albedo_idx = materialResources.colorImage.sampler_idx;
-    engine->combined_sampler[materialResources.colorImage.sampler_idx] = materialResources.colorSampler;
-    // queue_descriptor_update(descriptor_write, optional sampler)
-    // at the end of the frame call updates
-    
-    data_index++;
   }
 
 
-  // update descriptor set here .. with the sampler!
-  // for images do it 
-  
   
   std::vector<uint32_t> indices;
   std::vector<Vertex> vertices;
@@ -234,24 +163,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     file.meshes[mesh.name.c_str()] = newmesh;
     newmesh->name = mesh.name;
     
-    // indices.clear();
-    // vertices.clear();
-    // positions.clear();
-
-    // AR_CORE_WARN("NEW MESH");
-
-    uint32_t initals_idx = 0;
-    
     for (auto&& p : mesh.primitives)
     {
-      // AR_CORE_ERROR("new surface!");
-      
       GeoSurface newSurface{};
       newSurface.startIndex = static_cast<uint32_t>(indices.size());
       newSurface.count = static_cast<uint32_t>(asset.accessors[p.indicesAccessor.value()].count);
 
       size_t initial_vtx = vertices.size();
-      // AR_CORE_WARN("inital vtx {}", initial_vtx);
       
       {
         fastgltf::Accessor& indexaccessor = asset.accessors[p.indicesAccessor.value()];
@@ -260,7 +178,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
         fastgltf::iterateAccessor<std::uint32_t>(asset, indexaccessor,
           [&](std::uint32_t idx) {
               indices.push_back(idx + initial_vtx);
-              // AR_CORE_INFO("push idx {}", idx + initial_vtx);
           });
       }
 
@@ -338,29 +255,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
       
     }
-
-
-
-
-    // for (auto i : indices)
-    // {
-    //   engine->mainDrawContext.indices.push_back(i + initals_idx);
-    //   // AR_CORE_INFO("idx {}", i);
-    // }
-    // initals_idx = engine->mainDrawContext.indices.size();
-
-    // for (auto v : vertices)
-    // {
-    //   engine->mainDrawContext.vertices.push_back(v);
-    // }
-
-    // for(auto p : positions)
-    // {
-    //   engine->mainDrawContext.positions.push_back(p);
-    // }
-
-    // per primitive
-    // newmesh->meshBuffers = engine->upload_mesh(positions, vertices, indices);
   }
 
 
@@ -445,13 +339,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
   }
 
-
-  std::filesystem::current_path(current_path);
   return scene;
 }
-
-// if it already exist dont add to material buffer just return the same idx
-
 
 VkFilter extract_filter(fastgltf::Filter filter)
 {
@@ -631,168 +520,20 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
   }
 }
 
-
-void GLTFMetallic_Roughness::build_pipelines(Engine* engine)
-{
-  VkDevice device = engine->device;
-
-  VkShaderModule meshFragShader;
-  AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/meshes/std_material.frag.spv", device, &meshFragShader),
-    "Error when building the triangle fragment shader module"
-  );
-
-  VkShaderModule meshVertShader;
-  AR_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/meshes/std_material.vert.spv", device, &meshVertShader),
-    "Error when building the triangle vertex shader module"
-  );
-
-  VkPushConstantRange matrixRange{};
-  matrixRange.offset = 0;
-  matrixRange.size = sizeof(std_material_pcs);
-  matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  
-  DescriptorLayoutBuilder layoutBuilder;
-  layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-  materialLayout = layoutBuilder.build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
- 
-  VkDescriptorSetLayout layouts[] = {
-    engine->m_SceneDescriptorLayout,
-    materialLayout,
-  };
-
-  VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
-  mesh_layout_info.setLayoutCount = 2;
-  mesh_layout_info.pSetLayouts = layouts;
-  mesh_layout_info.pPushConstantRanges = &matrixRange;
-  mesh_layout_info.pushConstantRangeCount = 1;
-
-  VkPipelineLayout newLayout;
-  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &mesh_layout_info, nullptr, &newLayout));
-
-  opaquePipeline.layout = newLayout;
-  transparentPipeline.layout = newLayout;
-
-  PipelineBuilder pipelineBuilder;
-  pipelineBuilder.set_shaders(meshVertShader, meshFragShader);
-  pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-  pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE); // NOTE: backface culling?
-  //pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-  pipelineBuilder.set_multisampling_none();
-  pipelineBuilder.disable_blending();
-  pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_EQUAL); // NOTE: bigger?
-  
-
-  pipelineBuilder.set_color_attachment_format(engine->m_DrawImage.imageFormat);
-  pipelineBuilder.set_depth_format(engine->m_DepthImage.imageFormat);
-
-  pipelineBuilder.PipelineLayout = newLayout;
-
-  opaquePipeline.pipeline = pipelineBuilder.build_pipeline(device);
-
-  pipelineBuilder.enable_blending_additive();
-  pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-  transparentPipeline.pipeline = pipelineBuilder.build_pipeline(device);
-
-  vkDestroyShaderModule(device, meshFragShader, nullptr);
-  vkDestroyShaderModule(device, meshVertShader, nullptr);
-}
-
-void GLTFMetallic_Roughness::clear_resources(VkDevice device)
-{
-  vkDestroyPipeline(device, transparentPipeline.pipeline, nullptr);
-  vkDestroyPipeline(device, opaquePipeline.pipeline, nullptr);
-
-  vkDestroyPipelineLayout(device, opaquePipeline.layout, nullptr);
-  if (opaquePipeline.layout != transparentPipeline.layout) 
-  {
-    vkDestroyPipelineLayout(device, transparentPipeline.layout, nullptr);
-  }
-
-  vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
-}
-
-MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
-{
-  MaterialInstance matData;
-  matData.passType = pass;
-  if (pass == MaterialPass::Transparent)
-  {
-    matData.pipeline = &transparentPipeline;
-  }
-  else
-  {
-    matData.pipeline = &opaquePipeline;
-  }
-
-  matData.materialSet = descriptorAllocator.allocate(device, materialLayout);
-
-  writer.clear();
-  writer.write_buffer(0, resources.dataBuffer, sizeof(MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  writer.update_set(device, matData.materialSet);
-  return matData;
-}
-
 void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
   glm::mat4 nodeMatrix = topMatrix * worldTransform;
-
-  // AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4(nodeMatrix)));
   int mesh_idx = ctx.transforms.size();
   ctx.transforms.push_back(glm::mat4x3(nodeMatrix));
-  
 
-  // this will basically go into DrawData buffer or Indirect Draw cmd buffer
   for (auto& s : mesh->surfaces)
   {
-    // RenderObject def;
-    // def.indexCount = s.count;
-    // def.firstIndex = s.startIndex;
-    // // def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
-    // // def.material = &s.material->data;
-    // def.bounds = s.bounds;
-    // def.transform = nodeMatrix;
-    // // def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
-    // // def.positionBufferAddress = mesh->meshBuffers.positionBufferAddress;
-    // // def.albedo_idx = 10000;
-    // def.transform_idx = mesh_idx;
-    // def.material_idx = s.mat_idx;
-    // need to have indices here or in ssbo for indirect - but can figure that out later...
-    
-    // still need this to place it into the correct draw_set bucket
-    // if (s.material->data.passType == MaterialPass::Transparent)
-    // {
-    //   ctx.TransparentSurfaces.push_back(def);
-    // }
-    // else
-    // {
-    //   ctx.OpaqueSurfaces.push_back(def);
-    // }
-    // ctx.OpaqueSurfaces.push_back(def);
-
-    // AR_CORE_INFO(mesh_idx);
-
-    // uint32_t draw_idx = ctx.freeDrawData.allocate();
     ctx.draw_datas.push_back({
       .material_idx = s.mat_idx,
       .transform_idx = (uint32_t) mesh_idx,
       .indexCount = s.count,
       .firstIndex = s.startIndex,
-      // .positionBDA = mesh->meshBuffers.positionBufferAddress,
-      // .vertexBDA = mesh->meshBuffers.vertexBufferAddress,
     });
-
-    // AR_CORE_INFO("first index {}", s.startIndex);
-
-    
   }
 
   Node::queue_draw(topMatrix, ctx);
