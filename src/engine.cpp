@@ -649,7 +649,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 1, 1, &bindless_descriptor_set, 0, nullptr); 
 
   vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.freeDrawData.size, sizeof(VkDrawIndexedIndirectCommand));
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
   vkCmdEndRendering(cmd);
 }
 
@@ -736,7 +736,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // AR_CORE_INFO("indeces {}", mainDrawContext.indices.size());
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.freeDrawData.size, sizeof(VkDrawIndexedIndirectCommand));
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
 
   // AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
 

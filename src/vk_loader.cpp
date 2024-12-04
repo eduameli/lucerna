@@ -158,9 +158,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     m.colorTint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
 
     
-    uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
-    mat_idxs.push_back(mat_idx);
-    engine->mainDrawContext.materials[mat_idx] = m;
+    // uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
+    mat_idxs.push_back(engine->mainDrawContext.materials.size());
+    engine->mainDrawContext.materials.push_back(m);
 
     // bindless material end
 
@@ -744,8 +744,8 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
   glm::mat4 nodeMatrix = topMatrix * worldTransform;
 
   // AR_CORE_INFO("transform: {}", glm::to_string(glm::mat4(nodeMatrix)));
-  int mesh_idx = ctx.freeTransforms.allocate();
-  ctx.transforms[mesh_idx] = glm::mat4x3(nodeMatrix);
+  int mesh_idx = ctx.transforms.size();
+  ctx.transforms.push_back(glm::mat4x3(nodeMatrix));
   
 
   // this will basically go into DrawData buffer or Indirect Draw cmd buffer
@@ -778,15 +778,15 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
     // AR_CORE_INFO(mesh_idx);
 
-    uint32_t draw_idx = ctx.freeDrawData.allocate();
-    ctx.draw_datas[draw_idx] = {
+    // uint32_t draw_idx = ctx.freeDrawData.allocate();
+    ctx.draw_datas.push_back({
       .material_idx = s.mat_idx,
       .transform_idx = (uint32_t) mesh_idx,
       .indexCount = s.count,
       .firstIndex = s.startIndex,
       // .positionBDA = mesh->meshBuffers.positionBufferAddress,
       // .vertexBDA = mesh->meshBuffers.vertexBufferAddress,
-    };
+    });
 
     // AR_CORE_INFO("first index {}", s.startIndex);
 

@@ -1,6 +1,6 @@
 [startup]
 # scene_path = "assets/sponza_tg.glb"
-# scene_path = "assets/structure.glb"
+scene_path = "assets/structure.glb"
 # scene_path = "assets/test_cubes.glb"
 
 
@@ -9,7 +9,7 @@
 # scene_path = "assets/deccer-cubes/SM_Deccer_Cubes.gltf"
 # scene_path = "assets/deccer-cubes/SM_Deccer_Cubes_Textured.gltf"
 # scene_path = "assets/deccer-cubes/SM_Deccer_Cubes_With_Rotation.gltf"
-scene_path = "assets/deccer-cubes/SM_Deccer_Cubes_Textured_Complex.gltf"
+# scene_path = "assets/deccer-cubes/SM_Deccer_Cubes_Textured_Complex.gltf"
 # scene_path = "assets/deccer-cubes/SM_Deccer_Cubes_Textured_Embedded.gltf"
 # scene_path = "assets/deccer-cubes/SM_Deccer_Cubes_Merged_Texture_Atlas.gltf"
 # scene_path = "assets/deccer-cubes/SM_Deccer_Cubes.glb"
