@@ -137,6 +137,8 @@ void main()
     
     albedo_idx = materials.m[dd.material_idx].albedo;
     mat_tint = materials.m[dd.material_idx].tint;
+
+    
     // outlightSpace = shadowSettings.lightViewProj * (pcs.modelMatrix * position);
     // emission = pcs.emission;
 }

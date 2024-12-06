@@ -39,7 +39,7 @@
 
 namespace Aurora {
 
-AutoCVar_Int shadowEnabled("shadow_mapping.enabled", "is shadow mapping enabled", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int shadowEnabled("shadow_mapping.enabled", "is shadow mapping enabled", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int shadowViewFromLight("shadow_mapping.view_from_light", "view scene from view of directional light shadow caster", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int shadowRotateLight("shadow_mapping.rotate_light", "rotate light around origin showcasing real time shadows", 0, CVarFlags::EditCheckbox);
 AutoCVar_Float shadowSoftness("shadow_mapping.softness", "radius of pcf sampling", 0.0025, CVarFlags::None);
@@ -54,6 +54,10 @@ AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
 AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
 AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.5, CVarFlags::None);
 AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
+
+
+AutoCVar_Int depthprepassReturn("zprepass.return", "", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int geometryReturn("geometry.return", "", 1, CVarFlags::EditCheckbox);
 
 void FrameGraph::add_sample(float sample)
 {
@@ -605,6 +609,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
 void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 {
+  
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
   vkCmdBeginRendering(cmd, &depthPrepassInfo);
@@ -640,7 +645,11 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 1, 1, &bindless_descriptor_set, 0, nullptr); 
 
   vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
+
+  if (depthprepassReturn.get() == false)
+    vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
+
+  
   vkCmdEndRendering(cmd);
 }
 
@@ -727,7 +736,9 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // AR_CORE_INFO("indeces {}", mainDrawContext.indices.size());
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
+
+  if (geometryReturn.get() == false)
+    vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
 
   // AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
 
@@ -929,8 +940,16 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
   FrameGraph::render_graph();
 
-
-
+  // graphics programming stats menu
+  ImGui::Begin("better stats");
+    float framesPerSecond = 1.0f / (stats.frametime * 0.001f);
+    ImGui::Text("afps: %.0f rad/s", glm::two_pi<float>() * framesPerSecond);
+    ImGui::Text("dfps: %.0f °/s", glm::degrees(glm::two_pi<float>() * framesPerSecond));
+    ImGui::Text("rfps: %.0f", framesPerSecond);
+    ImGui::Text("rpms: %.0f", framesPerSecond * 60.0f);
+    ImGui::Text("  ft: %.2f ms", stats.frametime);
+    ImGui::Text("   f: %lu", frameNumber);
+  ImGui::End();
    
   ImGui::End();
 
@@ -1092,6 +1111,15 @@ GPUSceneBuffers Engine::upload_scene(
   );
 
 
+  vklog::label_buffer(device, scene.vertexBuffer.buffer, "big vertex buffer");
+  vklog::label_buffer(device, scene.positionBuffer.buffer, "big position buffer");
+  vklog::label_buffer(device, scene.indexBuffer.buffer, "big index buffer");
+  vklog::label_buffer(device, scene.drawDataBuffer.buffer, "big draw data buffer");
+  vklog::label_buffer(device, scene.transformBuffer.buffer, "big transform buffer");
+  vklog::label_buffer(device, scene.materialBuffer.buffer, "big material buffer");
+  vklog::label_buffer(device, scene.indirectCmdBuffer.buffer, "big indirect cmd buffer");
+
+
 
   AllocatedBuffer staging = create_buffer(
     vertexBufferSize +
@@ -1164,7 +1192,7 @@ GPUSceneBuffers Engine::upload_scene(
     cmdCopy.size = indirectCmdBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.indirectCmdBuffer.buffer, 1, &cmdCopy);
 
-
+    AR_CORE_INFO("size a {}, size b {}", transformCopy.size, cmdCopy.size);
   });
 
   
@@ -1536,7 +1564,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
     .build();
 
   device = m_Device.logical;
@@ -1864,8 +1892,8 @@ void Engine::init_pipelines()
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   b.set_multisampling_none();
   b.disable_blending();
-  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
-  
+  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  b.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
   
   b.PipelineLayout = bindless_pipeline_layout;
   std_pipeline = b.build_pipeline(device);
