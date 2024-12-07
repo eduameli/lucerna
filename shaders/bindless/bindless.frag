@@ -11,7 +11,7 @@ layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
   ShadowFragmentSettings shadowSettings;
 };
 layout(set = 0, binding = 1) uniform sampler2D shadowDepth;
-
+layout(set = 0, binding = 3) uniform sampler2D ssaoAmbient;
 
 layout(set = 1, binding = 0) uniform sampler2D global_textures[];
 layout(set = 1, binding = 1, rgba16f) uniform image2D global_images[];
@@ -118,7 +118,9 @@ void main()
   vec4 color = albedo * lightValue;
   color += vec4(mat.emissions * mat.strength, 1.0f);
   
-  outColour = color;   
+  float ssao = texture(ssaoAmbient, gl_FragCoord.xy / vec2(1280, 800)).r;
+    
+  outColour = color * ssao;   
 }
 
 #endif
