@@ -26,7 +26,6 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   features.f12.scalarBlockLayout = VK_TRUE;
   features.f13.dynamicRendering = VK_TRUE;
   features.f13.synchronization2 = VK_TRUE;
-  
 
   // out of date
   AR_CORE_WARN("Required Features: ");

@@ -14,6 +14,11 @@ layout(set = 0, binding = 6, scalar) readonly buffer materialBuffer { BindlessMa
 layout(set = 0, binding = 7, scalar) readonly buffer positionBuffer { vec3_ar positions[]; };
 layout(set = 0, binding = 8, scalar) readonly buffer vertexBuffer { Vertex vertices[]; };
 
+layout (location = 0) out vec3 outNormal;
+layout (location = 1) out vec3 outColor;
+layout (location = 2) out vec2 outUV;
+layout(location = 3) out flat uint material_idx;
+
 vec3 decode_normal(vec2 f)
 {
 	f = f * 2.0 - 1.0;
@@ -23,12 +28,6 @@ vec3 decode_normal(vec2 f)
 	n.y += n.y >= 0.0 ? -t : t;
 	return normalize(n);
 }
-
-
-layout (location = 0) out vec3 outNormal;
-layout (location = 1) out vec3 outColor;
-layout (location = 2) out vec2 outUV;
-layout(location = 3) out flat uint material_idx;
 
 
 void main() 

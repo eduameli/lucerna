@@ -90,7 +90,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     sampl.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
 
     sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
-    
     VkSampler newSampler;
     vkCreateSampler(engine->device, &sampl, nullptr, &newSampler);
     file.samplers.push_back(newSampler);
