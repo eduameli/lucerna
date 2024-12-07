@@ -11,6 +11,7 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   features.f1.wideLines = VK_TRUE;
   features.f1.fillModeNonSolid = VK_TRUE;
   features.f1.multiDrawIndirect = VK_TRUE;
+  features.f1.drawIndirectFirstInstance = VK_TRUE;
   
   features.f11.shaderDrawParameters = VK_TRUE;
   
@@ -18,6 +19,7 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   features.f12.descriptorBindingPartiallyBound = VK_TRUE;
   features.f12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
   features.f12.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+  features.f12.drawIndirectCount = VK_TRUE;
   
   features.f12.runtimeDescriptorArray = VK_TRUE;
   features.f12.bufferDeviceAddress = VK_TRUE;
@@ -26,6 +28,7 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   features.f13.synchronization2 = VK_TRUE;
   
 
+  // out of date
   AR_CORE_WARN("Required Features: ");
   AR_CORE_WARN("\twideLines");
   AR_CORE_WARN("\tmultiDrawIndirect");
@@ -51,6 +54,7 @@ bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
     query.features.features.fillModeNonSolid &&
     query.features.features.wideLines &&
     query.features.features.multiDrawIndirect &&
+    query.features.features.drawIndirectFirstInstance &&
     query.f11.shaderDrawParameters &&
     query.f12.descriptorIndexing &&
     query.f12.descriptorBindingPartiallyBound &&
@@ -59,6 +63,7 @@ bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
     query.f12.runtimeDescriptorArray &&
     query.f12.bufferDeviceAddress &&
     query.f12.scalarBlockLayout &&
+    query.f12.drawIndirectCount &&
     query.f13.dynamicRendering &&
     query.f13.synchronization2;
 }

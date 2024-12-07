@@ -82,7 +82,7 @@ layout(set = 0, binding = 4) readonly buffer vertexBuffer {
 
 void main() 
 {
-    DrawData dd = draws.yes[gl_DrawIDARB];
+    DrawData dd = draws.yes[gl_BaseInstance];
     TransformData td = transforms.v[dd.transform_idx];
 
 	vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);

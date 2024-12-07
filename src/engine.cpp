@@ -55,10 +55,6 @@ AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCh
 AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.5, CVarFlags::None);
 AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
 
-
-AutoCVar_Int depthprepassReturn("zprepass.return", "", 1, CVarFlags::EditCheckbox);
-AutoCVar_Int geometryReturn("geometry.return", "", 1, CVarFlags::EditCheckbox);
-
 void FrameGraph::add_sample(float sample)
 {
   frametimes.push_back(sample);
@@ -171,17 +167,18 @@ void Engine::init()
   AR_CORE_INFO("positions {} vertices {} indices {}", mainDrawContext.positions.size(), mainDrawContext.vertices.size(), mainDrawContext.indices.size());
 
 
-  
-  std::vector<VkDrawIndexedIndirectCommand> mem;
+  uint32_t idx = 0;
+  // std::vector<VkDrawIndexedIndirectCommand> mem;
   for (auto& dd : mainDrawContext.draw_datas)
   {
     VkDrawIndexedIndirectCommand c{};
     c.indexCount = dd.indexCount;
     c.firstIndex = dd.firstIndex;
-    c.firstInstance = 0;
+    c.firstInstance = idx;
     c.instanceCount = 1;
     c.vertexOffset = 0;
-    mem.push_back(c);
+    mainDrawContext.mem.push_back(c);
+    idx++;
   }
   // memcpy(data4, mem.data(), mem.size() * sizeof(VkDrawIndexedIndirectCommand));
   // vklog::label_buffer(device,indirectDrawBuffer.buffer, "big indirect draw cmd buffer");
@@ -195,7 +192,7 @@ void Engine::init()
     mainDrawContext.transforms,
     mainDrawContext.draw_datas,
     mainDrawContext.materials,
-    mem
+    mainDrawContext.mem
   );
 
 
@@ -646,8 +643,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 
   vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-  if (depthprepassReturn.get() == false)
-    vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
 
   
   vkCmdEndRendering(cmd);
@@ -737,8 +733,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
 
-  if (geometryReturn.get() == false)
-    vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.mem.size(), sizeof(mainDrawContext.mem[0]));
 
   // AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
 
@@ -1892,8 +1887,8 @@ void Engine::init_pipelines()
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   b.set_multisampling_none();
   b.disable_blending();
-  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
-  b.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  
   
   b.PipelineLayout = bindless_pipeline_layout;
   std_pipeline = b.build_pipeline(device);

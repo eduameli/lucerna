@@ -19,7 +19,7 @@ struct GPUSceneData
 
 
 
-layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
+layout(set = 0, binding = 0, scalar) uniform GPUSceneDataBlock {
   GPUSceneData sceneData;
 }; 
 
@@ -28,7 +28,7 @@ layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
 #ifndef __cplusplus
 
 #extension GL_EXT_buffer_reference : require
-#extension GL_ARB_shader_draw_parameters: require
+// #extension GL_ARB_shader_draw_parameters: require
 #extension GL_EXT_debug_printf : enable
 
 
@@ -53,7 +53,7 @@ struct DrawData
 //   vec4_ar mat[3];    
 // };
 
-layout(set = 0, binding = 4) readonly buffer drawDataBuffer {
+layout(set = 0, binding = 4, scalar) readonly buffer drawDataBuffer {
   DrawData yes[];
 } draws;
 
@@ -61,11 +61,11 @@ layout(set = 0, binding = 4) readonly buffer drawDataBuffer {
 
 struct TransformData
 {
-  vec4_ar mat[3];  
+  mat4x3 m;  
 };
 
-layout(set = 0, binding = 5) readonly buffer transformBuffer {
-  TransformData v[];
+layout(set = 0, binding = 5, scalar) readonly buffer transformBuffer {
+  mat4x3 v[];
 } transforms;
 
 
@@ -87,7 +87,7 @@ layout(set = 0, binding = 7, scalar) readonly buffer positionBuffer {
 } posit;
 
 
-layout(set = 0, binding = 8) readonly buffer vertexBuffer {
+layout(set = 0, binding = 8, scalar) readonly buffer vertexBuffer {
   Vertex value[];
 } verts;
 
@@ -100,6 +100,34 @@ vec3 decode_normal(vec2 f)
 	n.y += n.y >= 0.0 ? -t : t;
 	return normalize(n);
 }
+
+DrawData dds[] = {
+  {0, 0, 36, 0},
+  {1, 1, 36, 36},
+  {2, 2, 36, 72},
+  {1, 3, 36, 108}
+    // {4, 0, 36, 504},
+  // {0, 1, 36, 0},
+  // {1, 2, 36, 36},
+  // {2, 3, 36, 72}, 
+  // {3, 4, 36, 108}, 
+  // {1, 5, 36, 144}, 
+  // {1, 6, 36, 180}, 
+  // {1, 7, 36, 216}, 
+  // {1, 8, 36, 252}, 
+  // {1, 9, 36, 288}, 
+  // {1, 10, 26, 324}, 
+  // {2, 11, 26, 360}, 
+  // {2, 12, 36, 396}, 
+  // {2, 13, 36, 432}, 
+  // {2, 14, 36, 468}, 
+  // {4, 15, 36, 540}, 
+  // {4, 16, 36, 576}, 
+  // {4, 17, 36, 612}, 
+  // {4, 18, 36, 648}
+};
+
+
 
 void main() 
 {
@@ -114,20 +142,47 @@ void main()
 
  //    gl_Position = sceneData.viewproj * vec4(positionWorld, 1.0f);
 
+  // gl_Position = sceneData
+  
+   DrawData dd = draws.yes[gl_BaseInstance];
+  // DrawData dd = dds[];
+ // return;
 
+ 
+    // TransformData td = transforms.v[dd.transform_idx];
 
- DrawData dd = draws.yes[gl_DrawIDARB];
-    TransformData td = transforms.v[dd.transform_idx];
+  // debugPrintfEXT("drawid %i", gl_DrawIDARB);
+
+  // return;
+    
 	vec4 positionLocal = vec4(posit.a[gl_VertexIndex], 1.0);
-	vec3 positionWorld = mat4x3(td.mat[0], td.mat[1], td.mat[2]) * positionLocal;
 
+
+    // debugPrintfEXT("pos %f %f %f", positionLocal.x, positionLocal.y, positionLocal.z);
+    // debugPrintfEXT("%i ", dd.transform_idx);
+    // return;
+	// FIXME: problem lies in transform buffer??
+
+	vec3 positionWorld = transforms.v[dd.transform_idx] * positionLocal;
+
+
+    // debugPrintfEXT("%f %f %f", positionWorld.x, positionWorld.y, positionWorld.z);
+    // gl_Position = sceneData.viewproj * vec4(positionWorld, 1.0f);
+    // gl_Position = vec4(positionWorld, 1.0f);
+
+    // vec4 v4 = sceneData.viewproj * vec4(positionWorld, 1.0f);
+     // debugPrintfEXT("%f %f %f %f", v4.x, v4.y, v4.z, v4.w);
+    // gl_Position = vec4(1.0f);    
+    // gl_Position = vec4(v4.x, v4.y, v4.z,v4.w);
     gl_Position = sceneData.viewproj * vec4(positionWorld, 1.0f);
+    // return;
 
+    
     Vertex v = verts.value[gl_VertexIndex];
     vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
 
-    outNormal = normalize((mat4x3(td.mat[0], td.mat[1], td.mat[2]) * vec4(normal_unpacked, 0.0)));
-    // outNormal = normal_unpacked;
+    outNormal = normalize(transforms.v[dd.transform_idx] * vec4(normal_unpacked, 0.0));
+    outNormal = normal_unpacked;
     outColor = v.color.xyz;
 
     

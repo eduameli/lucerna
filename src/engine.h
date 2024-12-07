@@ -48,6 +48,7 @@ namespace Aurora {
     std::vector<uint32_t> indices;
     std::vector<glm::vec3> positions;
     std::vector<Vertex> vertices;
+    std::vector<VkDrawIndexedIndirectCommand> mem;
 
     GPUMeshBuffers bigMeshes;
   };
@@ -258,6 +259,7 @@ namespace Aurora {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+        VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,
       };
       std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",
