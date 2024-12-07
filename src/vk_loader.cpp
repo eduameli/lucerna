@@ -135,6 +135,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       engine->combined_sampler[i.sampler_idx] = s;
     }
     m.tint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
+
+    m.emissions = {glm::vec3(mat.emissiveFactor.x(), mat.emissiveFactor.y(), mat.emissiveFactor.z())};
+    m.strength = 50.0f;
+    // mat.emissiveStrength
+
+    
     // uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
     mat_idxs.push_back(engine->mainDrawContext.materials.size());
     engine->mainDrawContext.materials.push_back(m);

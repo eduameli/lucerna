@@ -25,8 +25,20 @@ void main()
   vec4 albedo = texture(global_textures[mat.albedo], inUV) * vec4(inColor, 1.0) * vec4(mat.tint, 1.0);
   
   float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
+
+  vec4 color = albedo * lightValue;
+
+  color += vec4(mat.emissions * mat.strength, 1.0f);
   
-  outFragColor = albedo * lightValue;
+
+  // if (mat.emission_strength > 0.01)
+  // {
+  //     outFragColor = vec4(mat.emissions * 50.0f, 1.0f);
+  // }
+  // else
+  // {
+    outFragColor = color;   
+  // }
 }
 
 #endif
