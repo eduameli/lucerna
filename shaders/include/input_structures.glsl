@@ -42,9 +42,30 @@ struct bloom_pcs
   uint32_ar mipLevel;
 };
 
-#ifndef __cplusplus
-// ONLY GLSL DOWN HERE
 
+
+struct BindlessMaterial
+{
+  vec3_ar tint;
+  uint32_ar albedo;  
+};
+
+
+struct DrawData
+{
+
+  uint32_ar material_idx;
+  uint32_ar transform_idx;
+  uint32_ar indexCount;
+  uint32_ar firstIndex;
+};
+
+
+#ifndef __cplusplus
+
+
+
+// bda glsl types
 layout(scalar, buffer_reference) readonly buffer VertexBuffer{ 
 	Vertex vertices[];
 };
@@ -59,26 +80,13 @@ layout(scalar, buffer_reference) readonly buffer TransformBuffer{
 	mat4 transforms[];
 };
 
-layout(set = 0, binding = 0) uniform GPUSceneDataBlock {
-  GPUSceneData sceneData;
-}; 
 
-layout(set = 0, binding = 1) uniform sampler2D shadowDepth;
-layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
-  ShadowFragmentSettings shadowSettings;
-};
+// layout(set = 0, binding = 1) uniform sampler2D shadowDepth;
+// layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
+//   ShadowFragmentSettings shadowSettings;
+// };
 
-layout(set = 0, binding = 3) uniform sampler2D ssaoAmbient;
-
-
-// MATERIAL SHADING -- all of this replaced by ssbo indirect draw
-layout(set = 1, binding = 0) uniform GLTFMaterialData{   
-
-	vec4 colorFactors;
-	vec4 metal_rough_factors;
-	
-} materialData;
-
+// layout(set = 0, binding = 3) uniform sampler2D ssaoAmbient;
 
 
 #endif // is glsl

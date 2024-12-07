@@ -1,10 +1,10 @@
 [startup]
-# scene_path = "assets/sponza_tg.glb"
+scene_path = "assets/sponza_tg.glb"
 # scene_path = "assets/structure.glb"
 # scene_path = "assets/test_cubes.glb"
 # scene_path = "assets/more_cubes.glb"
-scene_path = "assets/bistro_gltf/exterior.gltf"
-scene_path = "assets/sponza_1mat.glb"
+# scene_path = "assets/bistro_gltf/exterior.gltf"
+# scene_path = "assets/sponza_1mat.glb"
 
 # **deccer cubes cementery**
 # scene_path = "assets/deccer-cubes/SM_Deccer_Cubes.gltf"

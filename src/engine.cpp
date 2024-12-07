@@ -630,11 +630,11 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   VkDescriptorSet depth = get_current_frame().frameDescriptors.allocate(device, zpassDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
-  writer.write_buffer(1, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(2, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(3, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(4, mainDrawContext.bigMeshes.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(5, bigMaterialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(2, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(4, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(1, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(5, mainDrawContext.bigMeshes.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(3, bigMaterialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.update_set(device, depth);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_DepthPrepassPipeline);
@@ -1559,7 +1559,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
     .build();
 
   device = m_Device.logical;
@@ -1578,7 +1578,7 @@ void Engine::init_swapchain()
   m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR)
     .build();
     
   AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
@@ -2040,10 +2040,6 @@ layoutBuilder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     zpassDescriptorLayout = layoutBuilder.build(device, VK_SHADER_STAGE_VERTEX_BIT);
   }
  
-  VkPushConstantRange range{};
-  range.offset = 0;
-  range.size = sizeof(depth_only_pcs);
-  range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 
   std::array<VkDescriptorSetLayout, 2> layouts = {zpassDescriptorLayout, bindless_descriptor_layout};
@@ -2051,8 +2047,6 @@ layoutBuilder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   VkPipelineLayoutCreateInfo layout = vkinit::pipeline_layout_create_info();
   layout.setLayoutCount = layouts.size();
   layout.pSetLayouts = layouts.data();
-  layout.pPushConstantRanges = &range;
-  layout.pushConstantRangeCount = 1;
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &layout, nullptr, &zpassLayout));
 
   PipelineBuilder builder;

@@ -145,8 +145,8 @@ namespace Aurora
 #include "debug_line/debug_line.vert"
 #include "ssao/ssao.comp"
 #include "ssao/bilateral_filter.comp"
-#include "bindless/bindless.vert"
-#include "bindless/bindless.frag"
+// #include "bindless/bindless.vert"
+// #include "bindless/bindless.frag"
 
 struct free_list
 {
@@ -177,19 +177,19 @@ struct free_list
 
 
 // FIXME:  support for instanced? or draw indirect count
-struct DrawData
-{
-  uint32_t material_idx;
-  uint32_t transform_idx;
-  uint32_t indexCount;
-  uint32_t firstIndex;
-};
+// struct DrawData
+// {
+//   uint32_t material_idx;
+//   uint32_t transform_idx;
+//   uint32_t indexCount;
+//   uint32_t firstIndex;
+// };
 
-  struct BindlessMaterial
-  {
-    glm::vec3 colorTint{0.25, 0.1, 0.1};
-    uint32_t albedo_idx{3};
-  };
+//   struct BindlessMaterial
+//   {
+//     glm::vec3 colorTint{0.25, 0.1, 0.1};
+//     uint32_t albedo_idx{3};
+//   };
 
   
 

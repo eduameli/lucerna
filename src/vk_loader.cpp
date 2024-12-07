@@ -130,12 +130,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
       AllocatedImage i  = images[img];
       VkSampler s = file.samplers[sampler];
-      m.albedo_idx = i.sampler_idx;
+      m.albedo = i.sampler_idx;
 
       
       engine->combined_sampler[i.sampler_idx] = s;
     }
-    m.colorTint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
+    m.tint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
     // uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
     mat_idxs.push_back(engine->mainDrawContext.materials.size());
     engine->mainDrawContext.materials.push_back(m);
