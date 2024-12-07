@@ -59,7 +59,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   LoadedGLTF& file = *scene.get();
       
   constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers;
-  fastgltf::Parser parser;
+  fastgltf::Parser parser(fastgltf::Extensions::KHR_materials_emissive_strength);
   auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
   
   if (data.error() != fastgltf::Error::None)
@@ -137,11 +137,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     m.tint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
 
     m.emissions = {glm::vec3(mat.emissiveFactor.x(), mat.emissiveFactor.y(), mat.emissiveFactor.z())};
-    m.strength = 50.0f;
-    // mat.emissiveStrength
+    m.strength = mat.emissiveStrength;
 
-    
-    // uint32_t mat_idx = engine->mainDrawContext.freeMaterials.allocate();
     mat_idxs.push_back(engine->mainDrawContext.materials.size());
     engine->mainDrawContext.materials.push_back(m);
   }

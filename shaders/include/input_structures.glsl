@@ -21,14 +21,15 @@ struct ShadowFragmentSettings
 {
 #ifdef __cplusplus
   ShadowFragmentSettings()
-    : lightViewProj{1.0f}, near{0.1f}, far{10.0f}, light_size{0.0f}, softness{0.0025}, enabled{false} {} 
+    : lightViewProj{1.0f}, near{0.1f}, far{10.0f}, light_size{0.0f}, softness{0.0025}, enabled{false}, texture_idx{3} {} 
 #endif
   mat4_ar lightViewProj;
   float_ar near;
   float_ar far;
   float_ar light_size;
   float_ar softness;
-  uint32_ar enabled;  
+  uint32_ar enabled;
+  uint32_ar texture_idx;
 };
 
 struct bloom_pcs 
@@ -68,11 +69,20 @@ struct DrawData
 };
 
 
+
+struct u_ShadowPass
+{
+#ifdef __cplusplus
+  u_ShadowPass()
+    : lightViewProj{1.0f} {}
+#endif
+  mat4_ar lightViewProj;
+};
+
+
 #ifndef __cplusplus
 
-
-
-// bda glsl types
+// bda glsl types - deprecated
 layout(scalar, buffer_reference) readonly buffer VertexBuffer{ 
 	Vertex vertices[];
 };
@@ -88,7 +98,6 @@ layout(scalar, buffer_reference) readonly buffer TransformBuffer{
 };
 
 
-// layout(set = 0, binding = 1) uniform sampler2D shadowDepth;
 // layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
 //   ShadowFragmentSettings shadowSettings;
 // };

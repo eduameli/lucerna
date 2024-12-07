@@ -1,44 +1,24 @@
 #include "common.h"
 #include "input_structures.glsl"
 
-struct shadow_map_pcs 
-{
-#ifdef __cplusplus
-  shadow_map_pcs()
-    : modelMatrix{1.0f}, positions{0} {}
-#endif
-  mat4_ar modelMatrix;
-  buffer_ar(PositionBuffer) positions;
-};
-
-struct u_ShadowPass
-{
-#ifdef __cplusplus
-  u_ShadowPass()
-    : lightViewProj{1.0f} {}
-#endif
-  mat4_ar lightViewProj;
-};
 
 #ifndef __cplusplus
-#extension GL_EXT_buffer_reference : require
 
-layout ( push_constant ) uniform constants
-{
-  shadow_map_pcs pcs;
+layout(set = 0, binding = 0, scalar) uniform ShadowPassBlock {
+  u_ShadowPass shadowSettings;
 };
 
-// uniform here
-// mat4 lightView
-layout(set = 0, binding = 0) uniform ShadowMappingUBO {   
-  u_ShadowPass shadowData;	
-};
-
+layout(set = 0, binding = 1, scalar) readonly buffer drawDataBuffer { DrawData draws[]; };
+layout(set = 0, binding = 2, scalar) readonly buffer transformBuffer { mat4x3 transforms[]; };
+layout(set = 0, binding = 3, scalar) readonly buffer positionBuffer { vec3_ar positions[]; };
 
 void main() 
 {
-	vec4 position = vec4(pcs.positions.positions[gl_VertexIndex], 1.0);
-	gl_Position = shadowData.lightViewProj * pcs.modelMatrix * position;
-}
+    DrawData dd = draws[gl_BaseInstance];
 
+	vec4 positionLocal = vec4(positions[gl_VertexIndex], 1.0);
+	vec3 positionWorld = transforms[dd.transform_idx] * positionLocal;
+
+    gl_Position = shadowSettings.lightViewProj * vec4(positionWorld, 1.0f);
+}
 #endif

@@ -8,6 +8,12 @@ layout(set = 0, binding = 0, scalar) uniform GPUSceneDataBlock {
 }; 
 
 
+layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
+  ShadowFragmentSettings shadowSettings;
+};
+
+
+
 layout(set = 0, binding = 4, scalar) readonly buffer drawDataBuffer { DrawData draws[]; };
 layout(set = 0, binding = 5, scalar) readonly buffer transformBuffer { mat4x3 transforms[]; };
 layout(set = 0, binding = 6, scalar) readonly buffer materialBuffer { BindlessMaterial materials[]; };
@@ -17,7 +23,8 @@ layout(set = 0, binding = 8, scalar) readonly buffer vertexBuffer { Vertex verti
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec2 outUV;
-layout(location = 3) out flat uint material_idx;
+layout (location = 3) out flat uint material_idx;
+layout (location = 4) out vec4 outPosLightSpace;
 
 vec3 decode_normal(vec2 f)
 {
@@ -50,8 +57,7 @@ void main()
 
   material_idx = dd.material_idx;
 
-  // outlightSpace = shadowSettings.lightViewProj * (pcs.modelMatrix * position);
-  // emission = pcs.emission;
+  outPosLightSpace = shadowSettings.lightViewProj * vec4(positionWorld, 1.0f);
 }
 
 #endif

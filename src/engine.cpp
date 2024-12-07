@@ -510,7 +510,7 @@ void Engine::draw_background(VkCommandBuffer cmd)
 
 void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 {
-  if (shadowEnabled.get() == false) return;
+  // if (shadowEnabled.get() == false) return;
 
   
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_ShadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -567,6 +567,11 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   VkDescriptorSet shadowDescriptor = get_current_frame().frameDescriptors.allocate(device, m_ShadowSetLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, shadowPass.buffer.buffer, sizeof(u_ShadowPass), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
+
+  writer.write_buffer(1, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(2, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(3, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+     
   writer.update_set(device, shadowDescriptor);
   
   VkViewport viewport = vkinit::dynamic_viewport(m_ShadowExtent);
@@ -578,24 +583,28 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipelineLayout, 0, 1, &shadowDescriptor, 0, nullptr);
   
-  VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-  auto draw = [&](const RenderObject& draw) {
-    if (draw.indexBuffer != lastIndexBuffer)
-    {
-      lastIndexBuffer = draw.indexBuffer;
-      vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    }
+  // VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+  // auto draw = [&](const RenderObject& draw) {
+  //   if (draw.indexBuffer != lastIndexBuffer)
+  //   {
+  //     lastIndexBuffer = draw.indexBuffer;
+  //     vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+  //   }
 
-    shadow_map_pcs pcs{};
-    pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
-    pcs.positions = draw.positionBufferAddress; 
+  //   shadow_map_pcs pcs{};
+  //   pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
+  //   pcs.positions = draw.positionBufferAddress; 
    
-    // scuffed way to not render ground plane to shadow map
-    vkCmdPushConstants(cmd, m_ShadowPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(shadow_map_pcs), &pcs);
-    vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
-  };
-  
+  //   // scuffed way to not render ground plane to shadow map
+  //   vkCmdPushConstants(cmd, m_ShadowPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(shadow_map_pcs), &pcs);
+  //   vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+  // };
 
+
+
+  
+  vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
   // for (auto& r : shadow_draws)
   // {
   //   draw(mainDrawContext.OpaqueSurfaces[r]);
@@ -686,7 +695,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   settings->light_size = 0.1;
   settings->enabled = shadowEnabled.get();
   settings->softness = shadowSoftness.get();
-
+  settings->texture_idx = m_ShadowDepthImage.sampler_idx; // how to give it a specific sampler
 
   
   AllocatedBuffer sceneDataBuf = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -2088,24 +2097,18 @@ void Engine::init_shadow_map_pipeline()
   { 
     DescriptorLayoutBuilder builder;
     builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    // builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    // builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    // builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    builder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
     m_ShadowSetLayout = builder.build(device, VK_SHADER_STAGE_VERTEX_BIT);
   }
 
-  VkPushConstantRange range{};
-  range.offset = 0;
-  range.size = sizeof(shadow_map_pcs);
-  range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
   
 
   VkPipelineLayoutCreateInfo layoutInfo = vkinit::pipeline_layout_create_info();
   layoutInfo.setLayoutCount = 1;
   layoutInfo.pSetLayouts = &m_ShadowSetLayout;
-  layoutInfo.pPushConstantRanges = &range;
-  layoutInfo.pushConstantRangeCount = 1;
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &m_ShadowPipelineLayout));
 
   PipelineBuilder builder;
