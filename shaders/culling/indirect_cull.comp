@@ -38,10 +38,10 @@ bool is_visible(vec4 bounds)
     centre = (td * vec4(centre.x, centre.y, centre.z, 1.0)).xyz;
     centre = (pcs.view * vec4(centre, 1.0f)).xyz;
 
-    float scale_x = length(vec3(td[0][0], td[1][0], td[2][0]));
-    float scale_y = length(vec3(td[0][1], td[1][1], td[2][1]));
-    float scale_z = length(vec3(td[0][2], td[1][2], td[2][2]));
-
+    float scale_x = td[0][0];
+    float scale_y = td[1][1];
+    float scale_z = td[2][2];
+    
     radius *= max(max(scale_x, scale_y), scale_z);
 
 

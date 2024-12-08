@@ -1,6 +1,6 @@
 [startup]
-scene_path = "assets/sponza_tg.glb"
-# scene_path = "assets/balls.glb"
+# scene_path = "assets/sponza_tg.glb"
+scene_path = "assets/balls.glb"
 # scene_path = "assets/structure.glb"
 # scene_path = "assets/test_cubes.glb"
 # scene_path = "assets/more_cubes.glb"
