@@ -1,0 +1,59 @@
+#include "common.h"
+#include "input_structures.glsl"
+
+struct indirect_cull_pcs
+{
+#ifdef __cplusplus
+    indirect_cull_pcs()
+        : ids{0}, draw_count{0} {}
+#endif
+    buffer_ar(IndirectDrawBuffer) ids;
+    uint32_ar draw_count;
+};
+
+
+#ifndef __cplusplus
+layout (local_size_x = 256) in;
+#extension GL_EXT_debug_printf : enable
+
+layout( push_constant, scalar ) uniform constants
+{
+  indirect_cull_pcs pcs;
+};
+
+
+bool is_visible()
+{
+    return true;
+}
+
+void main()
+{
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx < pcs.draw_count)
+    {
+        IndirectDraw id = pcs.ids.draws[idx];
+
+        pcs.ids.draws[idx].instanceCount = 5;
+    }
+}
+#endif
+
+/*
+i want this function to set instanceCount to 0 for the indirect draws that must be culled!
+
+input 
+buffer
+
+pcs
+{
+    bda indirect draw buffer
+    uint32_t draw count
+}
+
+
+and 
+
+then compute is_visible() and set instance count to 0 if its not!
+
+*/

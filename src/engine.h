@@ -48,7 +48,7 @@ namespace Aurora {
     std::vector<uint32_t> indices;
     std::vector<glm::vec3> positions;
     std::vector<Vertex> vertices;
-    std::vector<VkDrawIndexedIndirectCommand> mem;
+    std::vector<IndirectDraw> mem;
 
     GPUMeshBuffers bigMeshes;
   };
@@ -92,7 +92,7 @@ namespace Aurora {
         std::span<glm::mat4x3> transforms,
         std::span<DrawData> draw_datas,
         std::span<BindlessMaterial> materials,
-        std::span<VkDrawIndexedIndirectCommand> indirect_cmds
+        std::span<IndirectDraw> indirect_cmds
       );
       
       AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
@@ -220,6 +220,14 @@ namespace Aurora {
       VkPipeline std_pipeline;
       VkDescriptorSet global_descriptor_set;
 
+
+
+      // indirect culling - FIXME: should use draw_sets one for the different geometry "buckets"
+      // FIXME: scuffed now culls WHOLE DRAWING EVEN FOR SHADOWS
+      VkPipeline cullPipeline{};
+      VkPipelineLayout cullPipelineLayout{};
+      void init_indirect_cull_pipeline();
+      void do_culling(VkCommandBuffer cmd); // 
       
     public:
       VkSampler bindless_sampler;
@@ -259,7 +267,7 @@ namespace Aurora {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
-        VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,
+        VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME, // FIXME not used right now...
       };
       std::vector<const char*> m_ValidationLayers = {
         "VK_LAYER_KHRONOS_validation",

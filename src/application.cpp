@@ -38,14 +38,6 @@ namespace Aurora {
 
     update_config(&config.scene_path, toml["startup"]["scene_path"]);
     
-    /*
-    update_if_has_value
-    (&config.scene_path, toml["startup"]["scene_path"])
-    if (toml.has_value)
-      config.scene_path = 
-    
-    */
-    
   }
 
   Application::~Application()

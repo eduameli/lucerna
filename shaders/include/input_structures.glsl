@@ -68,7 +68,14 @@ struct DrawData
   uint32_ar firstIndex;
 };
 
-
+struct IndirectDraw
+{
+  uint32_ar indexCount;
+  uint32_ar instanceCount;
+  uint32_ar firstIndex;
+  uint32_ar vertexOffset;
+  uint32_ar firstInstance;
+};
 
 struct u_ShadowPass
 {
@@ -95,6 +102,11 @@ layout(scalar, buffer_reference) readonly buffer PositionBuffer {
 
 layout(scalar, buffer_reference) readonly buffer TransformBuffer{ 
 	mat4 transforms[];
+};
+
+
+layout(scalar, buffer_reference) buffer IndirectDrawBuffer{ 
+	IndirectDraw draws[];
 };
 
 

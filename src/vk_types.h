@@ -145,6 +145,7 @@ namespace Aurora
 #include "debug_line/debug_line.vert"
 #include "ssao/ssao.comp"
 #include "ssao/bilateral_filter.comp"
+#include "culling/indirect_cull.comp"
 // #include "bindless/bindless.vert"
 // #include "bindless/bindless.frag"
 

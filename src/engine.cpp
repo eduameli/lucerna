@@ -4,6 +4,7 @@
 #include "ar_asserts.h"
 #include "glm/ext/vector_float3.hpp"
 #include "glm/ext/vector_float4.hpp"
+#include "input_structures.glsl"
 #include "logger.h"
 #include "vk_loader.h"
 #include "window.h"
@@ -41,10 +42,10 @@ namespace Aurora {
 
 AutoCVar_Int shadowEnabled("shadow_mapping.enabled", "is shadow mapping enabled", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int shadowViewFromLight("shadow_mapping.view_from_light", "view scene from view of directional light shadow caster", 0, CVarFlags::EditCheckbox);
-AutoCVar_Int shadowRotateLight("shadow_mapping.rotate_light", "rotate light around origin showcasing real time shadows", 0, CVarFlags::EditCheckbox);
+AutoCVar_Int shadowRotateLight("shadow_mapping.rotate_light", "rotate light around origin showcasing real time shadows", 1, CVarFlags::EditCheckbox);
 AutoCVar_Float shadowSoftness("shadow_mapping.softness", "radius of pcf sampling", 0.0025, CVarFlags::None);
 
-AutoCVar_Int debugLinesEnabled("debug.show_lines", "", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int debugLinesEnabled("debug.show_lines", "", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int debugFrustumFreeze("debug.freeze_frustum", "", 0, CVarFlags::EditCheckbox);
 
 AutoCVar_Float cameraFOV("camera.fov", "camera fov in degrees", 70.0f, CVarFlags::Advanced);
@@ -52,7 +53,7 @@ AutoCVar_Float cameraFar("camera.far", "", 10000.0, CVarFlags::Advanced);
 AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
 
 AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
-AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.5, CVarFlags::None);
+AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.0, CVarFlags::None);
 AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
 
 void FrameGraph::add_sample(float sample)
@@ -171,7 +172,7 @@ void Engine::init()
   // std::vector<VkDrawIndexedIndirectCommand> mem;
   for (auto& dd : mainDrawContext.draw_datas)
   {
-    VkDrawIndexedIndirectCommand c{};
+    IndirectDraw c{};
     c.indexCount = dd.indexCount;
     c.firstIndex = dd.firstIndex;
     c.firstInstance = idx;
@@ -398,14 +399,18 @@ void Engine::draw()
 
   VkCommandBuffer cmd = get_current_frame().mainCommandBuffer;
   VK_CHECK_RESULT(vkResetCommandBuffer(cmd, 0));
-  
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo))
 
 
-  // NOTE: do i need to bind every frame? sceneData
+  // NOTE: do i need to bind every frame? sceneData or every pipeline??
   // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 1, 1, &bindless_descriptor_set, 0, nullptr);
   // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &global_descriptor_set, 0, nullptr);
+
+  do_culling(cmd);
+  
+
+
   
   // draw compute bg
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
@@ -510,7 +515,7 @@ void Engine::draw_background(VkCommandBuffer cmd)
 
 void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 {
-  // if (shadowEnabled.get() == false) return;
+  if (shadowEnabled.get() == false) return;
 
   
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_ShadowDepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -1061,7 +1066,7 @@ GPUSceneBuffers Engine::upload_scene(
   std::span<glm::mat4x3> transforms,
   std::span<DrawData> draw_datas,
   std::span<BindlessMaterial> materials,
-  std::span<VkDrawIndexedIndirectCommand> indirect_cmds)
+  std::span<IndirectDraw> indirect_cmds)
 {
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
   const size_t positionBufferSize = positions.size() * sizeof(glm::vec3);
@@ -1110,7 +1115,7 @@ GPUSceneBuffers Engine::upload_scene(
   );
   scene.indirectCmdBuffer = create_buffer(
     indirectCmdBufferSize,
-    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY
   );
 
@@ -1568,7 +1573,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
     .build();
 
   device = m_Device.logical;
@@ -1874,6 +1879,7 @@ void Engine::init_pipelines()
   init_bindless_pipeline_layout();
   init_depth_prepass_pipeline();
   init_shadow_map_pipeline();
+  init_indirect_cull_pipeline();
 
   VkShaderModule bindlessFrag, bindlessVert;
   AR_LOG_ASSERT(
@@ -2233,5 +2239,86 @@ void Engine::init_imgui()
     colour.w = colour.w;
   }
 }
+
+
+void Engine::init_indirect_cull_pipeline()
+{
+  VkPipelineLayoutCreateInfo computeLayout = vkinit::pipeline_layout_create_info();
+  // computeLayout.pSetLayouts = &m_DrawDescriptorLayout;
+  // computeLayout.setLayoutCount = 1;
+  
+  VkPushConstantRange pcs{};
+  pcs.offset = 0;
+  pcs.size = sizeof(indirect_cull_pcs);
+  pcs.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  computeLayout.pPushConstantRanges = &pcs;
+  computeLayout.pushConstantRangeCount = 1;
+
+  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &cullPipelineLayout));
+
+  VkShaderModule cullShader;
+  AR_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/culling/indirect_cull.comp.spv", device, &cullShader),
+    "Error loading Gradient Compute Effect Shader"
+  );  
+
+  VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, cullShader);
+
+  VkComputePipelineCreateInfo computePipelineCreateInfo{};
+  computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+  computePipelineCreateInfo.pNext = nullptr;
+  computePipelineCreateInfo.layout = cullPipelineLayout;
+  computePipelineCreateInfo.stage = stageInfo;
+    
+
+  VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &cullPipeline));
+
+
+  vkDestroyShaderModule(device, cullShader, nullptr);
+
+  m_DeletionQueue.push_function([&]() {
+    vkDestroyPipelineLayout(device, cullPipelineLayout, nullptr);
+    vkDestroyPipeline(device, cullPipeline, nullptr);
+  });
+
+}
+
+
+void Engine::do_culling(VkCommandBuffer cmd)
+{
+ 
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
+  // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &m_DrawDescriptors, 0, nullptr);
+  
+  indirect_cull_pcs pcs;
+  pcs.ids = (VkDeviceAddress) indirectDrawBuffer.info.pMappedData;
+  pcs.draw_count = mainDrawContext.mem.size();
+
+
+
+	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = indirectDrawBuffer.buffer };
+	pcs.ids = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo);
+	  
+  vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
+
+  vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 256.0), 1, 1);
+
+
+  VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
+  mbar.buffer = indirectDrawBuffer.buffer;
+  mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+  mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+  mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+  mbar.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+  mbar.size = VK_WHOLE_SIZE;
+  
+  VkDependencyInfo info{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};
+  info.bufferMemoryBarrierCount = 1;
+  info.pBufferMemoryBarriers = &mbar;
+
+  vkCmdPipelineBarrier2(cmd, &info); 
+}
+
 
 } // namespace aurora
