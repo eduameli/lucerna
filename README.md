@@ -1,4 +1,4 @@
-Lucerna (renderer)
+# Lucerna (renderer)
 
 my goals for this project is to make a cool renderer (not a game engine)
 to keep it simple i have some constraints
@@ -8,7 +8,7 @@ to keep it simple i have some constraints
 - dont overlap with future planned project
 - no bikeshedding
 
-# general requirements
+## general requirements
 must be robust and performant! as it will be part of the portfolio. 
 
 ## should have
