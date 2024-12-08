@@ -2,8 +2,10 @@
 #include "application.h"
 #include "aurora_pch.h"
 #include "ar_asserts.h"
+#include "glm/common.hpp"
 #include "glm/ext/vector_float3.hpp"
 #include "glm/ext/vector_float4.hpp"
+#include "glm/matrix.hpp"
 #include "input_structures.glsl"
 #include "logger.h"
 #include "vk_loader.h"
@@ -170,14 +172,20 @@ void Engine::init()
 
   uint32_t idx = 0;
   // std::vector<VkDrawIndexedIndirectCommand> mem;
-  for (auto& dd : mainDrawContext.draw_datas)
+  for (int i = 0; i < mainDrawContext.draw_datas.size(); i++)
   {
+    DrawData dd = mainDrawContext.draw_datas[i];
+    Bounds b = mainDrawContext.bounds[i];
+
+    glm::vec4 b2 = {b.origin.x, b.origin.y, b.origin.z, b.sphereRadius};
+    
     IndirectDraw c{};
     c.indexCount = dd.indexCount;
     c.firstIndex = dd.firstIndex;
     c.firstInstance = idx;
     c.instanceCount = 1;
     c.vertexOffset = 0;
+    c.sphereBounds = b2;
     mainDrawContext.mem.push_back(c);
     idx++;
   }
@@ -609,7 +617,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
   
   vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
   // for (auto& r : shadow_draws)
   // {
   //   draw(mainDrawContext.OpaqueSurfaces[r]);
@@ -657,7 +665,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 
   vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(VkDrawIndexedIndirectCommand));
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
 
   
   vkCmdEndRendering(cmd);
@@ -747,7 +755,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
 
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.mem.size(), sizeof(mainDrawContext.mem[0]));
+  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.mem.size(), sizeof(IndirectDraw));
 
   // AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
 
@@ -1074,7 +1082,8 @@ GPUSceneBuffers Engine::upload_scene(
   const size_t transformBufferSize = transforms.size() * sizeof(glm::mat4x3);
   const size_t drawDataBufferSize = draw_datas.size() * sizeof(DrawData);
   const size_t materialBufferSize = materials.size() * sizeof(BindlessMaterial);
-  const size_t indirectCmdBufferSize = indirect_cmds.size() * sizeof(VkDrawIndexedIndirectCommand);
+  const size_t indirectCmdBufferSize = indirect_cmds.size() * sizeof(IndirectDraw);
+  
   
   GPUSceneBuffers scene;
 
@@ -1098,13 +1107,13 @@ GPUSceneBuffers Engine::upload_scene(
     
   scene.drawDataBuffer = create_buffer(
     drawDataBufferSize,
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY
   );
 
   scene.transformBuffer = create_buffer(
     transformBufferSize,
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY
   );
 
@@ -2299,7 +2308,37 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
 	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = indirectDrawBuffer.buffer };
 	pcs.ids = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo);
-	  
+
+
+	VkBufferDeviceAddressInfo deviceAdressInfo2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
+	pcs.td = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo2);
+
+
+
+	VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigDrawDataBuffer.buffer };
+	pcs.ddb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo3);
+
+  pcs.view = sceneData.view;
+
+
+  // dont understand code just do it??
+
+  glm::mat4 proj = sceneData.proj;
+  glm::mat4 projT = glm::transpose(proj);
+
+
+  auto normalise = [](glm::vec4 p){ return p / glm::length(glm::vec3(p)); };
+  
+  glm::vec4 frustumX = normalise(projT[3] + projT[0]);
+  glm::vec4 frustumY = normalise(projT[3] + projT[1]);
+
+  pcs.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
+
+  
+  // end
+
+
+	
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
 
   vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 256.0), 1, 1);

@@ -44,6 +44,13 @@ struct bloom_pcs
 };
 
 
+struct Bounds
+{
+  vec3_ar origin;
+  float sphereRadius;
+  vec3_ar extents;  
+};
+
 
 struct BindlessMaterial
 {
@@ -75,6 +82,7 @@ struct IndirectDraw
   uint32_ar firstIndex;
   uint32_ar vertexOffset;
   uint32_ar firstInstance;
+  vec4_ar sphereBounds;
 };
 
 struct u_ShadowPass
@@ -101,12 +109,18 @@ layout(scalar, buffer_reference) readonly buffer PositionBuffer {
 
 
 layout(scalar, buffer_reference) readonly buffer TransformBuffer{ 
-	mat4 transforms[];
+	mat4x3 transforms[];
 };
 
 
 layout(scalar, buffer_reference) buffer IndirectDrawBuffer{ 
 	IndirectDraw draws[];
+};
+
+
+
+layout(scalar, buffer_reference) buffer DrawDataBuffer{ 
+	DrawData value[];
 };
 
 

@@ -5,9 +5,13 @@ struct indirect_cull_pcs
 {
 #ifdef __cplusplus
     indirect_cull_pcs()
-        : ids{0}, draw_count{0} {}
+        : view{1.0f}, frustum{1.0f}, ids{0}, draw_count{0} {}
 #endif
+    mat4_ar view;
+    vec4_ar frustum;
     buffer_ar(IndirectDrawBuffer) ids;
+    buffer_ar(TransformBuffer) td;
+    buffer_ar(DrawDataBuffer) ddb;
     uint32_ar draw_count;
 };
 
@@ -22,9 +26,37 @@ layout( push_constant, scalar ) uniform constants
 };
 
 
-bool is_visible()
+bool is_visible(vec4 bounds)
 {
-    return true;
+    vec3 centre = bounds.xyz;
+    float radius = bounds.w;
+
+
+    DrawData dd = pcs.ddb.value[gl_GlobalInvocationID.x];
+    mat4x3 td = pcs.td.transforms[dd.transform_idx];
+
+    centre = (td * vec4(centre.x, centre.y, centre.z, 1.0)).xyz;
+    centre = (pcs.view * vec4(centre, 1.0f)).xyz;
+
+    float scale_x = length(vec3(td[0][0], td[1][0], td[2][0]));
+    float scale_y = length(vec3(td[0][1], td[1][1], td[2][1]));
+    float scale_z = length(vec3(td[0][2], td[1][2], td[2][2]));
+
+    radius *= max(max(scale_x, scale_y), scale_z);
+
+
+    bool visible = true;
+
+    visible = visible && centre.z * pcs.frustum.y - abs(centre.x) * pcs.frustum.x > -radius;
+    visible = visible && centre.z * pcs.frustum.w - abs(centre.y) * pcs.frustum.z > -radius;
+
+    // near and far planes
+    // if (true)
+    // {
+    //     // visible = visible && centre.z + radius > x c        
+    // }
+        
+    return visible;
 }
 
 void main()
@@ -32,9 +64,28 @@ void main()
     uint idx = gl_GlobalInvocationID.x;
     if (idx < pcs.draw_count)
     {
-        IndirectDraw id = pcs.ids.draws[idx];
 
-        pcs.ids.draws[idx].instanceCount = 5;
+        
+        
+        IndirectDraw id = pcs.ids.draws[idx];
+        vec4_ar sphereBounds = id.sphereBounds;
+
+        vec3_ar origin = vec4(sphereBounds.xyz, 1.0f).xyz;
+
+        
+        // float radius = max(max(mat[0][0], mat[1][1]), mat[2][2]) * sphereBounds.w;
+
+    
+        
+        // buffer with bounds
+        if (!is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w)))
+        {
+             pcs.ids.draws[idx].instanceCount = 0;   
+        }
+        else
+        {
+            pcs.ids.draws[idx].instanceCount = 1;        
+        }
     }
 }
 #endif

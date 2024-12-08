@@ -114,12 +114,27 @@ namespace Aurora
   };
 
 
-  struct Bounds
-  {
-    glm::vec3 origin;
-    float sphereRadius;
-    glm::vec3 extents;
-  };
+  // struct Bounds
+  // {
+  //   glm::vec3 origin;
+  //   float sphereRadius;
+  //   glm::vec3 extents;
+  // };
+
+
+// NOTE: cpp/glsl structure definition
+#include "input_structures.glsl"
+#include "common.h"
+#include "zprepass/zprepass.vert"
+#include "shadow/shadow_map.vert"
+#include "debug_line/debug_line.vert"
+#include "ssao/ssao.comp"
+#include "ssao/bilateral_filter.comp"
+#include "culling/indirect_cull.comp"
+// #include "bindless/bindless.vert"
+// #include "bindless/bindless.frag"
+
+
 
   struct GeoSurface
   {
@@ -137,17 +152,6 @@ namespace Aurora
     GPUMeshBuffers meshBuffers;
   };
 
-// NOTE: cpp/glsl structure definition
-#include "input_structures.glsl"
-#include "common.h"
-#include "zprepass/zprepass.vert"
-#include "shadow/shadow_map.vert"
-#include "debug_line/debug_line.vert"
-#include "ssao/ssao.comp"
-#include "ssao/bilateral_filter.comp"
-#include "culling/indirect_cull.comp"
-// #include "bindless/bindless.vert"
-// #include "bindless/bindless.frag"
 
 struct free_list
 {

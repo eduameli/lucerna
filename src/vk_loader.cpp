@@ -248,6 +248,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       // calculate origin and extents from the min/max, use extent lenght for radius
       newmesh->surfaces.push_back(newSurface);
 
+
+      // FIXME: should it not be based on transformed object??
+
       
     }
   }
@@ -534,6 +537,8 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
       .indexCount = s.count,
       .firstIndex = s.startIndex,
     });
+
+    ctx.bounds.push_back(s.bounds);
   }
 
   Node::queue_draw(topMatrix, ctx);

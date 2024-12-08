@@ -50,6 +50,8 @@ namespace Aurora {
     std::vector<Vertex> vertices;
     std::vector<IndirectDraw> mem;
 
+    std::vector<Bounds> bounds;
+
     GPUMeshBuffers bigMeshes;
   };
   
@@ -188,6 +190,7 @@ namespace Aurora {
       AllocatedBuffer bigMaterialBuffer{};
       AllocatedBuffer bigDrawDataBuffer{};
       AllocatedBuffer indirectDrawBuffer{};
+      AllocatedBuffer bigBoundsBuffer{};
   
     private:
       void init_vulkan();
