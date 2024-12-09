@@ -18,7 +18,7 @@ namespace Aurora {
       .scene_path = "assets/structure.glb"
     };
 
-    toml::parse_result result = toml::parse_file("configuration.toml");
+    toml::parse_result result = toml::parse_file("config/configuration.toml");
 
     if (!result.succeeded())
     {
