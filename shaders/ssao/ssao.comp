@@ -171,8 +171,8 @@ void main()
       float sampleDepthLinear = compute_lineardepth(sampleDepth, 10000.0, 0.1);
       float projCoordsLinear = compute_lineardepth(projCoords.z, 10000.0, 0.1);
       
-      float rangeCheck = abs( sampleDepthLinear - projCoordsLinear) < pcs.kernelRadius ? 1.0 : 0.0;
-
+      // float rangeCheck = abs( sampleDepthLinear - projCoordsLinear) < pcs.kernelRadius ? 1.0 : 0.0;
+      float rangeCheck = smoothstep(0.0, 1.0, pcs.kernelRadius / abs(sampleDepthLinear - projCoordsLinear));
       occlusionFactor += (sampleDepth < projCoords.z ? 0.0 : 1.0) * rangeCheck;
     }
     // select x points around current and if thei w uhh to be continued
