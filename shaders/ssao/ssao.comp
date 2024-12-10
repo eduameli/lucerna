@@ -167,6 +167,7 @@ void main()
     float occlusion = 1.0 - (occlusionFactor / 32.0);
     occlusion = pow(occlusion, 3.0);
 
+
     
     imageStore(outAmbient, texelCoord, vec4(occlusion, 0.0, 0.0, 0.0));
     //imageStore(outAmbient, texelCoord, vec4(randomVec, 1.0));

@@ -24,4 +24,6 @@
 
 !configuration.toml
 
+!**.sh
+
 **.spv

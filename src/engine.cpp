@@ -51,7 +51,7 @@ AutoCVar_Float cameraFar("camera.far", "", 10000.0, CVarFlags::Advanced);
 AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
 
 AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
-AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.0, CVarFlags::None);
+AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.5, CVarFlags::None);
 AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
 
 void FrameGraph::add_sample(float sample)
