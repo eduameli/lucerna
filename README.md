@@ -6,18 +6,17 @@ to keep it simple i have some constraints
 - only one graphics api *(vulkan)*
 - only support a subset of hardware
 - dont overlap with future planned project
-- no bikeshedding
+- no bikeshedding allowed
 
 ## general requirements
-must be robust and performant! as it will be part of the portfolio. 
+must be robust and performant!  
 
 ## should have
-texture compression, automatic pipeline layout, multithreading, nice editor
+texture compression, automatic pipeline layout, multithreading, nice editor, configurable.
 
 ## must have
 oit, forward clustered, csm, baked lighting, anti aliasing, hiz culling, skinned meshes, basic pbr  
 demos to tweak the settings and see the effects in action! -> README.md screenshots
-
 
 # Features
 wip

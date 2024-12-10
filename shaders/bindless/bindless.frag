@@ -115,12 +115,14 @@ void main()
     lightValue = max(lightValue, 0.1f);
   }
 
-  vec4 color = albedo * lightValue;
+
+  float ssao = texture(ssaoAmbient, gl_FragCoord.xy / vec2(1280, 800)).r;
+
+  vec4 color = albedo * lightValue * (ssao);
   color += vec4(mat.emissions * mat.strength, 1.0f);
   
-  float ssao = texture(ssaoAmbient, gl_FragCoord.xy / vec2(1280, 800)).r;
     
-  outColour = color * ssao;   
+  outColour = color;   
 }
 
 #endif

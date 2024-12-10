@@ -57,6 +57,7 @@ AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
 AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
 AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.0, CVarFlags::None);
 AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int ssaoOld("ssao.old_normal", "", 1, CVarFlags::EditCheckbox);
 
 void FrameGraph::add_sample(float sample)
 {
@@ -454,9 +455,9 @@ void Engine::draw()
   
   if (ssaoDisplayTexture.get() == true)
   {
-    vkutil::transition_image(cmd, ssao::outputBlurred.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    vkutil::copy_image_to_image(cmd, ssao::outputBlurred.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
-    vkutil::transition_image(cmd, ssao::outputBlurred.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+    vkutil::transition_image(cmd, ssao::outputAmbient.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    vkutil::copy_image_to_image(cmd, ssao::outputAmbient.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
+    vkutil::transition_image(cmd, ssao::outputAmbient.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
   }
   else

@@ -50,6 +50,11 @@ bool is_visible(vec4 bounds)
     visible = visible && centre.z * pcs.frustum.y - abs(centre.x) * pcs.frustum.x > -radius;
     visible = visible && centre.z * pcs.frustum.w - abs(centre.y) * pcs.frustum.z > -radius;
 
+
+    // if (centre.z > 0.05)
+    // {
+    //     visible = false;
+    // }
     // near and far planes
     // if (true)
     // {

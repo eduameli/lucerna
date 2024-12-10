@@ -362,7 +362,7 @@ void ssao::prepare()
   outputAmbient = engine->create_image(size, format, usages);
   outputBlurred = engine->create_image(size, format, usages);
   vklog::label_image(device, outputAmbient.image, "SSAO Output Ambient Texture");
-  vklog::label_image(device, outputAmbient.image, "SSAO Output Blurred Ambient Texture");  // noise image
+  vklog::label_image(device, outputBlurred.image, "SSAO Output Blurred Ambient Texture");  // noise image
 
   std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
   std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count()); // using default seed!
@@ -481,6 +481,9 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   ssao_pcs pcs{};
   pcs.kernelRadius = *CVarSystem::get()->get_float_cvar("ssao.kernel_radius");
   pcs.inv_viewproj = glm::inverse(Engine::get()->sceneData.viewproj);
+  pcs.old = *CVarSystem::get()->get_int_cvar("ssao.old_normal");
+
+  
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ssao_pcs), &pcs);
 
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);

@@ -8,6 +8,7 @@ struct ssao_pcs
 #endif
   mat4_ar inv_viewproj;
   float kernelRadius;
+  uint old;
 };
 
 struct u_ssao
@@ -61,6 +62,93 @@ vec3 normal_from_depth(vec2 uv, mat4 inv_viewproj)
   return normalize(cross(P2 - P0, P1 - P0));
 }
 
+vec3 normal_from_depth_better(vec2 uv, mat4 inv_viewproj)
+{
+  // same as normal_from_depth(vec2 uv, mat4 inv_viewproj) but choose the 
+  // best matching triangle at a specific point
+
+  vec2 depth_dimensions = vec2(1280, 800);
+
+  vec2 uv0 = uv; // centre
+  vec2 uv1 = uv + (vec2(1, 0) / depth_dimensions); // right
+  vec2 uv2 = uv + (vec2(-1, 0) / depth_dimensions); // left
+  vec2 uv3 = uv + (vec2(0, 1) / depth_dimensions); // down
+  vec2 uv4 = uv + (vec2(0, -1) / depth_dimensions);  //up
+  
+
+  float depth0= texture(depthImage, uv0).r;
+  float depth1= texture(depthImage, uv1).r;
+  float depth2= texture(depthImage, uv2).r;
+  float depth3= texture(depthImage, uv3).r;  
+  float depth4= texture(depthImage, uv4).r;
+
+
+  uint best_z_horizontal = abs(depth0 - depth1) < abs(depth0 - depth2) ? 1 : 2;
+  uint best_z_vertical = abs(depth0 - depth3) < abs(depth0 - depth4) ? 3 : 4;
+
+  vec3 p1;
+  vec3 p2;
+
+  if (best_z_horizontal == 1 && best_z_vertical == 4)
+  {
+    p1 = position_from_depth(uv1, depth1, inv_viewproj);
+    p2 = position_from_depth(uv4, depth4, inv_viewproj);
+  }
+  else if (best_z_horizontal == 1 && best_z_vertical == 3)
+  {
+    p1 = position_from_depth(uv3, depth3, inv_viewproj);
+    p2 = position_from_depth(uv1, depth1, inv_viewproj);
+  }
+  else if (best_z_horizontal == 2 && best_z_vertical == 4)
+  {
+    p1 = position_from_depth(uv4, depth4, inv_viewproj);
+    p2 = position_from_depth(uv2, depth2, inv_viewproj);
+  }
+  else if (best_z_horizontal == 2 && best_z_vertical == 3)
+  {
+    p1 = position_from_depth(uv2, depth2, inv_viewproj);
+    p2 = position_from_depth(uv3, depth3, inv_viewproj);
+  }
+
+  vec3 p = position_from_depth(uv0, depth0, inv_viewproj);
+
+  // vec3 normal = normalize(cross(p2 - p, p1 - p));
+  
+
+  // vec3 P0 = position_from_depth(uv0, depthCentre, inv_viewproj);
+  
+  // vec3 P1 = abs(depthRight - depthCentre) < abs(depthLeft - depthCentre) ? 
+  //   position_from_depth(uv1, depthRight, inv_viewproj) : position_from_depth(uv3, depthLeft, inv_viewproj);
+  
+  // vec3 P2 = abs(depthUp - depthCentre) < abs(depthDown- depthCentre) ? 
+    // position_from_depth(uv4, depthUp, inv_viewproj) : position_from_depth(uv2, depthDown, inv_viewproj);
+
+  // vec3 p0, p1, p2;
+
+  // if (abs(depthRight - depthCentre) < abs(depthLeft - depthCentre))
+  // {
+  //   p1 = position_from_depth(uv1, depthRight, inv_viewproj);
+  // }
+  // else
+  // {
+  //   p1 = position_from_depth(uv3, depthLeft, inv_viewproj);
+  // }
+
+  // if (abs(depthUp - depthCentre) < abs(depthDown - depthCentre))
+  // {
+  //   p2 = position_from_depth()    
+  // }
+  // else
+  // {
+      
+  // }
+  
+  // return normal;
+  // return vec3(0.0);
+  return normalize(cross(p1 - p, p2 - p));
+ 
+}
+
 void main()
 {
   ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
@@ -71,8 +159,12 @@ void main()
   {
     vec2 texCoord = (vec2(texelCoord) + 0.5) / vec2(size);
     float depth = texture(depthImage, texCoord).r;
-    vec3 normal = normal_from_depth(texCoord, pcs.inv_viewproj);
+    vec3 normal = pcs.old == 1 ? normal_from_depth(texCoord, pcs.inv_viewproj) :normal_from_depth_better(texCoord, pcs.inv_viewproj);
 
+    // imageStore(outAmbient, texelCoord, vec4(normal, 1.0));
+
+    // return;
+    
     vec3 position = position_from_depth(texCoord, depth, pcs.inv_viewproj);
     mat4 viewproj = inverse(pcs.inv_viewproj);
   
@@ -105,14 +197,15 @@ void main()
 
       debugPrintfEXT("%f,  %f", sampleDepth, projCoords.z);
 
-      // FIXME: range check doesnt do anything until i reconstruct normals properly!
+      // FIXME: use better range check.. this one doesnt work
       float rangeCheck = abs(sampleDepth - projCoords.z) < pcs.kernelRadius ? 1.0 : 0.0;
-      
       occlusionFactor += (sampleDepth < projCoords.z ? 0.0 : 1.0) * rangeCheck;
     }
     // select x points around current and if thei w uhh to be continued
     float occlusion = 1.0 - (occlusionFactor / 32.0);
     occlusion = pow(occlusion, 3.0);
+
+    
     imageStore(outAmbient, texelCoord, vec4(occlusion, 0.0, 0.0, 0.0));
     //imageStore(outAmbient, texelCoord, vec4(randomVec, 1.0));
     //imageStore(outAmbient, texelCoord, vec4(normal, 1.0));
