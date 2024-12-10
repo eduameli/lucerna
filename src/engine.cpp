@@ -18,10 +18,6 @@
 #include "vk_swapchain.h"
 #include "gfx_effects.h"
 #include <GLFW/glfw3.h>
-#include <algorithm>
-#include <cstdint>
-#include <memory>
-#include <string>
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 #include "imgui_backend.h"
@@ -57,7 +53,6 @@ AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
 AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
 AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.0, CVarFlags::None);
 AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
-AutoCVar_Int ssaoOld("ssao.old_normal", "", 1, CVarFlags::EditCheckbox);
 
 void FrameGraph::add_sample(float sample)
 {
