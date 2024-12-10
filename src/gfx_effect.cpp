@@ -1,3 +1,4 @@
+#include "cvars.h"
 #include "gfx_effects.h"
 
 #include "engine.h"
@@ -481,8 +482,6 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   ssao_pcs pcs{};
   pcs.kernelRadius = *CVarSystem::get()->get_float_cvar("ssao.kernel_radius");
   pcs.inv_viewproj = glm::inverse(Engine::get()->sceneData.viewproj);
-
-  
   vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ssao_pcs), &pcs);
 
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);

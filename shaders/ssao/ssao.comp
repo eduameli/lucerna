@@ -41,6 +41,14 @@ vec3 position_from_depth(vec2 uv, float depth, mat4 inv_viewproj)
 }
 
 // FIXME: wicked engine or other blogpost talk about improving this!.. now edges are broken
+
+float compute_lineardepth(in float z, in float far, in float near)
+{
+	float z_n = 2 * z - 1;
+	float lin = 2 * far * near / (near + far - z_n * (near - far));
+	return lin;
+}
+
 vec3 normal_from_depth(vec2 uv, mat4 inv_viewproj)
 {
 
@@ -138,6 +146,8 @@ void main()
     mat3 TBN = mat3(tangent, bitangent, normal);
     
     float occlusionFactor = 0;
+    // float rangeCheck = 0.0;
+    // float failedRanges = 0.0;
     for (int i = 0; i < 32; i++)
     {
       vec4 p = vec4(position + (TBN*data.samples[i]) * pcs.kernelRadius, 1.0);
@@ -157,15 +167,17 @@ void main()
       
       float sampleDepth = texture(depthImage, projCoords.xy).r;
 
-      debugPrintfEXT("%f,  %f", sampleDepth, projCoords.z);
 
-      // FIXME: use better range check.. this one doesnt work
-      float rangeCheck = abs(sampleDepth - projCoords.z) < pcs.kernelRadius ? 1.0 : 0.0;
+      float sampleDepthLinear = compute_lineardepth(sampleDepth, 10000.0, 0.1);
+      float projCoordsLinear = compute_lineardepth(projCoords.z, 10000.0, 0.1);
+      
+      float rangeCheck = abs( sampleDepthLinear - projCoordsLinear) < pcs.kernelRadius ? 1.0 : 0.0;
+
       occlusionFactor += (sampleDepth < projCoords.z ? 0.0 : 1.0) * rangeCheck;
     }
     // select x points around current and if thei w uhh to be continued
     float occlusion = 1.0 - (occlusionFactor / 32.0);
-    occlusion = pow(occlusion, 3.0);
+    occlusion = pow(occlusion, 2.0);
 
 
     
@@ -176,3 +188,10 @@ void main()
 }
 
 #endif
+
+/*
+
+AutoCVar_Float cameraFar("camera.far", "", 10000.0, CVarFlags::Advanced);
+AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
+
+*/
