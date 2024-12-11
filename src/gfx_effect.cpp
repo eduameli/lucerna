@@ -357,7 +357,7 @@ void ssao::prepare()
   
 
   // create output image
-  VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+  VkFormat format = VK_FORMAT_R8_UNORM;
   VkImageUsageFlags usages = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT; /*last one for debugging*/
   VkExtent3D size = engine->internalExtent;
   outputAmbient = engine->create_image(size, format, usages);

@@ -10,7 +10,7 @@ namespace Aurora {
   Application::Application()
   {
     // read and set preferred configuration
-    Window::init("Lucerna", 1280, 800);
+    Window::init("Lucerna (v0.1.1)", 1280, 800);
 
     // hard coded defaults!
     config =

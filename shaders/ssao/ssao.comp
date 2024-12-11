@@ -123,15 +123,30 @@ vec3 normal_from_depth_better(vec2 uv, mat4 inv_viewproj)
  
 }
 
+
+
+
+
 void main()
 {
   ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-  ivec2 size = imageSize(outAmbient); // FIXME: put it in pcs
+
+
+    ivec2 size = imageSize(outAmbient); // FIXME: put it in pcs
   
   // TODO: reconstruct depth without inv matrix? more optimised
   if (texelCoord.x < size.x && texelCoord.y < size.y)
   {
+
     vec2 texCoord = (vec2(texelCoord) + 0.5) / vec2(size);
+    
+    // debugging tiling
+    // imageStore(outAmbient, texelCoord, vec4(texCoord.xy, 0.0, 0.0));
+    // return;
+
+
+      
+    // vec2 texCoord = (vec2(texelCoord) + 0.5) / vec2(size);
     float depth = texture(depthImage, texCoord).r;
     vec3 normal = normal_from_depth_better(texCoord, pcs.inv_viewproj);
 
@@ -177,7 +192,7 @@ void main()
     }
     // select x points around current and if thei w uhh to be continued
     float occlusion = 1.0 - (occlusionFactor / 32.0);
-    occlusion = pow(occlusion, 2.0);
+    occlusion = pow(occlusion, 5);
 
 
     
