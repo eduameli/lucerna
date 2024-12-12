@@ -22,6 +22,7 @@ namespace Aurora
     VkFormat imageFormat;
     uint32_t sampler_idx{UINT32_MAX};
     uint32_t image_idx{UINT32_MAX};
+    uint32_t texture_idx{3};
   };
   
   struct AllocatedBuffer

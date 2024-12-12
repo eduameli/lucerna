@@ -13,8 +13,9 @@ layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
 layout(set = 0, binding = 1) uniform sampler2D shadowDepth;
 layout(set = 0, binding = 3) uniform sampler2D ssaoAmbient;
 
-layout(set = 1, binding = 0) uniform sampler2D global_textures[];
-layout(set = 1, binding = 1, rgba16f) uniform image2D global_images[];
+layout(set = 1, binding = 0) uniform texture2D global_textures[];
+layout(set = 1, binding = 1) uniform sampler global_samplers[];
+layout(set = 1, binding = 2, rgba16f) uniform image2D global_images[];
 
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inColor;
@@ -101,7 +102,14 @@ void main()
 {
 
   BindlessMaterial mat = materials[material_idx];
-  vec4 albedo = texture(global_textures[mat.albedo], inUV) * vec4(inColor, 1.0) * vec4(mat.tint, 1.0);
+
+  uint sampled = mat.albedo & 0x00FFFFFF;
+  uint samp = mat.albedo >> 24;
+
+
+  debugPrintfEXT("%i, %i", sampled, samp);
+  
+  vec4 albedo = texture(sampler2D(global_textures[sampled], global_samplers[samp]), inUV) * vec4(inColor, 1.0) * vec4(mat.modulate, 1.0);
   
   float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
@@ -119,7 +127,7 @@ void main()
   float ssao = texture(ssaoAmbient, gl_FragCoord.xy / vec2(1280, 800)).r;
 
   vec4 color = albedo * lightValue * (ssao);
-  color += vec4(mat.emissions * mat.strength, 1.0f);
+  // color += vec4(mat.emissions * mat.strength, 1.0f);
   
     
   outColour = color;   

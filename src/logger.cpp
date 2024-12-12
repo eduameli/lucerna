@@ -22,7 +22,7 @@ namespace Aurora {
   {
     if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
     {
-      AR_CORE_ERROR("VALIDATION LAYER ERROR: {}", pCallbackData->pMessage);
+      AR_CORE_ERROR("VALIDATION LAYER ERROR: {}\n\n", pCallbackData->pMessage);
     }
     return VK_FALSE;
   }

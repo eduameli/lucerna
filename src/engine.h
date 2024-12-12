@@ -209,16 +209,22 @@ namespace Aurora {
       void create_instance();
       void create_device();
 
+      public:
+      constexpr static uint32_t SAMPLED_IMAGE_BINDING = 0;
+      constexpr static uint32_t SAMPLER_BINDING = 1;
+      constexpr static uint32_t STORAGE_IMAGE_BINDING = 2;
 
-      constexpr static uint32_t SAMPLER_BINDING = 0;
-      constexpr static uint32_t IMAGE_BINDING = 1;
-
-      constexpr static uint32_t SAMPLER_COUNT = 65536;
-      constexpr static uint32_t IMAGE_COUNT = 65536;
-      
+      constexpr static uint32_t SAMPLED_IMAGE_COUNT = 65536; // 2^24 left if u store combined sampler in uint32_t
+      constexpr static uint32_t SAMPLER_COUNT = 65536; // not this many.. store image idx in uint32_t 5 bits for the sampler?  2^8 -> 256               
+      constexpr static uint32_t STORAGE_IMAGE_COUNT = 65536;
+      private:
+        
       VkDescriptorPool bindless_descriptor_pool;
       VkDescriptorSetLayout bindless_descriptor_layout;
+      
+      public:
       VkDescriptorSet bindless_descriptor_set;
+      private:
       VkPipelineLayout bindless_pipeline_layout;
       VkPipeline std_pipeline;
       VkDescriptorSet global_descriptor_set;
@@ -241,10 +247,14 @@ namespace Aurora {
       
       std::vector<AllocatedImage> descriptor_updates;
     public:
-      std::unordered_map<uint32_t, VkSampler> combined_sampler;
+      // std::unordered_map<uint32_t, VkSampler> combined_sampler;
+      std::vector<VkSampler> globalSamplers;
     // private:
       free_list freeSamplers;
       free_list freeImages;
+
+      uint32_t sampledCounter{ 0 };
+      uint32_t samplerCounter{ 0 };
 
     private:
       void init_bindless_pipeline_layout();

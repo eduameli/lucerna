@@ -1336,8 +1336,12 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
 
   if (is_sampled)
   {
-    newImage.sampler_idx = freeSamplers.allocate();
-    combined_sampler[newImage.sampler_idx] = mipmapped ? bindless_sampler : m_DefaultSamplerLinear;
+    // newImage.sampler_idx = freeSamplers.allocate();
+    // combined_sampler[newImage.sampler_idx] = mipmapped ? bindless_sampler : m_DefaultSamplerLinear;
+
+
+    sampledCounter++;
+    newImage.texture_idx = sampledCounter;
   }
 
   if (is_storage)
@@ -1723,10 +1727,11 @@ ssbo - using bda
 void Engine::init_bindless_pipeline_layout()
 {
   
-  std::array<VkDescriptorPoolSize, 2> pool_size_bindless =
+  std::array<VkDescriptorPoolSize, 3> pool_size_bindless =
   {
-    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, SAMPLER_COUNT},
-    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, IMAGE_COUNT}
+    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, SAMPLED_IMAGE_COUNT},
+    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_SAMPLER, SAMPLER_COUNT},
+    VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, STORAGE_IMAGE_COUNT}
   };
 
   VkDescriptorPoolCreateInfo pool_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, .pNext = nullptr};
@@ -1736,20 +1741,27 @@ void Engine::init_bindless_pipeline_layout()
   pool_info.pPoolSizes = pool_size_bindless.data();
   VK_CHECK_RESULT(vkCreateDescriptorPool(device, &pool_info, nullptr, &bindless_descriptor_pool));
 
-  VkDescriptorSetLayoutBinding binding[2]; // spec guarantees 4
-  VkDescriptorSetLayoutBinding& sampler_bind = binding[0];
-  sampler_bind.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  sampler_bind.descriptorCount = SAMPLER_COUNT;
-  sampler_bind.binding = SAMPLER_BINDING;
-  sampler_bind.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
-  sampler_bind.pImmutableSamplers = nullptr;
+  VkDescriptorSetLayoutBinding binding[3]; // spec guarantees 4
+  VkDescriptorSetLayoutBinding& sampledImg = binding[0];
+  sampledImg.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+  sampledImg.descriptorCount = SAMPLED_IMAGE_COUNT;
+  sampledImg.binding = SAMPLED_IMAGE_BINDING;
+  sampledImg.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
+  sampledImg.pImmutableSamplers = nullptr;
 
-  VkDescriptorSetLayoutBinding& img_bind = binding[1];
-  img_bind.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  img_bind.descriptorCount = IMAGE_COUNT;
-  img_bind.binding = IMAGE_BINDING;
-  img_bind.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
-  img_bind.pImmutableSamplers = nullptr;
+  VkDescriptorSetLayoutBinding& sampler = binding[1];
+  sampler.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+  sampler.descriptorCount = SAMPLER_COUNT;
+  sampler.binding = SAMPLER_BINDING;
+  sampler.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
+  sampler.pImmutableSamplers = nullptr;
+  
+  VkDescriptorSetLayoutBinding& storageImg = binding[2];
+  storageImg.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  storageImg.descriptorCount = STORAGE_IMAGE_COUNT;
+  storageImg.binding = STORAGE_IMAGE_BINDING;
+  storageImg.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
+  storageImg.pImmutableSamplers = nullptr;
     
   VkDescriptorSetLayoutCreateInfo layout_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .pNext = nullptr};
   layout_info.bindingCount = pool_size_bindless.size();
@@ -1759,9 +1771,10 @@ void Engine::init_bindless_pipeline_layout()
   VkDescriptorBindingFlags bindless_flags = 
     VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
 
-  VkDescriptorBindingFlags binding_flags[2];
+  VkDescriptorBindingFlags binding_flags[3];
   binding_flags[0] = bindless_flags;
   binding_flags[1] = bindless_flags;
+  binding_flags[2] = bindless_flags;
 
   VkDescriptorSetLayoutBindingFlagsCreateInfo extend_info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO, .pNext = nullptr};
   extend_info.bindingCount = pool_size_bindless.size();
@@ -1827,7 +1840,7 @@ void Engine::update_descriptors()
   {
     AllocatedImage img = descriptor_updates[i];
     
-    if (img.sampler_idx != UINT32_MAX)
+    if (img.texture_idx != UINT32_MAX)
     {
       VkWriteDescriptorSet w;
       w = {};
@@ -1835,16 +1848,17 @@ void Engine::update_descriptors()
       w.pNext = nullptr;
       w.dstSet = bindless_descriptor_set;
       w.descriptorCount = 1;
-      w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      w.dstArrayElement = img.sampler_idx;
-      w.dstBinding = SAMPLER_BINDING;
+      w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+      w.dstArrayElement = img.texture_idx;
+      w.dstBinding = SAMPLED_IMAGE_BINDING;
 
 
       VkDescriptorImageInfo inf{};
       inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
       inf.imageView = img.imageView;
 
-      inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler.at(img.sampler_idx) : bindless_sampler;
+      // inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler.at(img.sampler_idx) : bindless_sampler;
+      // inf.sampler = globalSamplers[(img.texture_idx >> 24)];
       
       info.push_back(inf);
       w.pImageInfo = &info.back();
@@ -1860,7 +1874,7 @@ void Engine::update_descriptors()
       w.descriptorCount = 1;
       w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
       w.dstArrayElement = img.image_idx;
-      w.dstBinding = IMAGE_BINDING;
+      w.dstBinding = STORAGE_IMAGE_BINDING;
 
       VkDescriptorImageInfo inf{};
       inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;

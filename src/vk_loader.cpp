@@ -26,6 +26,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <vulkan/vulkan_core.h>
 
 #include "vk_pipelines.h"
 #include "glm/gtx/string_cast.hpp"
@@ -98,7 +99,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::vector<std::shared_ptr<MeshAsset>> meshes;
   std::vector<std::shared_ptr<Node>> nodes;
   std::vector<AllocatedImage> images;
-  // std::vector<std::shared_ptr<GLTFMaterial>> materials;
   std::vector<std::shared_ptr<BindlessMaterial>> mats;
   
   for (fastgltf::Image& image : asset.images)
@@ -129,12 +129,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
       AllocatedImage i  = images[img];
       VkSampler s = file.samplers[sampler];
-      m.albedo = i.sampler_idx;
+      // m.albedo = i.sampler_idx;
+      // AR_CORE_INFO("SAMPLER {}", i.texture_idx);
 
+      m.albedo = i.texture_idx + (sampler << 24);
+
+      engine->globalSamplers.push_back(s);
       
-      engine->combined_sampler[i.sampler_idx] = s;
+      // engine->combined_sampler[i.sampler_idx] = s;
     }
-    m.tint = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
+    m.modulate = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
 
     m.emissions = {glm::vec3(mat.emissiveFactor.x(), mat.emissiveFactor.y(), mat.emissiveFactor.z())};
     m.strength = mat.emissiveStrength;
@@ -336,6 +340,56 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       node->refresh_transform(glm::mat4{1.0f});
     }
   }
+
+  uint32_t index = 0;
+  for (auto& s : engine->globalSamplers)
+  {
+    VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+    w.dstSet = engine->bindless_descriptor_set;
+    w.descriptorCount = 1;
+    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    w.dstArrayElement = index;
+
+    w.dstBinding = engine->SAMPLER_BINDING;
+
+    VkDescriptorImageInfo info{};
+    info.sampler = engine->globalSamplers[index];
+
+    w.pImageInfo = &info;
+
+    vkUpdateDescriptorSets(engine->device, 1, &w, 0, nullptr);
+    
+    index++;
+  }
+    
+    
+    // if (img.sampler_idx != UINT32_MAX)
+    // {
+    //   VkWriteDescriptorSet w;
+    //   w = {};
+    //   w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //   w.pNext = nullptr;
+    //   w.dstSet = bindless_descriptor_set;
+    //   w.descriptorCount = 1;
+    //   w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    //   w.dstArrayElement = img.sampler_idx;
+    //   w.dstBinding = SAMPLED_IMAGE_BINDING;
+
+
+    //   VkDescriptorImageInfo inf{};
+    //   inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    //   inf.imageView = img.imageView;
+
+    //   // inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler.at(img.sampler_idx) : bindless_sampler;
+    //   // inf.sampler = globalSamplers[(img.texture_idx >> 24)];
+      
+    //   info.push_back(inf);
+    //   w.pImageInfo = &info.back();
+    //   writes.push_back(w);
+    // }
+
+
+
 
   return scene;
 }
