@@ -19,7 +19,7 @@ namespace Aurora
     private:
       // FIX: make a proper controller/input system 
       static inline glm::vec3 s_Velocity{0.0f};
-      static inline float s_Speed{0.2f};
+      static inline float s_Speed{0.02f};
       static inline float s_Pitch{0.0f};
       static inline float s_Yaw{0.0f};
       static inline float s_LastMouseX{0.0f};

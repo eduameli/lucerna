@@ -20,7 +20,6 @@ namespace Aurora
     VmaAllocation allocation;
     VkExtent3D imageExtent;
     VkFormat imageFormat;
-    uint32_t sampler_idx{UINT32_MAX};
     uint32_t image_idx{UINT32_MAX};
     uint32_t texture_idx{3};
   };

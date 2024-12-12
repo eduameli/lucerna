@@ -248,7 +248,6 @@ namespace Aurora {
       std::vector<AllocatedImage> descriptor_updates;
     public:
       // std::unordered_map<uint32_t, VkSampler> combined_sampler;
-      std::vector<VkSampler> globalSamplers;
     // private:
       free_list freeSamplers;
       free_list freeImages;

@@ -93,7 +93,25 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
     VkSampler newSampler;
     vkCreateSampler(engine->device, &sampl, nullptr, &newSampler);
+
+
+    VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+    w.dstSet = engine->bindless_descriptor_set;
+    w.descriptorCount = 1;
+    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    w.dstArrayElement = engine->samplerCounter;
+    w.dstBinding = engine->SAMPLER_BINDING;
+
+    VkDescriptorImageInfo info{};
+    info.sampler = newSampler;
+    w.pImageInfo = &info;
+    vkUpdateDescriptorSets(engine->device, 1, &w, 0, nullptr);
+
+    engine->samplerCounter++;
     file.samplers.push_back(newSampler);
+
+    
+   
   }
 
   std::vector<std::shared_ptr<MeshAsset>> meshes;
@@ -128,15 +146,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       size_t sampler = asset.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
 
       AllocatedImage i  = images[img];
-      VkSampler s = file.samplers[sampler];
-      // m.albedo = i.sampler_idx;
-      // AR_CORE_INFO("SAMPLER {}", i.texture_idx);
 
       m.albedo = i.texture_idx + (sampler << 24);
-
-      engine->globalSamplers.push_back(s);
-      
-      // engine->combined_sampler[i.sampler_idx] = s;
+     
     }
     m.modulate = {mat.pbrData.baseColorFactor.x(), mat.pbrData.baseColorFactor.y(), mat.pbrData.baseColorFactor.z()};
 
@@ -149,9 +161,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
 
   
-  std::vector<uint32_t> indices;
-  std::vector<Vertex> vertices;
-  std::vector<glm::vec3> positions;
+  std::vector<uint32_t>& indices = engine->mainDrawContext.indices;
+  std::vector<Vertex>& vertices = engine->mainDrawContext.vertices;
+  std::vector<glm::vec3>& positions = engine->mainDrawContext.positions;
 
   uint32_t idx_counter = 0;
   
@@ -259,25 +271,25 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
   }
 
+  // engine->mainDrawContext.indices.assign()
 
+ // for (auto i : indices)
+ //    {
+ //      engine->mainDrawContext.indices.push_back(i);
+ //      // AR_CORE_INFO("idx {}", i);
+ //    }
+ //    // initals_idx = engine->mainDrawContext.indices.size();
 
- for (auto i : indices)
-    {
-      engine->mainDrawContext.indices.push_back(i);
-      // AR_CORE_INFO("idx {}", i);
-    }
-    // initals_idx = engine->mainDrawContext.indices.size();
+ //    for (auto v : vertices)
+ //    {
+ //      // AR_
+ //      engine->mainDrawContext.vertices.push_back(v);
+ //    }
 
-    for (auto v : vertices)
-    {
-      // AR_
-      engine->mainDrawContext.vertices.push_back(v);
-    }
-
-    for(auto p : positions)
-    {
-      engine->mainDrawContext.positions.push_back(p);
-    }
+ //    for(auto p : positions)
+ //    {
+ //      engine->mainDrawContext.positions.push_back(p);
+ //    }
   
 
 
@@ -341,56 +353,28 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
   }
 
-  uint32_t index = 0;
-  for (auto& s : engine->globalSamplers)
-  {
-    VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
-    w.dstSet = engine->bindless_descriptor_set;
-    w.descriptorCount = 1;
-    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    w.dstArrayElement = index;
+  // uint32_t index = 0;
+  // for (auto& s : engine->globalSamplers)
+  // {
+  //   VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
+  //   w.dstSet = engine->bindless_descriptor_set;
+  //   w.descriptorCount = 1;
+  //   w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+  //   w.dstArrayElement = index;
 
-    w.dstBinding = engine->SAMPLER_BINDING;
+  //   w.dstBinding = engine->SAMPLER_BINDING;
 
-    VkDescriptorImageInfo info{};
-    info.sampler = engine->globalSamplers[index];
+  //   VkDescriptorImageInfo info{};
+  //   info.sampler = engine->globalSamplers[index];
 
-    w.pImageInfo = &info;
+  //   w.pImageInfo = &info;
 
-    vkUpdateDescriptorSets(engine->device, 1, &w, 0, nullptr);
+  //   vkUpdateDescriptorSets(engine->device, 1, &w, 0, nullptr);
     
-    index++;
-  }
+  //   index++;
+  // }
     
     
-    // if (img.sampler_idx != UINT32_MAX)
-    // {
-    //   VkWriteDescriptorSet w;
-    //   w = {};
-    //   w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    //   w.pNext = nullptr;
-    //   w.dstSet = bindless_descriptor_set;
-    //   w.descriptorCount = 1;
-    //   w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    //   w.dstArrayElement = img.sampler_idx;
-    //   w.dstBinding = SAMPLED_IMAGE_BINDING;
-
-
-    //   VkDescriptorImageInfo inf{};
-    //   inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    //   inf.imageView = img.imageView;
-
-    //   // inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler.at(img.sampler_idx) : bindless_sampler;
-    //   // inf.sampler = globalSamplers[(img.texture_idx >> 24)];
-      
-    //   info.push_back(inf);
-    //   w.pImageInfo = &info.back();
-    //   writes.push_back(w);
-    // }
-
-
-
-
   return scene;
 }
 

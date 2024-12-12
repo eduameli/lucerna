@@ -704,7 +704,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   settings->light_size = 0.1;
   settings->enabled = shadowEnabled.get();
   settings->softness = shadowSoftness.get();
-  settings->texture_idx = m_ShadowDepthImage.sampler_idx; // how to give it a specific sampler
+  settings->texture_idx = m_ShadowDepthImage.texture_idx; // how to give it a specific sampler
 
   
   AllocatedBuffer sceneDataBuf = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -1336,10 +1336,6 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
 
   if (is_sampled)
   {
-    // newImage.sampler_idx = freeSamplers.allocate();
-    // combined_sampler[newImage.sampler_idx] = mipmapped ? bindless_sampler : m_DefaultSamplerLinear;
-
-
     sampledCounter++;
     newImage.texture_idx = sampledCounter;
   }
@@ -1354,22 +1350,6 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   return newImage;
 } 
 
-
-/*
-when u load gltf u add all textures to samplers
-
-descriptor indexing samplers
-
-or have it in the big ubo.. 
-how many samplers can i use?? idfk
-
-combined samplers---
-basically batch upload textures at the end of every frame .. 
-and link the sampler to the descriptor write in vkloader.
-or when creating an img
-allocatedimg has sampler_idx(-1) and image_idx(-1)
-
-*/
 
 AllocatedImage Engine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
@@ -1857,9 +1837,6 @@ void Engine::update_descriptors()
       inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
       inf.imageView = img.imageView;
 
-      // inf.sampler = combined_sampler.contains(img.sampler_idx) ? combined_sampler.at(img.sampler_idx) : bindless_sampler;
-      // inf.sampler = globalSamplers[(img.texture_idx >> 24)];
-      
       info.push_back(inf);
       w.pImageInfo = &info.back();
       writes.push_back(w);
