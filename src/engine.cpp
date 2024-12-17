@@ -51,7 +51,7 @@ AutoCVar_Float cameraFar("camera.far", "", 10000.0, CVarFlags::Advanced);
 AutoCVar_Float cameraNear("camera.near", "", 0.1, CVarFlags::Advanced);
 
 AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCheckbox);
-AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.5, CVarFlags::None);
+AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.0, CVarFlags::None);
 AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
 
 void FrameGraph::add_sample(float sample)
@@ -963,16 +963,26 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::Text("  ft: %.2f ms", stats.frametime);
     ImGui::Text("   f: %lu", frameNumber);
   ImGui::End();
-   
+
+
+  ImGui::Begin("Texture Picker");
+    static int32_t texture_idx = 0;
+    ImGui::Text("Bindless Texture Picker");
+    ImGui::InputInt("texture idx", &texture_idx);
+    ImGui::Image((ImTextureID) texture_idx, ImVec2{200, 200});
   ImGui::End();
 
-  ImGui::Render(); 
   
+  ImGui::End();
+
+  // ImGui::Render(); 
+  // VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
 
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
   vkCmdBeginRendering(cmd, &renderInfo);
-  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+  // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+  VulkanImGuiBackend::draw(cmd, device, target,m_Swapchain.extent2d);
   vkCmdEndRendering(cmd);
 }
 
@@ -1263,8 +1273,8 @@ GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec3> positions, std::span<Ver
   void* data = staging.allocation->GetMappedData();
 
   memcpy(data, positions.data(), positionBufferSize);
-  memcpy((char*) data + positionBufferSize, vertices.data(), vertexBufferSize);
-  memcpy((char*) data + positionBufferSize + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
+  memcpy((uint8_t*) data + positionBufferSize, vertices.data(), vertexBufferSize);
+  memcpy((uint8_t*) data + positionBufferSize + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
 
   immediate_submit([&](VkCommandBuffer cmd){
     VkBufferCopy positionCopy{};
@@ -2174,6 +2184,10 @@ void Engine::init_commands()
 
 void Engine::init_imgui()
 {
+
+  // VulkanImGuiBackend::init(this);
+  // return;
+  
   VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
@@ -2217,6 +2231,12 @@ void Engine::init_imgui()
   
   info.PipelineRenderingCreateInfo = info2;
   ImGui_ImplVulkan_Init(&info);
+
+
+  VulkanImGuiBackend::init(this);
+  return;
+
+  
   ImGui_ImplVulkan_CreateFontsTexture();
 
   m_DeletionQueue.push_function([=, this]() {

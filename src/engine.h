@@ -217,19 +217,17 @@ namespace Aurora {
       constexpr static uint32_t SAMPLED_IMAGE_COUNT = 65536; // 2^24 left if u store combined sampler in uint32_t
       constexpr static uint32_t SAMPLER_COUNT = 65536; // not this many.. store image idx in uint32_t 5 bits for the sampler?  2^8 -> 256               
       constexpr static uint32_t STORAGE_IMAGE_COUNT = 65536;
-      private:
         
       VkDescriptorPool bindless_descriptor_pool;
       VkDescriptorSetLayout bindless_descriptor_layout;
       
       public:
       VkDescriptorSet bindless_descriptor_set;
-      private:
       VkPipelineLayout bindless_pipeline_layout;
       VkPipeline std_pipeline;
       VkDescriptorSet global_descriptor_set;
 
-
+      private:
 
       // indirect culling - FIXME: should use draw_sets one for the different geometry "buckets"
       // FIXME: scuffed now culls WHOLE DRAWING EVEN FOR SHADOWS

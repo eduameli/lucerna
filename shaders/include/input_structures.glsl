@@ -44,6 +44,8 @@ struct bloom_pcs
 };
 
 
+
+
 struct Bounds
 {
   vec3_ar origin;
@@ -95,6 +97,13 @@ struct u_ShadowPass
 };
 
 
+struct ImVertexFormat
+{
+  vec2_ar position;
+  vec2_ar uv;
+  uint colour;
+};
+
 #ifndef __cplusplus
 
 // bda glsl types - deprecated
@@ -124,6 +133,9 @@ layout(scalar, buffer_reference) buffer DrawDataBuffer{
 };
 
 
+layout(scalar, buffer_reference) buffer ImVertexBuffer{
+  ImVertexFormat vertices[];
+};
 // layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
 //   ShadowFragmentSettings shadowSettings;
 // };
@@ -132,4 +144,21 @@ layout(scalar, buffer_reference) buffer DrawDataBuffer{
 
 
 #endif // is glsl
+
+
+
+
+struct imgui_pcs
+{
+#ifdef __cplusplus
+    imgui_pcs() :
+        vertexBuffer{0}, textureID{3}, translate{0.0f}, scale{0.0f} {}
+#endif
+    buffer_ar(ImVertexBuffer) vertexBuffer;
+    uint32_ar textureID;
+    vec2_ar translate;
+    vec2_ar scale; 
+};
+
+  
 #endif // input structs
