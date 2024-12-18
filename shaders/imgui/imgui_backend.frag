@@ -29,6 +29,7 @@ void main()
     colour.rgb *= colour.a;
 
     outColour = colour;    
+    // outColour = vec4(1.0, 0.0, 0.0, 0.0);
 }
 
 #endif

@@ -156,6 +156,7 @@ struct imgui_pcs
 #endif
     buffer_ar(ImVertexBuffer) vertexBuffer;
     uint32_ar textureID;
+    uint32_ar padding;
     vec2_ar translate;
     vec2_ar scale; 
 };

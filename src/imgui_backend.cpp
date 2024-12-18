@@ -6,7 +6,7 @@
 #include "vk_pipelines.h"
 #include "vk_types.h"
 #include <glm/vec2.hpp>
-
+#include <glm/gtx/string_cast.hpp>
 #include <imgui.h>
 #include <vulkan/vulkan_core.h>
 
@@ -33,10 +33,10 @@ uint32_t to_bindless_idx(ImTextureID id)
 void VulkanImGuiBackend::init(Engine* engine)
 {
   // create index buffer
-  indexBuffer = engine->create_buffer(sizeof(ImDrawIdx) * MAX_IDX_COUNT, VK_BUFFER_USAGE_2_INDEX_BUFFER_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY);
+  indexBuffer = engine->create_buffer(sizeof(ImDrawIdx) * MAX_IDX_COUNT, VK_BUFFER_USAGE_2_INDEX_BUFFER_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
   // create vertex buffer
-  vertexBuffer = engine->create_buffer(sizeof(ImVertexFormat) * MAX_VTX_COUNT, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  vertexBuffer = engine->create_buffer(sizeof(ImVertexFormat) * MAX_VTX_COUNT, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
   // upload imgui font
   auto& io = ImGui::GetIO();
   io.BackendRendererName = "Lucerna ImGui Backend";
@@ -52,8 +52,7 @@ void VulkanImGuiBackend::init(Engine* engine)
       {(uint32_t) width, (uint32_t) height, 1},
       VK_FORMAT_R8G8B8A8_UNORM,
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-    io.Fonts->SetTexID(reinterpret_cast<ImTextureID>((uint64_t) fontImage.texture_idx));
+    io.Fonts->SetTexID((ImTextureID) (uint64_t) fontImage.texture_idx);
   }
   // compile imgui.frag imgui.vert & make a pipeline
 
@@ -73,22 +72,22 @@ void VulkanImGuiBackend::init(Engine* engine)
     .size = sizeof(imgui_pcs)
   };
 
-  // VkDescriptorSetLayout l{};
-  // {
-  //   DescriptorLayoutBuilder b;
-  //   b.add_binding(0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-  //   b.add_binding(1, VK_DESCRIPTOR_TYPE_SAMPLER);
-  //   l = b.build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-  // }
+  VkDescriptorSetLayout l{};
+  {
+    DescriptorLayoutBuilder b;
+    b.add_binding(0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+    b.add_binding(1, VK_DESCRIPTOR_TYPE_SAMPLER);
+    l = b.build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+  }
   
-  // VkDescriptorSetLayout sets[] = {engine->bindless_descriptor_layout};
+  VkDescriptorSetLayout sets[] = {engine->bindless_descriptor_layout};
   
-  // VkPipelineLayoutCreateInfo pipelineLayout = vkinit::pipeline_layout_create_info();
-  // pipelineLayout.pSetLayouts = ;
-  // pipelineLayout.pPushConstantRanges = &range;
-  // pipelineLayout.pushConstantRangeCount = 1;
+  VkPipelineLayoutCreateInfo pipelineLayout = vkinit::pipeline_layout_create_info();
+  pipelineLayout.pSetLayouts = &sets[0];
+  pipelineLayout.pPushConstantRanges = &range;
+  pipelineLayout.pushConstantRangeCount = 1;
 
-  // VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayout, nullptr, &pipLayout));
+  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayout, nullptr, &pipLayout));
     
   {
     PipelineBuilder b;
@@ -97,7 +96,8 @@ void VulkanImGuiBackend::init(Engine* engine)
     b.set_polygon_mode(VK_POLYGON_MODE_FILL);
     b.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     b.set_multisampling_none();
-    b.enable_blending_additive(); // need to be more specific than this!!
+    // b.enable_blending_additive(); // need to be more specific than this!!
+    b.enable_blending_alphablend();
     b.disable_depthtest();
     b.set_color_attachment_format(engine->m_Swapchain.format);
     b.PipelineLayout = engine->bindless_pipeline_layout;
@@ -128,11 +128,11 @@ void VulkanImGuiBackend::draw(
 
   AR_ASSERT(drawData != nullptr);
 
+  
   if (drawData->TotalVtxCount == 0)
   {
     return;
   }
-
 
   AR_LOG_ASSERT(drawData->TotalIdxCount < MAX_IDX_COUNT && drawData->TotalVtxCount < MAX_VTX_COUNT, 
   "Custom ImGuiBackend surpassed hardcoded upper limit for indices/vertices, buffer resize is not implemented yet!");
@@ -150,8 +150,8 @@ void VulkanImGuiBackend::draw(
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, engine->bindless_pipeline_layout, 1, 1, &engine->bindless_descriptor_set, 0, nullptr);
 
 
-  float targetWidth = (float) swapchainExtent.width;
-  float targetHeight = (float) swapchainExtent.height;
+  float targetWidth = (float) 1280;
+  float targetHeight = (float) 800;
 
   VkViewport viewport = {
     .x = 0,
@@ -172,10 +172,10 @@ void VulkanImGuiBackend::draw(
 
   vkCmdBindIndexBuffer(cmd, indexBuffer.buffer, 0, sizeof(ImDrawIdx) == sizeof(uint16_t) ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
 
-  for (int cmdListID = 0; cmdListID < drawData->CmdListsCount; cmdListID++)
+  for (int cmdListID = 0; cmdListID < drawData->CmdListsCount; ++cmdListID)
   {
     const auto& cmdList = *drawData->CmdLists[cmdListID];
-    for (int cmdID = 0; cmdID < cmdList.CmdBuffer.Size; cmdID++)
+    for (int cmdID = 0; cmdID < cmdList.CmdBuffer.Size; ++cmdID)
     {
       const auto& imCmd = cmdList.CmdBuffer[cmdID];
       if (imCmd.UserCallback)
@@ -211,19 +211,46 @@ void VulkanImGuiBackend::draw(
         continue;
       }
 
-      uint32_t textureId = 3;
+
+
+
+
+      
+      uint32_t textureId = 4;
 
       if (imCmd.TextureId != ImTextureID())
       {
         textureId = to_bindless_idx(imCmd.TextureId);
       }
+      
+      // if (imCmd.TextureId == ImTextureID())
+      // {
+      //   // textureId = (uint32_t) (uint64_t) imCmd.TextureId;
+      //   // AR_CORE_
+      //   textureId = 4;
+      // }
+      // else
+      // {
+      //   textureId = (uint32_t) (uint64_t) imCmd.TextureId;
+      // }
+      //  AR_CORE_INFO("texture id {}, from {}", textureId, imCmd.TextureId);
 
-      bool textureIsSRGB = true;
+
+      if (textureId > 100)
+      {
+        textureId = 4;
+      }
+      // textureId = 7;
       // get the image.. from a central vector...
 
 
-      const auto scale = glm::vec2(2.0f / drawData->DisplaySize.x, 2.0f / drawData->DisplaySize.y);
-      const auto translate = glm::vec2(-1.0f - drawData->DisplayPos.x * scale.x, -1.0f - drawData->DisplayPos.y * scale.y);
+      const auto scale = glm::vec2(
+        2.0f / drawData->DisplaySize.x,
+        2.0f / drawData->DisplaySize.y);
+      
+      const auto translate = glm::vec2(
+        -1.0f - drawData->DisplayPos.x * scale.x,
+        -1.0f - drawData->DisplayPos.y * scale.y);
 
       const auto scissorX = (int32_t) clipMin.x;
       const auto scissorY = (int32_t) clipMin.y;
@@ -247,14 +274,20 @@ void VulkanImGuiBackend::draw(
   
       pcs.vertexBuffer= vkGetBufferDeviceAddress(device, &vertexBDA);
       pcs.textureID = textureId;
+      // pcs.textureID = 7;
       pcs.scale = scale;
       pcs.translate = translate;      
 
-
+      // AR_CORE_INFO("scale {}", glm::to_string(scale));
       vkCmdPushConstants(cmd, pipLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(imgui_pcs), &pcs);
 
-      vkCmdDrawIndexed(cmd, imCmd.ElemCount, 1, imCmd.IdxOffset + globalIdxOffset, imCmd.VtxOffset + imCmd.VtxOffset + globalVtxOffset, 0);
-      
+      vkCmdDrawIndexed(cmd, 
+        imCmd.ElemCount,
+        1,
+        imCmd.IdxOffset + globalIdxOffset,
+        imCmd.VtxOffset + imCmd.VtxOffset + globalVtxOffset,
+        0);
+      // AR_CORE_INFO("DRAW INDEXED!");
       
       
     }
@@ -290,37 +323,37 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
   
   const ImDrawData* drawData = ImGui::GetDrawData();
 
-  // {
-  //   VkBufferMemoryBarrier2 idxBufferBarrier{
-  //     .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-  //     .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-  //     .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
-  //     .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-  //     .dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
-  //     .buffer = indexBuffer.buffer,
-  //     .offset = 0,
-  //     .size = VK_WHOLE_SIZE
-  //   };
-  //   VkBufferMemoryBarrier2 vtxBufferBarrier{
-  //     .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-  //     .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-  //     .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
-  //     .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-  //     .dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
-  //     .buffer = vertexBuffer.buffer,
-  //     .offset = 0,
-  //     .size = VK_WHOLE_SIZE
-  //   };
+  {
+    VkBufferMemoryBarrier2 idxBufferBarrier{
+      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+      .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+      .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+      .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+      .dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
+      .buffer = indexBuffer.buffer,
+      .offset = 0,
+      .size = VK_WHOLE_SIZE
+    };
+    VkBufferMemoryBarrier2 vtxBufferBarrier{
+      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+      .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+      .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+      .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+      .dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
+      .buffer = vertexBuffer.buffer,
+      .offset = 0,
+      .size = VK_WHOLE_SIZE
+    };
 
-  //   VkBufferMemoryBarrier2 barriers[] = {idxBufferBarrier, vtxBufferBarrier};
-  //   VkDependencyInfo info{
-  //     .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-  //     .bufferMemoryBarrierCount = 2,
-  //     .pBufferMemoryBarriers = &barriers[0]
-  //   };
+    VkBufferMemoryBarrier2 barriers[] = {idxBufferBarrier, vtxBufferBarrier};
+    VkDependencyInfo info{
+      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .bufferMemoryBarrierCount = 2,
+      .pBufferMemoryBarriers = &barriers[0]
+    };
 
-  //   vkCmdPipelineBarrier2(cmd, &info);
-  // }
+    vkCmdPipelineBarrier2(cmd, &info);
+  }
 
   // const auto currentFrame = engine->frameNumber % 2; /*engine.cpp::FRAME_OVERLAP*/
 
@@ -345,7 +378,7 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
       vtxRegion = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2,
         .srcOffset = 0,
-        .dstOffset = 0,
+        .dstOffset = currentVertexoffset * sizeof(ImVertexFormat),
         .size = (VkDeviceSize) cmdList.VtxBuffer.size_in_bytes(),
       };
 
@@ -363,7 +396,7 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
       idxRegion = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2,
         .srcOffset = (VkDeviceSize) cmdList.VtxBuffer.size_in_bytes(),
-        .dstOffset = 0,
+        .dstOffset = currentIndexOffset * sizeof(ImDrawIdx),
         .size = (VkDeviceSize) cmdList.IdxBuffer.size_in_bytes()
       };
 
@@ -381,8 +414,46 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
                    
     });
 
+    currentIndexOffset += cmdList.IdxBuffer.Size;
+    currentVertexoffset += cmdList.VtxBuffer.Size;
+    
     engine->destroy_buffer(staging);
   }
+
+
+
+  {
+    VkBufferMemoryBarrier2 idxBufferBarrier{
+      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+      .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+      .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+      .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+      .dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
+      .buffer = indexBuffer.buffer,
+      .offset = 0,
+      .size = VK_WHOLE_SIZE
+    };
+    VkBufferMemoryBarrier2 vtxBufferBarrier{
+      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+      .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+      .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+      .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+      .dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
+      .buffer = vertexBuffer.buffer,
+      .offset = 0,
+      .size = VK_WHOLE_SIZE
+    };
+
+    VkBufferMemoryBarrier2 barriers[] = {idxBufferBarrier, vtxBufferBarrier};
+    VkDependencyInfo info{
+      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .bufferMemoryBarrierCount = 2,
+      .pBufferMemoryBarriers = &barriers[0]
+    };
+
+    vkCmdPipelineBarrier2(cmd, &info);
+  }
+
   
 }
 

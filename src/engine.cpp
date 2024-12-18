@@ -913,77 +913,91 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
-  
+
+
+  // /*
   ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("frame: %zu", frameNumber);
-    ImGui::Text("frametime %f ms", stats.frametime);
-    ImGui::Text("draw time %f ms", stats.mesh_draw_time);
-    ImGui::Text("update time %f ms", stats.scene_update_time);
-    ImGui::Text("triangles %i", stats.triangle_count);
-    ImGui::Text("draws %i", stats.drawcall_count);
+  ImGui::Text("frame: %zu", frameNumber);
+  ImGui::Text("frametime %f ms", stats.frametime);
+  ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+  ImGui::Text("update time %f ms", stats.scene_update_time);
+  ImGui::Text("triangles %i", stats.triangle_count);
+  ImGui::Text("draws %i", stats.drawcall_count);
   ImGui::End();
   
-  ImGui::Begin("Renderer Settings");
-    if (ImGui::CollapsingHeader("Bloom"))
-    {
-      ImGui::Text("boop");
-      ImGui::Checkbox("Enabled", (bool*) CVarSystem::get()->get_int_cvar("bloom.enabled"));
-    }
-    if (ImGui::CollapsingHeader("Shadows"))
-    {
-      ImGui::Checkbox("Enabled", (bool*) shadowEnabled.get_ptr());
-      ImGui::Checkbox("Rotate Light", (bool*) shadowRotateLight.get_ptr());
-      ImGui::Checkbox("View from Light", (bool*) shadowViewFromLight.get_ptr());
-      ImGui::SliderFloat("Shadow Softness", shadowSoftness.get_ptr(), 0.0, 0.1, "%.4f");
+    ImGui::Begin("Renderer Settings");
+      if (ImGui::CollapsingHeader("Bloom"))
+      {
+        ImGui::Text("boop");
+        ImGui::Checkbox("Enabled", (bool*) CVarSystem::get()->get_int_cvar("bloom.enabled"));
+      }
+      if (ImGui::CollapsingHeader("Shadows"))
+      {
+        ImGui::Checkbox("Enabled", (bool*) shadowEnabled.get_ptr());
+        ImGui::Checkbox("Rotate Light", (bool*) shadowRotateLight.get_ptr());
+        ImGui::Checkbox("View from Light", (bool*) shadowViewFromLight.get_ptr());
+        ImGui::SliderFloat("Shadow Softness", shadowSoftness.get_ptr(), 0.0, 0.1, "%.4f");
      
-      ImGui::InputFloat("Frustum Size: ", &pcss_settings.ortho_size);
-      ImGui::InputFloat("Far Plane: ", &pcss_settings.far);
-      ImGui::InputFloat("Near Plane: ", &pcss_settings.near);
-      ImGui::InputFloat("Light Distance: ", &pcss_settings.distance);
-    }
+        ImGui::InputFloat("Frustum Size: ", &pcss_settings.ortho_size);
+        ImGui::InputFloat("Far Plane: ", &pcss_settings.far);
+        ImGui::InputFloat("Near Plane: ", &pcss_settings.near);
+        ImGui::InputFloat("Light Distance: ", &pcss_settings.distance);
+      }
     
-    if (ImGui::CollapsingHeader("Background Effects"))
-    {
-      ImGui::Text("Selected effect: %s", m_BackgroundEffects[m_BackgroundEffectIndex].name);
-      ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1);
-    }
-    ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
+      if (ImGui::CollapsingHeader("Background Effects"))
+      {
+        ImGui::Text("Selected effect: %s", m_BackgroundEffects[m_BackgroundEffectIndex].name);
+        ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1);
+      }
+      ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
+    ImGui::End();
+    
+    CVarSystem::get()->draw_editor();
 
-  CVarSystem::get()->draw_editor();
+    FrameGraph::render_graph();
 
-  FrameGraph::render_graph();
-
-  // graphics programming stats menu
-  ImGui::Begin("better stats");
-    float framesPerSecond = 1.0f / (stats.frametime * 0.001f);
-    ImGui::Text("afps: %.0f rad/s", glm::two_pi<float>() * framesPerSecond);
-    ImGui::Text("dfps: %.0f °/s", glm::degrees(glm::two_pi<float>() * framesPerSecond));
-    ImGui::Text("rfps: %.0f", framesPerSecond);
-    ImGui::Text("rpms: %.0f", framesPerSecond * 60.0f);
-    ImGui::Text("  ft: %.2f ms", stats.frametime);
-    ImGui::Text("   f: %lu", frameNumber);
-  ImGui::End();
+    // graphics programming stats menu
+    ImGui::Begin("better stats");
+      float framesPerSecond = 1.0f / (stats.frametime * 0.001f);
+      ImGui::Text("afps: %.0f rad/s", glm::two_pi<float>() * framesPerSecond);
+      ImGui::Text("dfps: %.0f °/s", glm::degrees(glm::two_pi<float>() * framesPerSecond));
+      ImGui::Text("rfps: %.0f", framesPerSecond);
+      ImGui::Text("rpms: %.0f", framesPerSecond * 60.0f);
+      ImGui::Text("  ft: %.2f ms", stats.frametime);
+      ImGui::Text("   f: %lu", frameNumber);
+    ImGui::End();
 
 
-  ImGui::Begin("Texture Picker");
-    static int32_t texture_idx = 0;
-    ImGui::Text("Bindless Texture Picker");
-    ImGui::InputInt("texture idx", &texture_idx);
-    ImGui::Image((ImTextureID) texture_idx, ImVec2{200, 200});
-  ImGui::End();
+    ImGui::Begin("Texture Picker");
+      static int32_t texture_idx = 0;
+      static ImTextureID real_idx = 0;
+      ImGui::Text("Bindless Texture Picker");
+      ImGui::InputInt("texture idx", &texture_idx);
+      real_idx = (ImTextureID) texture_idx;
+      ImGui::Image(real_idx, ImVec2{250, 250});
+    ImGui::End();
+  // */
+  ImGui::EndFrame();
+  ImGui::Render();
+  VulkanImGuiBackend::draw(cmd, device, target,m_Swapchain.extent2d);
 
+  return;
   
-  ImGui::End();
+ 
+  
+  // ImGui::End();
 
   // ImGui::Render(); 
   // VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
 
-  VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
-  vkCmdBeginRendering(cmd, &renderInfo);
+  // VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  // VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
+  // vkCmdBeginRendering(cmd, &renderInfo);
   // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-  VulkanImGuiBackend::draw(cmd, device, target,m_Swapchain.extent2d);
-  vkCmdEndRendering(cmd);
+  // ImGui::Render();
+
+  
+  // vkCmdEndRendering(cmd);
 }
 
 // FIXME: utterly scuffed, i ignore the min max .y for the aabb collision test between the cannonical viewing volume and the projected obb
@@ -2234,15 +2248,7 @@ void Engine::init_imgui()
 
 
   VulkanImGuiBackend::init(this);
-  return;
 
-  
-  ImGui_ImplVulkan_CreateFontsTexture();
-
-  m_DeletionQueue.push_function([=, this]() {
-    ImGui_ImplVulkan_Shutdown();
-    vkDestroyDescriptorPool(device, imguiPool, nullptr);
-  });
 
   // FIXME: temporary imgui color space fix, PR is on the way.
   ImGuiStyle& style = ImGui::GetStyle();
@@ -2254,6 +2260,29 @@ void Engine::init_imgui()
     colour.z = powf(colour.z, 2.2f);
     colour.w = colour.w;
   }
+
+
+  
+  return;
+
+  
+  ImGui_ImplVulkan_CreateFontsTexture();
+
+  m_DeletionQueue.push_function([=, this]() {
+    ImGui_ImplVulkan_Shutdown();
+    vkDestroyDescriptorPool(device, imguiPool, nullptr);
+  });
+
+  // FIXME: temporary imgui color space fix, PR is on the way.
+  // ImGuiStyle& style = ImGui::GetStyle();
+  // for (int i = 0; i < ImGuiCol_COUNT; i++)
+  // {
+  //   ImVec4& colour = style.Colors[i];
+  //   colour.x = powf(colour.x, 2.2f);
+  //   colour.y = powf(colour.y, 2.2f);
+  //   colour.z = powf(colour.z, 2.2f);
+  //   colour.w = colour.w;
+  // }
 }
 
 

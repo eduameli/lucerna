@@ -20,6 +20,7 @@ void main()
     outUV = v.uv;
 
     gl_Position = vec4(v.position * pcs.scale + pcs.translate, 0.0, 1.0f);        
+    // gl_Position = vec4(v.position, 0.0, 1.0);
 }
 
 #endif
