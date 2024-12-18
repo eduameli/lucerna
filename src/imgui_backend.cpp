@@ -72,13 +72,6 @@ void VulkanImGuiBackend::init(Engine* engine)
     .size = sizeof(imgui_pcs)
   };
 
-  VkDescriptorSetLayout l{};
-  {
-    DescriptorLayoutBuilder b;
-    b.add_binding(0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-    b.add_binding(1, VK_DESCRIPTOR_TYPE_SAMPLER);
-    l = b.build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-  }
   
   VkDescriptorSetLayout sets[] = {engine->bindless_descriptor_layout};
   
@@ -97,7 +90,27 @@ void VulkanImGuiBackend::init(Engine* engine)
     b.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     b.set_multisampling_none();
     // b.enable_blending_additive(); // need to be more specific than this!!
-    b.enable_blending_alphablend();
+    
+    // b.enable_blending_alphablend();
+/*    
+VK_BLEND_OP_ADD,
+VK_BLEND_FACTOR_ONE,
+VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+VK_BLEND_FACTOR_ONE,
+VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)    
+*/
+
+
+    
+    b.m_ColorBlendAttachment.blendEnable = VK_TRUE;
+    b.m_ColorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    b.m_ColorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    b.m_ColorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    b.m_ColorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    b.m_ColorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    b.m_ColorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    b.m_ColorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    
     b.disable_depthtest();
     b.set_color_attachment_format(engine->m_Swapchain.format);
     b.PipelineLayout = engine->bindless_pipeline_layout;
@@ -111,6 +124,9 @@ void VulkanImGuiBackend::init(Engine* engine)
   engine->m_DeletionQueue.push_function([=](){
     vkDestroyPipelineLayout(device, pipLayout, nullptr);
     vkDestroyPipeline(device, pipeline, nullptr);                                     
+    engine->destroy_buffer(indexBuffer);
+    engine->destroy_buffer(vertexBuffer);
+    engine->destroy_image(fontImage);
   });
   
 }
@@ -222,13 +238,19 @@ void VulkanImGuiBackend::draw(
       if (imCmd.TextureId != ImTextureID())
       {
         textureId = to_bindless_idx(imCmd.TextureId);
+      }
 
-        if (textureId == 380)
+      // AR_CORE_INFO("{}", textureId);
+      
+      // {
+      //   textureId = to_bindless_idx(imCmd.TextureId);
+
+        if (textureId == 379)
         {
           textureId = 4;
         }
         
-      }
+      // }
       
 
       const auto scale = glm::vec2(
@@ -443,5 +465,6 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
 
   
 }
+
 
 } // aurora namespace

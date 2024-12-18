@@ -1,6 +1,7 @@
 #pragma once
 #include "aurora_pch.h"
 #include <volk.h>
+#include <vulkan/vulkan_core.h>
 namespace vkutil
 {
 // NOTE: std::filesystem::path and optional that retuns "placeholder" shader pipeline if it fails.
@@ -27,12 +28,13 @@ class PipelineBuilder
     void enable_depthtest(bool depthWriteEnable, VkCompareOp op);
   public:
     VkPipelineLayout PipelineLayout;
+    VkPipelineColorBlendAttachmentState m_ColorBlendAttachment{};
   private:
   private:
     std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages{};
     VkPipelineInputAssemblyStateCreateInfo m_InputAssembly{};
     VkPipelineRasterizationStateCreateInfo m_Rasterizer{};
-    VkPipelineColorBlendAttachmentState m_ColorBlendAttachment{};
+    // VkPipelineColorBlendAttachmentState m_ColorBlendAttachment{};
     VkPipelineMultisampleStateCreateInfo m_Multisampling{};
     VkPipelineDepthStencilStateCreateInfo m_DepthStencil{};
     VkPipelineRenderingCreateInfo m_RenderInfo{};
