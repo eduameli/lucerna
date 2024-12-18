@@ -970,11 +970,9 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
     ImGui::Begin("Texture Picker");
       static int32_t texture_idx = 0;
-      static ImTextureID real_idx = 0;
       ImGui::Text("Bindless Texture Picker");
       ImGui::InputInt("texture idx", &texture_idx);
-      real_idx = (ImTextureID) texture_idx;
-      ImGui::Image(real_idx, ImVec2{250, 250});
+      ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{250, 250});
     ImGui::End();
   // */
   ImGui::EndFrame();
@@ -2266,7 +2264,7 @@ void Engine::init_imgui()
   return;
 
   
-  ImGui_ImplVulkan_CreateFontsTexture();
+  // ImGui_ImplVulkan_CreateFontsTexture();
 
   m_DeletionQueue.push_function([=, this]() {
     ImGui_ImplVulkan_Shutdown();

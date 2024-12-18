@@ -215,34 +215,21 @@ void VulkanImGuiBackend::draw(
 
 
 
-      
+      //FIXME: there is something very wrong with this!!!
+      // for some reason the imCmd.TextureId for the font texture is 380?
       uint32_t textureId = 4;
 
       if (imCmd.TextureId != ImTextureID())
       {
         textureId = to_bindless_idx(imCmd.TextureId);
+
+        if (textureId == 380)
+        {
+          textureId = 4;
+        }
+        
       }
       
-      // if (imCmd.TextureId == ImTextureID())
-      // {
-      //   // textureId = (uint32_t) (uint64_t) imCmd.TextureId;
-      //   // AR_CORE_
-      //   textureId = 4;
-      // }
-      // else
-      // {
-      //   textureId = (uint32_t) (uint64_t) imCmd.TextureId;
-      // }
-      //  AR_CORE_INFO("texture id {}, from {}", textureId, imCmd.TextureId);
-
-
-      if (textureId > 100)
-      {
-        textureId = 4;
-      }
-      // textureId = 7;
-      // get the image.. from a central vector...
-
 
       const auto scale = glm::vec2(
         2.0f / drawData->DisplaySize.x,
