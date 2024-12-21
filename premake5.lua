@@ -155,6 +155,8 @@ project "imgui"
         "vendor/imgui/backends",
 
         "vendor/vulkan/include",
+        "vendor/vulkan/include/vulkan",
+        "vendor/volk/",
         "vendor/glfw/include",
         "vendor/KHR/",
     }
@@ -220,11 +222,13 @@ project "volk"
 
   includedirs
   {
-    "vendor/volk/*.h"
+    "vendor/volk/*.h",
+    "vendor/vulkan/include/",
   }
   files
   {
-    "vendor/volk/*.c"
+    "vendor/volk/*.c",
+    "vendor/volk/*.h",
   }
   filter "configurations:debug"
     symbols "On"

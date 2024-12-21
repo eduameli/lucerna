@@ -245,7 +245,7 @@ void VulkanImGuiBackend::draw(
       // {
       //   textureId = to_bindless_idx(imCmd.TextureId);
 
-        if (textureId == 379)
+        if (textureId == 379 || textureId == 380)
         {
           textureId = 4;
         }
