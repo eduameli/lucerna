@@ -93,13 +93,12 @@ void Engine::init()
   AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
   s_Instance = this;
   
-  internalExtent = {1280, 800, 1};
+  internalExtent = {Application::config.internal_resolution.x, Application::config.internal_resolution.y, 1};
 
   init_vulkan();
   
 
-  
- VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
+  VkSamplerCreateInfo sampl{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
   sampl.magFilter = VK_FILTER_NEAREST;
   sampl.minFilter = VK_FILTER_NEAREST;
   vkCreateSampler(device, &sampl, nullptr, &m_DefaultSamplerNearest);
@@ -142,28 +141,18 @@ void Engine::init()
   
   mainCamera.init();
 
-
-  mainDrawContext.indices.clear();
-  mainDrawContext.vertices.clear();
-  mainDrawContext.positions.clear();
-
-   
   std::string structurePath = Application::config.scene_path;
   auto structureFile = load_gltf(this, structurePath);
-  AR_LOG_ASSERT(structureFile.has_value(), "gltf loaded correctly!");
+  AR_LOG_ASSERT(structureFile.has_value(), "GLTF Scene loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
-  
-  AR_CORE_INFO("positions {} vertices {} indices {}", mainDrawContext.positions.size(), mainDrawContext.vertices.size(), mainDrawContext.indices.size());
 
 
-  uint32_t idx = 0;
-  // std::vector<VkDrawIndexedIndirectCommand> mem;
-  for (int i = 0; i < mainDrawContext.draw_datas.size(); i++)
+  for (int idx = 0; idx < mainDrawContext.draw_datas.size(); idx++)
   {
-    DrawData dd = mainDrawContext.draw_datas[i];
-    Bounds b = mainDrawContext.bounds[i];
+    DrawData dd = mainDrawContext.draw_datas[idx];
+    Bounds b = mainDrawContext.bounds[idx];
 
     glm::vec4 b2 = {b.origin.x, b.origin.y, b.origin.z, b.sphereRadius};
     
@@ -175,13 +164,8 @@ void Engine::init()
     c.vertexOffset = 0;
     c.sphereBounds = b2;
     mainDrawContext.mem.push_back(c);
-    idx++;
   }
-  // memcpy(data4, mem.data(), mem.size() * sizeof(VkDrawIndexedIndirectCommand));
-  // vklog::label_buffer(device,indirectDrawBuffer.buffer, "big indirect draw cmd buffer");
 
-
-  
   GPUSceneBuffers main = upload_scene(
     mainDrawContext.positions,
     mainDrawContext.vertices,
@@ -191,9 +175,6 @@ void Engine::init()
     mainDrawContext.materials,
     mainDrawContext.mem
   );
-
-
-  AR_CORE_INFO("[resource] Finished uploading scene buffers to gpu!");
 
   mainDrawContext.bigMeshes.indexBuffer = main.indexBuffer;
   mainDrawContext.bigMeshes.vertexBuffer = main.vertexBuffer;
@@ -208,13 +189,12 @@ void Engine::init()
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   m_DeletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass.buffer);
+
     destroy_buffer(bigTransformBuffer);
     destroy_buffer(bigMaterialBuffer);
     destroy_buffer(bigDrawDataBuffer);
     destroy_buffer(indirectDrawBuffer);
-
-    
-    destroy_buffer(mainDrawContext.bigMeshes.indexBuffer);
+     destroy_buffer(mainDrawContext.bigMeshes.indexBuffer);
     destroy_buffer(mainDrawContext.bigMeshes.vertexBuffer);
     destroy_buffer(mainDrawContext.bigMeshes.positionBuffer);
   });
@@ -966,25 +946,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   // */
   ImGui::EndFrame();
   ImGui::Render();
-  VulkanImGuiBackend::draw(cmd, device, target,m_Swapchain.extent2d);
-
-  return;
-  
- 
-  
-  // ImGui::End();
-
-  // ImGui::Render(); 
-  // VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
-
-  // VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(target, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  // VkRenderingInfo renderInfo = vkinit::rendering_info(m_Swapchain.extent2d, &colorAttachment, nullptr);
-  // vkCmdBeginRendering(cmd, &renderInfo);
-  // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-  // ImGui::Render();
-
-  
-  // vkCmdEndRendering(cmd);
+  VulkanImGuiBackend::draw(cmd, device, target, m_WindowExtent);
 }
 
 // FIXME: utterly scuffed, i ignore the min max .y for the aabb collision test between the cannonical viewing volume and the projected obb
@@ -1216,9 +1178,7 @@ GPUSceneBuffers Engine::upload_scene(
     cmdCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize + materialBufferSize;
     cmdCopy.size = indirectCmdBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.indirectCmdBuffer.buffer, 1, &cmdCopy);
-
-    AR_CORE_INFO("size a {}, size b {}", transformCopy.size, cmdCopy.size);
-  });
+ });
 
   
 
@@ -2236,8 +2196,6 @@ void Engine::init_imgui()
 
   VulkanImGuiBackend::init(this);
 
-
-  // FIXME: temporary imgui color space fix, PR is on the way.
   ImGuiStyle& style = ImGui::GetStyle();
   for (int i = 0; i < ImGuiCol_COUNT; i++)
   {
@@ -2249,35 +2207,16 @@ void Engine::init_imgui()
   }
 
 
-  
-  // return;
-
-  
-  // ImGui_ImplVulkan_CreateFontsTexture();
-
   m_DeletionQueue.push_function([=, this]() {
     ImGui_ImplVulkan_Shutdown();
     vkDestroyDescriptorPool(device, imguiPool, nullptr);
   });
-
-  // FIXME: temporary imgui color space fix, PR is on the way.
-  // ImGuiStyle& style = ImGui::GetStyle();
-  // for (int i = 0; i < ImGuiCol_COUNT; i++)
-  // {
-  //   ImVec4& colour = style.Colors[i];
-  //   colour.x = powf(colour.x, 2.2f);
-  //   colour.y = powf(colour.y, 2.2f);
-  //   colour.z = powf(colour.z, 2.2f);
-  //   colour.w = colour.w;
-  // }
 }
 
 
 void Engine::init_indirect_cull_pipeline()
 {
   VkPipelineLayoutCreateInfo computeLayout = vkinit::pipeline_layout_create_info();
-  // computeLayout.pSetLayouts = &m_DrawDescriptorLayout;
-  // computeLayout.setLayoutCount = 1;
   
   VkPushConstantRange pcs{};
   pcs.offset = 0;
@@ -2321,7 +2260,6 @@ void Engine::do_culling(VkCommandBuffer cmd)
 {
  
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
-  // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &m_DrawDescriptors, 0, nullptr);
   
   indirect_cull_pcs pcs;
   pcs.ids = (VkDeviceAddress) indirectDrawBuffer.info.pMappedData;
@@ -2345,9 +2283,7 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
 
   // dont understand code just do it??
-
-  glm::mat4 proj = sceneData.proj;
-  glm::mat4 projT = glm::transpose(proj);
+  glm::mat4 projT = glm::transpose(sceneData.proj);
 
 
   auto normalise = [](glm::vec4 p){ return p / glm::length(glm::vec3(p)); };

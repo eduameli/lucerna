@@ -256,34 +256,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
       newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
       // calculate origin and extents from the min/max, use extent lenght for radius
       newmesh->surfaces.push_back(newSurface);
-
-
-      // FIXME: should it not be based on transformed object??
-
       
     }
   }
 
-  // engine->mainDrawContext.indices.assign()
-
- // for (auto i : indices)
- //    {
- //      engine->mainDrawContext.indices.push_back(i);
- //      // AR_CORE_INFO("idx {}", i);
- //    }
- //    // initals_idx = engine->mainDrawContext.indices.size();
-
- //    for (auto v : vertices)
- //    {
- //      // AR_
- //      engine->mainDrawContext.vertices.push_back(v);
- //    }
-
- //    for(auto p : positions)
- //    {
- //      engine->mainDrawContext.positions.push_back(p);
- //    }
-  
 
 
   for (fastgltf::Node& node : asset.nodes)
@@ -346,28 +322,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
   }
 
-  // uint32_t index = 0;
-  // for (auto& s : engine->globalSamplers)
-  // {
-  //   VkWriteDescriptorSet w{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .pNext = nullptr};
-  //   w.dstSet = engine->bindless_descriptor_set;
-  //   w.descriptorCount = 1;
-  //   w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-  //   w.dstArrayElement = index;
-
-  //   w.dstBinding = engine->SAMPLER_BINDING;
-
-  //   VkDescriptorImageInfo info{};
-  //   info.sampler = engine->globalSamplers[index];
-
-  //   w.pImageInfo = &info;
-
-  //   vkUpdateDescriptorSets(engine->device, 1, &w, 0, nullptr);
-    
-  //   index++;
-  // }
-    
-    
   return scene;
 }
 
@@ -460,15 +414,14 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
           // FIXME: handle loading dds or ktx textures here no mips.
           
           std::string path = fpath.parent_path().append(filePath.uri.string());
-          path.pop_back();
-          path.pop_back();
-          path.pop_back();
-          path.push_back('p');
-          path.push_back('n');
-          path.push_back('g');
+          // path.pop_back();
+          // path.pop_back();
+          // path.pop_back();
+          // path.push_back('p');
+          // path.push_back('n');
+          // path.push_back('g');
 
           
-          AR_CORE_INFO("final path1 {}", path);
           unsigned char *data =
               stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
           if (data) {

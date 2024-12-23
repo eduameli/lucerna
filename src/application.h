@@ -13,7 +13,14 @@ namespace Aurora {
     public:
       static inline struct Configuration
       {
+        // startup
         std::string scene_path;
+
+        // general
+        glm::uvec2 internal_resolution;
+        
+        // window
+        glm::uvec2 resolution;
       } config;
     private:
       Engine m_Engine;

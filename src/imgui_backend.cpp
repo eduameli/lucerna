@@ -224,12 +224,6 @@ void VulkanImGuiBackend::draw(
         continue;
       }
 
-
-
-
-
-      //FIXME: there is something very wrong with this!!!
-      // for some reason the imCmd.TextureId for the font texture is 380?
       uint32_t textureId = 4;
 
       if (imCmd.TextureId != ImTextureID())
