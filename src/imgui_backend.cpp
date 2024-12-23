@@ -89,17 +89,6 @@ void VulkanImGuiBackend::init(Engine* engine)
     b.set_multisampling_none();
     // b.enable_blending_additive(); // need to be more specific than this!!
     
-    // b.enable_blending_alphablend();
-/*    
-VK_BLEND_OP_ADD,
-VK_BLEND_FACTOR_ONE,
-VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-VK_BLEND_FACTOR_ONE,
-VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)    
-*/
-
-
-    
     b.m_ColorBlendAttachment.blendEnable = VK_TRUE;
     b.m_ColorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     b.m_ColorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -225,7 +214,6 @@ void VulkanImGuiBackend::draw(
       }
 
       uint32_t textureId = 4;
-
       if (imCmd.TextureId != ImTextureID())
       {
         textureId = to_bindless_idx(imCmd.TextureId);
@@ -262,11 +250,9 @@ void VulkanImGuiBackend::draw(
   
       pcs.vertexBuffer= vkGetBufferDeviceAddress(device, &vertexBDA);
       pcs.textureID = textureId;
-      // pcs.textureID = 7;
       pcs.scale = scale;
-      pcs.translate = translate;      
+      pcs.translate = translate;
 
-      // AR_CORE_INFO("scale {}", glm::to_string(scale));
       vkCmdPushConstants(cmd, pipLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(imgui_pcs), &pcs);
 
       vkCmdDrawIndexed(cmd, 
@@ -274,8 +260,8 @@ void VulkanImGuiBackend::draw(
         1,
         imCmd.IdxOffset + globalIdxOffset,
         imCmd.VtxOffset + imCmd.VtxOffset + globalVtxOffset,
-        0);
-      // AR_CORE_INFO("DRAW INDEXED!");
+        0
+      );
       
       
     }
@@ -286,21 +272,6 @@ void VulkanImGuiBackend::draw(
 
    
   vkCmdEndRendering(cmd);
-  
-  
-  // begin rendering
-
-  // set scissor, viewport, .. 
-
-
-  // bind index buffer
-
-  // for cmdList in cmdLists form the imgui draw data
-
-  // for vertex buffer??
-
-  // push constatns and draw indexed...
-  
 }
 
 

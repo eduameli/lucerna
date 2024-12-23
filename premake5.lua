@@ -18,15 +18,22 @@ project "lucerna"
     targetdir ("build/bin/%{cfg.buildcfg}")
     objdir ("build/obj/%{cfg.buildcfg}")
     
+    buildoptions {"-Wnullability-completeness"}
+
     defines 
     {
     	"GLM_ENABLE_EXPERIMENTAL",
       "GLM_FORCE_RADIANS",
       "GLM_FORCE_DEPTH_ZERO_TO_ONE",
+      "GLM_FORCE_RIGHT_HANDED",
+      "GLM_FORCE_SWIZZLE",
+      "GLM_FORCE_XYZW_ONLY",
     }
     
     pchheader "src/aurora_pch.h"
     
+    buildoptions {"-Wno-nullability-completeness"}
+
     files 
     {
         "src/**.h",
@@ -105,8 +112,8 @@ project "glfw"
 
     includedirs
     {
-    "vendor/glfw/include",
-    "vendor/KHR/",
+        "vendor/glfw/include",
+        "vendor/KHR/",
     }
 
     defines {
@@ -179,16 +186,16 @@ project "volk"
 
     defines 
     {
-    "VOLK_STATIC_DEFINES",
-    "VK_USE_PLATFORM_XLIB_KHR",
+        "VOLK_STATIC_DEFINES",
+        "VK_USE_PLATFORM_XLIB_KHR",
     }
 
     includedirs
     {
-    "vendor/vulkan-headers/include/",
+        "vendor/vulkan-headers/include/",
     }
     files
     {
-    "vendor/volk/*.c",
-    "vendor/volk/*.h",
+        "vendor/volk/*.c",
+        "vendor/volk/*.h",
     }

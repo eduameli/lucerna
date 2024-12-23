@@ -16,20 +16,12 @@ layout ( push_constant ) uniform constants
   imgui_pcs pcs;
 };
 
-float gammaToLinear(float gamma)
-{
-    return gamma < 0.0405 ?
-        gamma / 12.92 :
-        pow(max(gamma + 0.055, 0.0) / 1.055, 2.4);
-}
-
 void main()
 {
     vec4 colour = inColour * texture(sampler2D(global_textures[pcs.textureID], global_samplers[0]), inUV);
     colour.rgb *= colour.a;
 
-    outColour = colour;    
-    // outColour = vec4(1.0, 0.0, 0.0, 0.0);
+    outColour = colour;
 }
 
 #endif
