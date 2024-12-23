@@ -35,6 +35,7 @@ void VulkanImGuiBackend::init(Engine* engine)
 
   // create vertex buffer
   vertexBuffer = engine->create_buffer(sizeof(ImVertexFormat) * MAX_VTX_COUNT, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  
   // upload imgui font
   auto& io = ImGui::GetIO();
   io.BackendRendererName = "Lucerna ImGui Backend";
@@ -52,15 +53,12 @@ void VulkanImGuiBackend::init(Engine* engine)
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     io.Fonts->SetTexID((ImTextureID) (uint64_t) fontImage.texture_idx);
   }
-  // compile imgui.frag imgui.vert & make a pipeline
 
   VkDevice device = engine->device;
 
   VkShaderModule frag, vert;
-
   AR_LOG_ASSERT(vkutil::load_shader_module("shaders/imgui/imgui_backend.frag.spv", device, &frag),
   "Failed to load imgui backend fragment shader!");
-
   AR_LOG_ASSERT(vkutil::load_shader_module("shaders/imgui/imgui_backend.vert.spv", device, &vert),
   "Failed to load imgui backend vertex shader!");
 
@@ -87,7 +85,6 @@ void VulkanImGuiBackend::init(Engine* engine)
     b.set_polygon_mode(VK_POLYGON_MODE_FILL);
     b.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     b.set_multisampling_none();
-    // b.enable_blending_additive(); // need to be more specific than this!!
     
     b.m_ColorBlendAttachment.blendEnable = VK_TRUE;
     b.m_ColorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -107,13 +104,6 @@ void VulkanImGuiBackend::init(Engine* engine)
   vkDestroyShaderModule(device, vert, nullptr);
   vkDestroyShaderModule(device, frag, nullptr);
 
-  engine->m_DeletionQueue.push_function([=](){
-    vkDestroyPipelineLayout(device, pipLayout, nullptr);
-    vkDestroyPipeline(device, pipeline, nullptr);                                     
-    engine->destroy_buffer(indexBuffer);
-    engine->destroy_buffer(vertexBuffer);
-    engine->destroy_image(fontImage);
-  });
   
 }
 
@@ -125,7 +115,6 @@ void VulkanImGuiBackend::draw(
 )
 {
   Engine* engine = Engine::get();
-  // copy buffers?? what - upload internal imgui buffers to idx and vtx buffer?
   const ImDrawData* drawData = ImGui::GetDrawData();
 
   AR_ASSERT(drawData != nullptr);
@@ -278,8 +267,6 @@ void VulkanImGuiBackend::draw(
 void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
 {
   Engine* engine = Engine::get();
-
-  
   const ImDrawData* drawData = ImGui::GetDrawData();
 
   {
@@ -313,8 +300,6 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
 
     vkCmdPipelineBarrier2(cmd, &info);
   }
-
-  // const auto currentFrame = engine->frameNumber % 2; /*engine.cpp::FRAME_OVERLAP*/
 
   size_t currentIndexOffset = 0;
   size_t currentVertexoffset = 0;
@@ -416,5 +401,13 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
   
 }
 
+void VulkanImGuiBackend::cleanup(Engine* engine)
+{
+  vkDestroyPipelineLayout(engine->device, pipLayout, nullptr);
+  vkDestroyPipeline(engine->device, pipeline, nullptr);                                     
+  engine->destroy_buffer(indexBuffer);
+  engine->destroy_buffer(vertexBuffer);
+  engine->destroy_image(fontImage);
+}
 
 } // aurora namespace

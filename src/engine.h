@@ -29,10 +29,6 @@ namespace Aurora {
   struct RenderObject {
     uint32_t indexCount, firstIndex;
     VkBuffer indexBuffer;
-    // MaterialInstance* material;
-
-    // BindlessMaterial texture_idxs;
-    uint32_t albedo_idx;
     uint32_t transform_idx;
     uint32_t material_idx;
     
@@ -243,13 +239,16 @@ namespace Aurora {
       std::vector<VkImageView> sampler_desc_updates; // NOTE: pass by value?
       std::vector<VkImageView> img_desc_updates;
       
-      std::vector<AllocatedImage> descriptor_updates;
+      std::vector<std::pair<VkImageView, uint32_t>> upload_sampled;
+      std::vector<std::pair<VkImageView, uint32_t>> upload_storage;
+      
     public:
       // std::unordered_map<uint32_t, VkSampler> combined_sampler;
     // private:
       free_list freeSamplers;
       free_list freeImages;
 
+      // NOTE: use this across the board instead of free list?
       uint32_t sampledCounter{ 0 };
       uint32_t samplerCounter{ 0 };
 

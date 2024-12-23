@@ -276,8 +276,10 @@ void Engine::run()
 
     FrameGraph::add_sample(stats.frametime);
 
+
+    upload_sampled.clear();
+    upload_storage.clear();
     
-    descriptor_updates.clear();
   }
 }
 
@@ -834,6 +836,9 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
   {
     return;
   } 
+
+
+  return;
   
   AR_LOG_ASSERT(debugLines.size() % 2 == 0, "Debug Lines buffer must be a multiple of two");
  
@@ -847,9 +852,7 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
   vklog::label_buffer(device, debugLinesBuffer.buffer, n.c_str()); // FIXME: kind of ass string manipulation also in gfx_effects.cpp bloom!
   glm::vec3* data = (glm::vec3*) debugLinesBuffer.allocation->GetMappedData();
   memcpy(data, debugLines.data(), debugLines.size() * sizeof(glm::vec3)); 
-  
-  //vmaFlushAllocation(m_Allocator,debugLinesBuffer.allocation , 0 , VK_WHOLE_SIZE); // FIXME: if its host coherent i dont need this??
-  
+ 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, debugLinePipeline);
   
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
@@ -885,65 +888,29 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-  ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-  ImGui::Text("frame: %zu", frameNumber);
-  ImGui::Text("frametime %f ms", stats.frametime);
-  ImGui::Text("draw time %f ms", stats.mesh_draw_time);
-  ImGui::Text("update time %f ms", stats.scene_update_time);
-  ImGui::Text("triangles %i", stats.triangle_count);
-  ImGui::Text("draws %i", stats.drawcall_count);
-  ImGui::End();
-  
-    ImGui::Begin("Renderer Settings");
-      if (ImGui::CollapsingHeader("Bloom"))
-      {
-        ImGui::Text("boop");
-        ImGui::Checkbox("Enabled", (bool*) CVarSystem::get()->get_int_cvar("bloom.enabled"));
-      }
-      if (ImGui::CollapsingHeader("Shadows"))
-      {
-        ImGui::Checkbox("Enabled", (bool*) shadowEnabled.get_ptr());
-        ImGui::Checkbox("Rotate Light", (bool*) shadowRotateLight.get_ptr());
-        ImGui::Checkbox("View from Light", (bool*) shadowViewFromLight.get_ptr());
-        ImGui::SliderFloat("Shadow Softness", shadowSoftness.get_ptr(), 0.0, 0.1, "%.4f");
-     
-        ImGui::InputFloat("Frustum Size: ", &pcss_settings.ortho_size);
-        ImGui::InputFloat("Far Plane: ", &pcss_settings.far);
-        ImGui::InputFloat("Near Plane: ", &pcss_settings.near);
-        ImGui::InputFloat("Light Distance: ", &pcss_settings.distance);
-      }
     
-      if (ImGui::CollapsingHeader("Background Effects"))
-      {
-        ImGui::Text("Selected effect: %s", m_BackgroundEffects[m_BackgroundEffectIndex].name);
-        ImGui::SliderInt("Effect Index: ", &m_BackgroundEffectIndex, 0, m_BackgroundEffects.size() - 1);
-      }
-      ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.0f);
-    ImGui::End();
-    
-    CVarSystem::get()->draw_editor();
-
-    FrameGraph::render_graph();
+  CVarSystem::get()->draw_editor();
+  FrameGraph::render_graph();
 
     // graphics programming stats menu
-    ImGui::Begin("better stats");
-      float framesPerSecond = 1.0f / (stats.frametime * 0.001f);
-      ImGui::Text("afps: %.0f rad/s", glm::two_pi<float>() * framesPerSecond);
-      ImGui::Text("dfps: %.0f °/s", glm::degrees(glm::two_pi<float>() * framesPerSecond));
-      ImGui::Text("rfps: %.0f", framesPerSecond);
-      ImGui::Text("rpms: %.0f", framesPerSecond * 60.0f);
-      ImGui::Text("  ft: %.2f ms", stats.frametime);
-      ImGui::Text("   f: %lu", frameNumber);
-    ImGui::End();
+  ImGui::Begin("better stats");
+    float framesPerSecond = 1.0f / (stats.frametime * 0.001f);
+    ImGui::Text("afps: %.0f rad/s", glm::two_pi<float>() * framesPerSecond);
+    ImGui::Text("dfps: %.0f °/s", glm::degrees(glm::two_pi<float>() * framesPerSecond));
+    ImGui::Text("rfps: %.0f", framesPerSecond);
+    ImGui::Text("rpms: %.0f", framesPerSecond * 60.0f);
+    ImGui::Text("  ft: %.2f ms", stats.frametime);
+    ImGui::Text("   f: %lu", frameNumber);
+  ImGui::End();
 
 
-    ImGui::Begin("Texture Picker");
-      static int32_t texture_idx = 0;
-      ImGui::Text("Bindless Texture Picker");
-      ImGui::InputInt("texture idx", &texture_idx);
-      ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{250, 250});
-    ImGui::End();
-  // */
+  ImGui::Begin("Texture Picker");
+    static int32_t texture_idx = 0;
+    ImGui::Text("Bindless Texture Picker");
+    ImGui::InputInt("texture idx", &texture_idx);
+    ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{250, 250});
+  ImGui::End();
+
   ImGui::EndFrame();
   ImGui::Render();
   VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
@@ -1309,15 +1276,15 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
   {
     sampledCounter++;
     newImage.texture_idx = sampledCounter;
+    upload_sampled.push_back({newImage.imageView, newImage.texture_idx});
   }
 
   if (is_storage)
   {
     newImage.image_idx = freeImages.allocate();
+    upload_storage.push_back({newImage.imageView, newImage.image_idx});
   }
 
-
-  descriptor_updates.push_back(newImage);
   return newImage;
 } 
 
@@ -1778,63 +1745,113 @@ void Engine::init_bindless_pipeline_layout()
 // it should ref ptr to that gltf
 void Engine::update_descriptors()
 {
-
-  if (descriptor_updates.size() == 0) return;
+  if (upload_storage.size() + upload_sampled.size() == 0) return;
 
   std::vector<VkWriteDescriptorSet> writes;
-  std::vector<VkDescriptorImageInfo> info;
-  writes.reserve(descriptor_updates.size() * 2);
-  info.reserve(descriptor_updates.size() * 2);
+  std::vector<VkDescriptorImageInfo> infos;
+  writes.reserve(upload_sampled.size() + upload_storage.size());
+  infos.reserve(upload_sampled.size() + upload_storage.size());
 
-  
-  for (int i = 0; i < descriptor_updates.size(); i++)
+  for (auto[view, idx] : upload_sampled)
   {
-    AllocatedImage img = descriptor_updates[i];
-    
-    if (img.texture_idx != UINT32_MAX)
-    {
-      VkWriteDescriptorSet w;
-      w = {};
-      w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      w.pNext = nullptr;
-      w.dstSet = bindless_descriptor_set;
-      w.descriptorCount = 1;
-      w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-      w.dstArrayElement = img.texture_idx;
-      w.dstBinding = SAMPLED_IMAGE_BINDING;
+    infos.emplace_back(
+    VkDescriptorImageInfo {
+      .imageView = view,
+      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    });
 
-
-      VkDescriptorImageInfo inf{};
-      inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-      inf.imageView = img.imageView;
-
-      info.push_back(inf);
-      w.pImageInfo = &info.back();
-      writes.push_back(w);
-    }
-
-    if (img.image_idx != UINT32_MAX)
-    {
-      VkWriteDescriptorSet w{};
-      w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      w.pNext = nullptr;
-      w.dstSet = bindless_descriptor_set;
-      w.descriptorCount = 1;
-      w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-      w.dstArrayElement = img.image_idx;
-      w.dstBinding = STORAGE_IMAGE_BINDING;
-
-      VkDescriptorImageInfo inf{};
-      inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-      inf.imageView = img.imageView;
-      inf.sampler = nullptr;
-
-      // w.pImageInfo = &inf;
-      info.push_back(inf);
-      w.pImageInfo = &info.back();
-      writes.push_back(w);
-    }
+    writes.emplace_back(
+    VkWriteDescriptorSet {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .pNext = nullptr,
+      .dstSet = bindless_descriptor_set,
+      .dstBinding = SAMPLED_IMAGE_BINDING,
+      .dstArrayElement = idx,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+      .pImageInfo = &infos.back(),
+      .pBufferInfo = nullptr,
+      .pTexelBufferView = nullptr
+    });
   }
+
+  for (auto[view, idx] : upload_storage)
+  {
+
+    infos.emplace_back(
+    VkDescriptorImageInfo {
+      .imageView = view,
+      .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+    });
+
+    writes.emplace_back(
+    VkWriteDescriptorSet {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .pNext = nullptr,
+      .dstSet = bindless_descriptor_set,
+      .dstBinding = STORAGE_IMAGE_BINDING,
+      .dstArrayElement = idx,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+      .pImageInfo = &infos.back(),
+      .pBufferInfo = nullptr,
+      .pTexelBufferView = nullptr
+    });
+  }
+  
+  vkUpdateDescriptorSets(device, writes.size() , writes.data(), 0, nullptr);
+  
+  return;
+  
+  // for (int i = 0; i < descriptor_updates.size(); i++)
+  // {
+  //   AllocatedImage img = descriptor_updates[i];
+    
+  //   if (img.texture_idx != UINT32_MAX)
+  //   {
+  //     VkWriteDescriptorSet w;
+  //     w = {};
+  //     w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  //     w.pNext = nullptr;
+  //     w.dstSet = bindless_descriptor_set;
+  //     w.descriptorCount = 1;
+  //     w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+  //     w.dstArrayElement = img.texture_idx;
+  //     w.dstBinding = SAMPLED_IMAGE_BINDING;
+
+
+  //     VkDescriptorImageInfo inf{};
+  //     inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+  //     inf.imageView = img.imageView;
+
+  //     info.push_back(inf);
+  //     w.pImageInfo = &info.back();
+  //     writes.push_back(w);
+  //   }
+
+  //   if (img.image_idx != UINT32_MAX)
+  //   {
+  //     VkWriteDescriptorSet w{};
+  //     w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  //     w.pNext = nullptr;
+  //     w.dstSet = bindless_descriptor_set;
+  //     w.descriptorCount = 1;
+  //     w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  //     w.dstArrayElement = img.image_idx;
+  //     w.dstBinding = STORAGE_IMAGE_BINDING;
+
+  //     VkDescriptorImageInfo inf{};
+  //     inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+  //     inf.imageView = img.imageView;
+  //     inf.sampler = nullptr;
+
+  //     // w.pImageInfo = &inf;
+  //     info.push_back(inf);
+  //     w.pImageInfo = &info.back();
+  //     writes.push_back(w);
+  //   }
+  // }
+
   vkUpdateDescriptorSets(device, writes.size() , writes.data(), 0, nullptr);
 }
 
@@ -2146,53 +2163,8 @@ void Engine::init_commands()
 void Engine::init_imgui()
 {
 
-  // VulkanImGuiBackend::init(this);
-  // return;
-  
-  VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
-
-	VkDescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
-	pool_info.pPoolSizes = pool_sizes;
-
-	VkDescriptorPool imguiPool;
-	VK_CHECK_RESULT(vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiPool));
-
   ImGui::CreateContext();
   ImGui_ImplGlfw_InitForVulkan(Window::get(), true);
-  ImGui_ImplVulkan_InitInfo info{};
-  info.Instance = m_Instance;
-  info.PhysicalDevice = physicalDevice;
-  info.Device = device;
-  info.Queue = graphicsQueue;
-  info.PipelineCache = VK_NULL_HANDLE;
-  info.DescriptorPool = imguiPool;
-  info.MinImageCount = 3;
-  info.ImageCount = 3;
-  info.UseDynamicRendering = true;
-  info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-  
-  VkPipelineRenderingCreateInfo info2{};
-  info2.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-  info2.colorAttachmentCount = 1;
-  info2.pColorAttachmentFormats = &m_Swapchain.format;
-  
-  info.PipelineRenderingCreateInfo = info2;
-  ImGui_ImplVulkan_Init(&info);
-
 
   VulkanImGuiBackend::init(this);
 
@@ -2208,8 +2180,7 @@ void Engine::init_imgui()
 
 
   m_DeletionQueue.push_function([=, this]() {
-    ImGui_ImplVulkan_Shutdown();
-    vkDestroyDescriptorPool(device, imguiPool, nullptr);
+    VulkanImGuiBackend::cleanup(this);
   });
 }
 
