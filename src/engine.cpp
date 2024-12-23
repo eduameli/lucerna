@@ -2,10 +2,6 @@
 #include "application.h"
 #include "aurora_pch.h"
 #include "ar_asserts.h"
-#include "glm/common.hpp"
-#include "glm/ext/vector_float3.hpp"
-#include "glm/ext/vector_float4.hpp"
-#include "glm/matrix.hpp"
 #include "input_structures.glsl"
 #include "logger.h"
 #include "vk_loader.h"
@@ -31,10 +27,6 @@
 
 #include <volk.h>
 
-#include <glm/packing.hpp>
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 namespace Aurora {
 

@@ -6,8 +6,6 @@
 #include "ar_asserts.h"
 #include "vk_images.h"
 #include "vk_pipelines.h"
-#include <glm/packing.hpp>
-#include <glm/gtx/string_cast.hpp>
 #include <vulkan/vulkan_core.h>
 
 namespace Aurora

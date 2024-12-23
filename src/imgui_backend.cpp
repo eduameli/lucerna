@@ -5,8 +5,6 @@
 #include "vk_initialisers.h"
 #include "vk_pipelines.h"
 #include "vk_types.h"
-#include <glm/vec2.hpp>
-#include <glm/gtx/string_cast.hpp>
 #include <imgui.h>
 #include <vulkan/vulkan_core.h>
 

@@ -20,17 +20,10 @@
 #include "stb_image.h"
 
 #include <filesystem>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <vulkan/vulkan_core.h>
 
+#include <volk.h>
 #include "vk_pipelines.h"
-#include "glm/gtx/string_cast.hpp"
-#include "glm/packing.hpp"
+
 namespace Aurora
 
 {

@@ -5,9 +5,6 @@
 #include "vk_mem_alloc.h"
 #include "aurora_pch.h"
 #include "logger.h"
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
 
 
 
@@ -114,13 +111,6 @@ namespace Aurora
   };
 
 
-  // struct Bounds
-  // {
-  //   glm::vec3 origin;
-  //   float sphereRadius;
-  //   glm::vec3 extents;
-  // };
-
 
 // NOTE: cpp/glsl structure definition
 #include "input_structures.glsl"
@@ -138,7 +128,6 @@ namespace Aurora
     uint32_t count;
     Bounds bounds;
     uint32_t mat_idx;
-    // std::shared_ptr<GLTFMaterial> material;
   };
 
   struct MeshAsset

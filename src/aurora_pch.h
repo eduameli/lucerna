@@ -30,6 +30,23 @@
 
 #include <random>
 
+
+#include <glm/packing.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include "glm/common.hpp"
+#include "glm/ext/vector_float3.hpp"
+#include "glm/ext/vector_float4.hpp"
+#include "glm/matrix.hpp"
+#include <glm/gtx/string_cast.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/gtx/quaternion.hpp>
+
 #include "cvars.h"
+
+
+
 
 #endif
