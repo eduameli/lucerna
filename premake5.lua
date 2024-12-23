@@ -1,14 +1,20 @@
---TODO: REFACTOR BUILD SYSTEM, BUILD GLFW SYSTEM INDEPENDENT
-workspace "aurora"
+workspace "lucerna"
     configurations { "debug", "release" }
     architecture "x86_64"
+
+    language "C++"
+    cppdialect "c++20"
     toolset "clang"
     linkoptions {"-fuse-ld=mold"}
 
-project "aurora"
+    filter "configurations:debug"
+        symbols "On"
+    filter "configurations:release"
+        optimize "On"
+
+project "lucerna"
     kind "WindowedApp"
-    language "C++"
-    cppdialect "c++20"
+
     targetdir ("build/bin/%{cfg.buildcfg}")
     objdir ("build/obj/%{cfg.buildcfg}")
     
@@ -17,7 +23,6 @@ project "aurora"
     	"GLM_ENABLE_EXPERIMENTAL",
       "GLM_FORCE_RADIANS",
       "GLM_FORCE_DEPTH_ZERO_TO_ONE",
-      --"GLM_FORCE_LEFT_HANDED",
     }
     
     pchheader "src/aurora_pch.h"
@@ -33,21 +38,17 @@ project "aurora"
         "vendor/spdlog/include",
         "vendor/glfw/include",
         "vendor/KHR",
-        "vendor/vulkan/include",
+        "vendor/vulkan-headers/include",
         "vendor/VulkanMemoryAllocator/include",
         "vendor/imgui",
-        "vendor/glm/",
-        "vendor/stb_image/",
+        "vendor/glm",
+        "vendor/stb_image",
         "vendor/fastgltf/include",
-        "vendor/volk/",
+        "vendor/volk",
         "vendor/tomlplusplus/include",
 
         "shaders/include",
         "shaders/",
-        "shaders/zprepass/zprepass.vert",
-        "shaders/shadow/shadow_map.vert",
-        "shaders/bloom/upsample.comp",
-        "shaders/bloom/downsample.comp"
     }
   
     libdirs {"build/lib/bin/%{cfg.buildcfg}"}
@@ -61,29 +62,20 @@ project "aurora"
         "volk",
     }
     
-    filter {}
-  
     postbuildcommands {
       "premake export-compile-commands",
       "./shader_compilation.sh"
     }
   
-    buildoptions {"-Wno-nullability-completeness"}
-
     filter "configurations:debug"
-        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "AR_DEBUG", "TOML_EXCEPTIONS=0"}
-        symbols "On"
-        optimize "Off"
+        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0", "AR_DEBUG"}
 
     filter "configurations:release"
         defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0"}
-        optimize "On"
 
 project "spdlog"
     location "vendor/spdlog"
     kind "StaticLib"
-    language "C++"
-    cppdialect "c++20"
     targetdir ("build/lib/bin/%{cfg.buildcfg}")
     objdir ("build/lib/obj/%{cfg.buildcfg}")
 
@@ -92,60 +84,44 @@ project "spdlog"
         "SPDLOG_COMPILED_LIB",
     }
 
+
+    files
+    {
+        "vendor/spdlog/src/**.cpp"
+    }
+
     includedirs
     {
         "vendor/spdlog/include"
     }
 
-    files
-    {
-        "vendor/spdlog/include/spdlog/**.h", -- maybe this can be removed as its already in included dirs
-        "vendor/spdlog/src/**.cpp"
-    }
 
-    filter "configurations:debug"
-        symbols "On"
-
-    filter "configurations:release"
-        optimize "On"
 
 project "glfw"
-  location "vendor/glfw"
-  kind "StaticLib"
-  language "C++"
-  cppdialect "c++20"
-  targetdir ("build/lib/bin/%{cfg.buildcfg}")
-  objdir("build/lib/obj/%{cfg.buildcfg}")
+    location "vendor/glfw"
+    kind "StaticLib"
+    targetdir ("build/lib/bin/%{cfg.buildcfg}")
+    objdir("build/lib/obj/%{cfg.buildcfg}")
 
-  includedirs
-  {
+    includedirs
+    {
     "vendor/glfw/include",
     "vendor/KHR/",
-  }
-  
-  defines {
-    --"_GLFW_WAYLAND",
-    "_GLFW_X11",
-    --"GLFW_VULKAN_STATIC",
-  }
-  
-  files
-  {
-    "vendor/glfw/include/GLFW/**.h",
-    "vendor/glfw/src/**.c", -- is this needed?
-  }
+    }
 
-  filter "configurations:debug"
-    symbols "On"
-  
-  filter "configurations:release"
-    optimize "On"
+    defines {
+    "_GLFW_X11",
+    }
+
+    files
+    {
+    "vendor/glfw/src/**.c",
+    }
+
 
 project "imgui"
     location "vendor/imgui"
     kind "StaticLib"
-    language "C++"
-    cppdialect "c++20"
     targetdir ("build/lib/bin/%{cfg.buildcfg}")
     objdir ("build/lib/obj/%{cfg.buildcfg}")
 
@@ -154,17 +130,17 @@ project "imgui"
         "vendor/imgui",
         "vendor/imgui/backends",
 
-        "vendor/vulkan/include",
-        "vendor/vulkan/include/vulkan",
+        "vendor/vulkan-headers/include", -- NOTE: why do i need vulkan headers if im using volk?
         "vendor/volk/",
         "vendor/glfw/include",
         "vendor/KHR/",
     }
-    
+
     defines
     {
       "IMGUI_IMPL_VULKAN_USE_VOLK"
     }
+
     files
     {
         "vendor/imgui/*.cpp",
@@ -175,63 +151,44 @@ project "imgui"
         "vendor/imgui/backends/imgui_impl_vulkan.h"
     }
 
-    filter "configurations:debug"
-        symbols "On"
-
-    filter "configurations:release"
-        optimize "On"
 
 project "fastgltf"
     location "vendor/fastgltf"
     kind "StaticLib"
-    language "C++"
     targetdir ("build/lib/bin/%{cfg.buildcfg}")
     objdir ("build/lib/obj/%{cfg.buildcfg}")
-    
+
     includedirs
     {
         "vendor/fastgltf/include",
-        "vendor/simdjson/singleheader/" -- Updated path to the correct include directory
+        "vendor/simdjson/singleheader/"
     }
 
 
-   files {
-      "vendor/simdjson/singleheader/**.cpp",  -- Include simdjson source files for compilation
+    files {
+      "vendor/simdjson/singleheader/**.cpp",
       "vendor/fastgltf/src/**",
-   }
+    }
  
     
-    filter "configurations:debug"
-        symbols "On"
-
-    filter "configurations:release"
-        optimize "On"
-
 project "volk"
-  location "vendor/volk"
-  kind "StaticLib"
-  language "C++"
-  targetdir ("build/lib/bin/%{cfg.buildcfg}")
-  objdir ("build/lib/obj/%{cfg.buildcfg}")
+    location "vendor/volk"
+    kind "StaticLib"
+    targetdir ("build/lib/bin/%{cfg.buildcfg}")
+    objdir ("build/lib/obj/%{cfg.buildcfg}")
 
-  defines 
-  {
+    defines 
+    {
     "VOLK_STATIC_DEFINES",
     "VK_USE_PLATFORM_XLIB_KHR",
-  }
+    }
 
-  includedirs
-  {
-    "vendor/volk/*.h",
-    "vendor/vulkan/include/",
-  }
-  files
-  {
+    includedirs
+    {
+    "vendor/vulkan-headers/include/",
+    }
+    files
+    {
     "vendor/volk/*.c",
     "vendor/volk/*.h",
-  }
-  filter "configurations:debug"
-    symbols "On"
-
-  filter "configurations:release"
-    optimize "On"
+    }

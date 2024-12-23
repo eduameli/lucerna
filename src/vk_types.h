@@ -131,10 +131,6 @@ namespace Aurora
 #include "ssao/ssao.comp"
 #include "ssao/bilateral_filter.comp"
 #include "culling/indirect_cull.comp"
-// #include "bindless/bindless.vert"
-// #include "bindless/bindless.frag"
-
-
 
   struct GeoSurface
   {
@@ -178,24 +174,5 @@ struct free_list
       size--;
     }
 };
-
-
-
-// FIXME:  support for instanced? or draw indirect count
-// struct DrawData
-// {
-//   uint32_t material_idx;
-//   uint32_t transform_idx;
-//   uint32_t indexCount;
-//   uint32_t firstIndex;
-// };
-
-//   struct BindlessMaterial
-//   {
-//     glm::vec3 colorTint{0.25, 0.1, 0.1};
-//     uint32_t albedo_idx{3};
-//   };
-
-  
 
 } // namespace aurora

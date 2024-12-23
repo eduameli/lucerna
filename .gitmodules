@@ -1,39 +1,44 @@
 [submodule "vendor/spdlog"]
 	path = vendor/spdlog
 	url = https://github.com/gabime/spdlog
+
 [submodule "vendor/glfw"]
 	path = vendor/glfw
-  url = https://github.com/glfw/glfw.git
-  ignore = dirty
+	url = https://github.com/glfw/glfw.git
+	ignore = dirty
 
 [submodule "vendor/VulkanMemoryAllocator"]
 	path = vendor/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
-  ignore = dirty
+	ignore = dirty
+
 [submodule "vendor/imgui"]
 	path = vendor/imgui
-  url = git@github.com:ocornut/imgui.git
-  ignore = dirty
+	url = git@github.com:ocornut/imgui.git
+	ignore = dirty
+
 [submodule "vendor/glm"]
 	path = vendor/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "vendor/fastgltf"]
-  path = vendor/fastgltf
-  url = https://github.com/spnda/fastgltf.git
-  ignore = dirty 
 
-#FIXME: maybe its not the best to do ignore=dirty when they dont
-#ignore make files.. maybe i put the make files into .build dir??
-#that gets ignored in all of them,, or they might have some building 
-#ignored dir for cmake and i can use that!
+[submodule "vendor/fastgltf"]
+	path = vendor/fastgltf
+	url = https://github.com/spnda/fastgltf.git
+	ignore = dirty 
+
 [submodule "vendor/simdjson"]
 	path = vendor/simdjson
-  url = https://github.com/simdjson/simdjson.git
-  ignore = dirty
+	url = https://github.com/simdjson/simdjson.git
+	ignore = dirty
+
 [submodule "vendor/volk"]
 	path = vendor/volk
-  url = https://github.com/zeux/volk.git
-  ignore = dirty
+	url = https://github.com/zeux/volk.git
+	ignore = dirty
+
 [submodule "vendor/tomlplusplus"]
 	path = vendor/tomlplusplus
 	url = https://github.com/marzer/tomlplusplus.git
+[submodule "vendor/vulkan-headers"]
+	path = vendor/vulkan-headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers.git
