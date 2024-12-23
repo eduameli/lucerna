@@ -163,8 +163,8 @@ void VulkanImGuiBackend::draw(
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, engine->bindless_pipeline_layout, 1, 1, &engine->bindless_descriptor_set, 0, nullptr);
 
 
-  float targetWidth = (float) 1280;
-  float targetHeight = (float) 800;
+  float targetWidth = (float) swapchainExtent.width;
+  float targetHeight = (float) swapchainExtent.height;
 
   VkViewport viewport = {
     .x = 0,

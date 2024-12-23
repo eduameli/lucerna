@@ -946,7 +946,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   // */
   ImGui::EndFrame();
   ImGui::Render();
-  VulkanImGuiBackend::draw(cmd, device, target, m_WindowExtent);
+  VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
 }
 
 // FIXME: utterly scuffed, i ignore the min max .y for the aabb collision test between the cannonical viewing volume and the projected obb
