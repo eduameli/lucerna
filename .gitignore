@@ -23,6 +23,7 @@
 !vendor/**
 
 !configuration.toml
+!.gitignore
 
 !**.sh
 
