@@ -118,7 +118,6 @@ VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)
   vkDestroyShaderModule(device, vert, nullptr);
   vkDestroyShaderModule(device, frag, nullptr);
 
-
   engine->m_DeletionQueue.push_function([=](){
     vkDestroyPipelineLayout(device, pipLayout, nullptr);
     vkDestroyPipeline(device, pipeline, nullptr);                                     
@@ -237,19 +236,7 @@ void VulkanImGuiBackend::draw(
       {
         textureId = to_bindless_idx(imCmd.TextureId);
       }
-
-      // AR_CORE_INFO("{}", textureId);
-      
-      // {
-      //   textureId = to_bindless_idx(imCmd.TextureId);
-
-        if (textureId == 379 || textureId == 380)
-        {
-          textureId = 4;
-        }
-        
-      // }
-      
+     
 
       const auto scale = glm::vec2(
         2.0f / drawData->DisplaySize.x,

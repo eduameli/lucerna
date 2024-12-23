@@ -902,12 +902,9 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
 
 void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 {
-  ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-
-  // /*
   ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::Text("frame: %zu", frameNumber);
   ImGui::Text("frametime %f ms", stats.frametime);
