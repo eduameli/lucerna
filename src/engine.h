@@ -188,21 +188,7 @@ namespace Aurora {
       VkExtent3D internalExtent{};
       VmaAllocator m_Allocator{};
       VkExtent2D m_DrawExtent{};
-
-
-
-
-      // BINDLESS BUFFERS 
-      // AllocatedBuffer bigIndexBuffer{};
-      // AllocatedBuffer bigVertexBuffer{};
-      // AllocatedBuffer bigPositionBuffer{};
-      
-      // AllocatedBuffer bigTransformBuffer{};
-      // AllocatedBuffer bigMaterialBuffer{};
-      // AllocatedBuffer bigDrawDataBuffer{};
-      // AllocatedBuffer indirectDrawBuffer{};
-      // AllocatedBuffer bigBoundsBuffer{};
-  
+ 
     private:
       void init_vulkan();
       void init_swapchain();
@@ -258,14 +244,11 @@ namespace Aurora {
       std::vector<std::pair<VkImageView, uint32_t>> upload_storage;
       
     public:
-      // std::unordered_map<uint32_t, VkSampler> combined_sampler;
-    // private:
-      free_list freeSamplers;
-      free_list freeImages;
 
       // NOTE: use this across the board instead of free list?
       uint32_t sampledCounter{ 0 };
       uint32_t samplerCounter{ 0 };
+      uint32_t storageCounter{ 0 };
 
     private:
       void init_bindless_pipeline_layout();

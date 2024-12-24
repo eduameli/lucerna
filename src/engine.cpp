@@ -1251,7 +1251,8 @@ AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsa
 
   if (is_storage)
   {
-    newImage.image_idx = freeImages.allocate();
+    storageCounter++;
+    newImage.image_idx = storageCounter;
     upload_storage.push_back({newImage.imageView, newImage.image_idx});
   }
 
@@ -1515,6 +1516,8 @@ void Engine::init_swapchain()
   vklog::label_image(device, m_DepthImage.image, "Depth Image");
   vklog::label_image(device, m_ShadowDepthImage.image, "Shadow Mapping Image");
 
+  AR_CORE_INFO("draw idx {}", m_DrawImage.texture_idx);
+  
   m_DeletionQueue.push_function([=, this]() {
     destroy_image(m_DrawImage);
     destroy_image(m_DepthImage);
