@@ -102,9 +102,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
     engine->samplerCounter++;
     file.samplers.push_back(newSampler);
-
-    
-   
   }
 
   std::vector<std::shared_ptr<MeshAsset>> meshes;
@@ -119,10 +116,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     {
       images.push_back(*img);
       file.images[image.name.c_str()] = *img;
-
-
-      // engine->upload_sampled.push_back()
-      
     }
     else
     {
@@ -369,14 +362,6 @@ void LoadedGLTF::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
 void LoadedGLTF::clearAll()
 {
-  // cleanup gpu memory
-
-  for (auto& [k, v] : meshes)
-  {
-    creator->destroy_buffer(v->meshBuffers.indexBuffer);
-    creator->destroy_buffer(v->meshBuffers.vertexBuffer);
-    creator->destroy_buffer(v->meshBuffers.positionBuffer);
-  }
 
   for (auto& [k, v] : images)
   {

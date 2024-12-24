@@ -115,18 +115,6 @@ void Engine::init()
   sampl.magFilter = VK_FILTER_NEAREST;
   sampl.minFilter = VK_FILTER_NEAREST;
   vkCreateSampler(device, &sampl, nullptr, &m_ShadowSampler);
-
-  VkSamplerCreateInfo s{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
-  s.maxLod = VK_LOD_CLAMP_NONE;
-  s.minLod = 0;
-  s.magFilter = VK_FILTER_LINEAR;
-  s.minFilter = VK_FILTER_LINEAR;
-
-  s.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  vkCreateSampler(device, &s, nullptr, &bindless_sampler);  
-
-  
-  
   
   init_swapchain();
   init_commands();
@@ -1333,7 +1321,6 @@ void Engine::init_default_data()
     vkDestroySampler(device, m_DefaultSamplerLinear, nullptr);
     vkDestroySampler(device, m_DefaultSamplerNearest, nullptr);
     vkDestroySampler(device, m_ShadowSampler, nullptr); 
-    vkDestroySampler(device, bindless_sampler, nullptr); // not created here? should it be destroyed here?
 
     destroy_image(m_WhiteImage);
     destroy_image(m_GreyImage);

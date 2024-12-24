@@ -233,8 +233,6 @@ namespace Aurora {
       void init_indirect_cull_pipeline();
       void do_culling(VkCommandBuffer cmd); // 
       
-    public:
-      VkSampler bindless_sampler;
     private:
       
       std::vector<VkImageView> sampler_desc_updates; // NOTE: pass by value?

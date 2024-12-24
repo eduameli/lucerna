@@ -137,7 +137,6 @@ namespace Aurora
   {
     std::string name;
     std::vector<GeoSurface> surfaces;
-    GPUMeshBuffers meshBuffers;
   };
 
 
