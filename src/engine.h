@@ -114,12 +114,12 @@ namespace Aurora {
 
     public:
 
-
+      // NOTE: unused, just to get an idea of possible architecture
       DrawSet opaque_set;
       DrawSet transparent_set;
       DrawSet one_sided_set;
-
-
+      DrawSet csm_sets[4];
+      // NOTE: end unused
       // draw set - many diff buckets (alpha cutoff, transparent, ??)
 
       
