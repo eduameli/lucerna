@@ -141,31 +141,6 @@ namespace Aurora
   };
 
 
-// struct free_list
-// {
-//     std::stack<uint32_t> free_idx;
-//     size_t size{0};
-//     uint32_t last{0};
-    
-//     uint32_t allocate() {
-//       AR_LOG_ASSERT(size < 10000, "OVERFLOW!!!!!!");      
-
-//       size++;
-//       if (free_idx.empty()) {
-//           return last++;
-//       } else {
-//           int index = free_idx.top();
-//           free_idx.pop();
-//           return index;
-//       }
-//     }
-    
-//     void deallocate(uint32_t idx)
-//     {
-//       free_idx.push(idx);
-//       size--;
-//     }
-// };
 
   // still using global buffers
   // FIXME: do this later down the line..
