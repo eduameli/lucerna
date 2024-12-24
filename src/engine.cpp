@@ -153,8 +153,6 @@ void Engine::init()
   {
     DrawData dd = mainDrawContext.draw_datas[idx];
     Bounds b = mainDrawContext.bounds[idx];
-
-    glm::vec4 b2 = {b.origin.x, b.origin.y, b.origin.z, b.sphereRadius};
     
     IndirectDraw c{};
     c.indexCount = dd.indexCount;
@@ -162,11 +160,11 @@ void Engine::init()
     c.firstInstance = idx;
     c.instanceCount = 1;
     c.vertexOffset = 0;
-    c.sphereBounds = b2;
+    c.sphereBounds = {b.origin.x, b.origin.y, b.origin.z, b.sphereRadius};
     mainDrawContext.mem.push_back(c);
   }
 
-  GPUSceneBuffers main = upload_scene(
+  mainDrawContext.sceneBuffers = upload_scene(
     mainDrawContext.positions,
     mainDrawContext.vertices,
     mainDrawContext.indices,
@@ -176,27 +174,17 @@ void Engine::init()
     mainDrawContext.mem
   );
 
-  mainDrawContext.bigMeshes.indexBuffer = main.indexBuffer;
-  mainDrawContext.bigMeshes.vertexBuffer = main.vertexBuffer;
-  mainDrawContext.bigMeshes.positionBuffer = main.positionBuffer;
-  indirectDrawBuffer = main.indirectCmdBuffer;
-  bigTransformBuffer = main.transformBuffer;
-  bigMaterialBuffer = main.materialBuffer;
-  bigDrawDataBuffer = main.drawDataBuffer;
-  
-  
-  // prepare shadow uniform
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   m_DeletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass.buffer);
 
-    destroy_buffer(bigTransformBuffer);
-    destroy_buffer(bigMaterialBuffer);
-    destroy_buffer(bigDrawDataBuffer);
-    destroy_buffer(indirectDrawBuffer);
-     destroy_buffer(mainDrawContext.bigMeshes.indexBuffer);
-    destroy_buffer(mainDrawContext.bigMeshes.vertexBuffer);
-    destroy_buffer(mainDrawContext.bigMeshes.positionBuffer);
+    destroy_buffer(mainDrawContext.sceneBuffers.indexBuffer);
+    destroy_buffer(mainDrawContext.sceneBuffers.vertexBuffer);
+    destroy_buffer(mainDrawContext.sceneBuffers.transformBuffer);
+    destroy_buffer(mainDrawContext.sceneBuffers.drawDataBuffer);
+    destroy_buffer(mainDrawContext.sceneBuffers.materialBuffer);
+    destroy_buffer(mainDrawContext.sceneBuffers.indirectCmdBuffer);
+    destroy_buffer(mainDrawContext.sceneBuffers.positionBuffer);
   });
 
   // prepare gfx effects
@@ -551,9 +539,9 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   DescriptorWriter writer;
   writer.write_buffer(0, shadowPass.buffer.buffer, sizeof(u_ShadowPass), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
 
-  writer.write_buffer(1, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(2, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(3, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(2, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(3, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
      
   writer.update_set(device, shadowDescriptor);
   
@@ -565,29 +553,11 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadowPipelineLayout, 0, 1, &shadowDescriptor, 0, nullptr);
-  
-  // VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-  // auto draw = [&](const RenderObject& draw) {
-  //   if (draw.indexBuffer != lastIndexBuffer)
-  //   {
-  //     lastIndexBuffer = draw.indexBuffer;
-  //     vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-  //   }
-
-  //   shadow_map_pcs pcs{};
-  //   pcs.modelMatrix = draw.transform; // worldMatrix == modelMatrix
-  //   pcs.positions = draw.positionBufferAddress; 
-   
-  //   // scuffed way to not render ground plane to shadow map
-  //   vkCmdPushConstants(cmd, m_ShadowPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(shadow_map_pcs), &pcs);
-  //   vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
-  // };
-
 
 
   
-  vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
+  vkCmdBindIndexBuffer(cmd, mainDrawContext.sceneBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdDrawIndexedIndirect(cmd, mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
   // for (auto& r : shadow_draws)
   // {
   //   draw(mainDrawContext.OpaqueSurfaces[r]);
@@ -622,20 +592,20 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   VkDescriptorSet depth = get_current_frame().frameDescriptors.allocate(device, zpassDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
-  writer.write_buffer(2, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(4, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(1, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(5, mainDrawContext.bigMeshes.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(3, bigMaterialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(2, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(4, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(5, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(3, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.update_set(device, depth);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_DepthPrepassPipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 0, 1, &depth, 0, nullptr);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 1, 1, &bindless_descriptor_set, 0, nullptr); 
 
-  vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(cmd, mainDrawContext.sceneBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
+  vkCmdDrawIndexedIndirect(cmd, mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
 
   
   vkCmdEndRendering(cmd);
@@ -697,12 +667,12 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   
-  writer.write_buffer(4, bigDrawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(5, bigTransformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(6, bigMaterialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(4, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   
-  writer.write_buffer(7, mainDrawContext.bigMeshes.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(8, mainDrawContext.bigMeshes.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.update_set(device, globalDescriptor);
   
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
@@ -720,12 +690,12 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // const size_t vertexBufferSize = mainDrawContext.vertices.size() * sizeof(Vertex);
   // const size_t positionBufferSize = mainDrawContext.positions.size() * sizeof(glm::vec3);
  
-  vkCmdBindIndexBuffer(cmd, mainDrawContext.bigMeshes.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(cmd, mainDrawContext.sceneBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
   // AR_CORE_INFO("indeces {}", mainDrawContext.indices.size());
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
 
-  vkCmdDrawIndexedIndirect(cmd, indirectDrawBuffer.buffer, 0, mainDrawContext.mem.size(), sizeof(IndirectDraw));
+  vkCmdDrawIndexedIndirect(cmd, mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer, 0, mainDrawContext.mem.size(), sizeof(IndirectDraw));
 
   // AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
 
@@ -1496,7 +1466,7 @@ void Engine::create_instance()
 
 void Engine::create_device()
 {
-  DeviceContextBuilder builder {m_Instance, m_Surface};
+  DeviceContextBuilder builder{ m_Instance, m_Surface };
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
@@ -1515,7 +1485,7 @@ void Engine::create_device()
 
 void Engine::init_swapchain()
 {
-  SwapchainContextBuilder builder{m_Device, m_Surface};
+  SwapchainContextBuilder builder{ m_Device, m_Surface };
   m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
@@ -1630,18 +1600,6 @@ void Engine::init_descriptors()
 
 }
 
-/*
-NOTE: uniforms layout
-binding 0 - sceneData (UBO)
-binding 1 - sampler img
-binding 2 - storage img
-
-set 1 samplers
-set 2 images
-anything else?
-
-ssbo - using bda
-*/
 void Engine::init_bindless_pipeline_layout()
 {
   
@@ -1738,11 +1696,6 @@ void Engine::init_bindless_pipeline_layout()
  
 }
 
-
-// batch (bindless) descriptor update
-// FIXME: kind of ass way to ensure pImageInfo is valid cus of vector realloc
-// FIXME: images are stored in gltf_file.images, instead of building a new vector of AllocatedImage and have duplicated data
-// it should ref ptr to that gltf
 void Engine::update_descriptors()
 {
   if (upload_storage.size() + upload_sampled.size() == 0) return;
@@ -1799,59 +1752,6 @@ void Engine::update_descriptors()
     });
   }
   
-  vkUpdateDescriptorSets(device, writes.size() , writes.data(), 0, nullptr);
-  
-  return;
-  
-  // for (int i = 0; i < descriptor_updates.size(); i++)
-  // {
-  //   AllocatedImage img = descriptor_updates[i];
-    
-  //   if (img.texture_idx != UINT32_MAX)
-  //   {
-  //     VkWriteDescriptorSet w;
-  //     w = {};
-  //     w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //     w.pNext = nullptr;
-  //     w.dstSet = bindless_descriptor_set;
-  //     w.descriptorCount = 1;
-  //     w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-  //     w.dstArrayElement = img.texture_idx;
-  //     w.dstBinding = SAMPLED_IMAGE_BINDING;
-
-
-  //     VkDescriptorImageInfo inf{};
-  //     inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-  //     inf.imageView = img.imageView;
-
-  //     info.push_back(inf);
-  //     w.pImageInfo = &info.back();
-  //     writes.push_back(w);
-  //   }
-
-  //   if (img.image_idx != UINT32_MAX)
-  //   {
-  //     VkWriteDescriptorSet w{};
-  //     w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //     w.pNext = nullptr;
-  //     w.dstSet = bindless_descriptor_set;
-  //     w.descriptorCount = 1;
-  //     w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  //     w.dstArrayElement = img.image_idx;
-  //     w.dstBinding = STORAGE_IMAGE_BINDING;
-
-  //     VkDescriptorImageInfo inf{};
-  //     inf.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-  //     inf.imageView = img.imageView;
-  //     inf.sampler = nullptr;
-
-  //     // w.pImageInfo = &inf;
-  //     info.push_back(inf);
-  //     w.pImageInfo = &info.back();
-  //     writes.push_back(w);
-  //   }
-  // }
-
   vkUpdateDescriptorSets(device, writes.size() , writes.data(), 0, nullptr);
 }
 
@@ -2030,11 +1930,11 @@ void Engine::init_depth_prepass_pipeline()
   {
     DescriptorLayoutBuilder layoutBuilder;
     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-layoutBuilder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    layoutBuilder.add_binding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
     zpassDescriptorLayout = layoutBuilder.build(device, VK_SHADER_STAGE_VERTEX_BIT);
   }
@@ -2233,21 +2133,21 @@ void Engine::do_culling(VkCommandBuffer cmd)
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
   
   indirect_cull_pcs pcs;
-  pcs.ids = (VkDeviceAddress) indirectDrawBuffer.info.pMappedData;
+  pcs.ids = (VkDeviceAddress) mainDrawContext.sceneBuffers.indirectCmdBuffer.info.pMappedData;
   pcs.draw_count = mainDrawContext.mem.size();
 
 
 
-	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = indirectDrawBuffer.buffer };
+	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer };
 	pcs.ids = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo);
 
 
-	VkBufferDeviceAddressInfo deviceAdressInfo2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigTransformBuffer.buffer };
+	VkBufferDeviceAddressInfo deviceAdressInfo2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.transformBuffer.buffer };
 	pcs.td = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo2);
 
 
 
-	VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = bigDrawDataBuffer.buffer };
+	VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.drawDataBuffer.buffer };
 	pcs.ddb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo3);
 
   pcs.view = sceneData.view;
@@ -2263,19 +2163,16 @@ void Engine::do_culling(VkCommandBuffer cmd)
   glm::vec4 frustumY = normalise(projT[3] + projT[1]);
 
   pcs.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
-
-  
   // end
 
 
 	
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-
   vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 256.0), 1, 1);
 
 
   VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-  mbar.buffer = indirectDrawBuffer.buffer;
+  mbar.buffer = mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer;
   mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
   mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
   mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;

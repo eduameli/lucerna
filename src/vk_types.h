@@ -49,6 +49,9 @@ namespace Aurora
     AllocatedBuffer drawDataBuffer{};
     AllocatedBuffer indirectCmdBuffer{};
   };
+
+
+  
   
  
   // FIXME: only needed in engine?? or maybe only types that are referenced multiple times, created many times
@@ -163,5 +166,29 @@ struct free_list
       size--;
     }
 };
+
+  // still using global buffers
+  
+
+  struct DrawSetBuffers
+  {
+    AllocatedBuffer indexBuffer;
+    AllocatedBuffer drawDataBuffer;
+    AllocatedBuffer indirectDrawBuffer;
+  };
+
+
+  struct DrawSet
+  {
+    std::vector<uint32_t> indices;
+    std::vector<Bounds> bounds;
+    std::vector<DrawData> draw_datas;
+    std::vector<IndirectDraw> indirect_draws;
+    
+    DrawSetBuffers buffers;
+  };
+
+
+  
 
 } // namespace aurora

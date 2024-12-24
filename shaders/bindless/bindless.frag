@@ -107,10 +107,8 @@ void main()
   uint samp = mat.albedo >> 24;
 
 
-  debugPrintfEXT("%i, %i", sampled, samp);
   
   vec4 albedo = texture(sampler2D(global_textures[sampled], global_samplers[samp]), inUV) * vec4(inColor, 1.0) * vec4(mat.modulate, 1.0);
-  
   float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
   
@@ -127,7 +125,7 @@ void main()
   float ssao = texture(ssaoAmbient, gl_FragCoord.xy / vec2(1280, 800)).r;
 
   vec4 color = albedo * lightValue * (ssao);
-  // color += vec4(mat.emissions * mat.strength, 1.0f);
+  color += vec4(mat.emissions * mat.strength, 1.0f);
   
     
   outColour = color;   

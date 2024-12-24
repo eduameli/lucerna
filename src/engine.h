@@ -1,5 +1,6 @@
 #pragma once
 #include "aurora_pch.h"
+#include "input_structures.glsl"
 #include "vk_descriptors.h"
 #include "vk_types.h"
 #include "vk_loader.h"
@@ -48,8 +49,11 @@ namespace Aurora {
 
     std::vector<Bounds> bounds;
 
-    GPUMeshBuffers bigMeshes;
+    // GPUMeshBuffers bigMeshes;
+    GPUSceneBuffers sceneBuffers;
   };
+
+
   
 
   struct EngineStats
@@ -109,6 +113,16 @@ namespace Aurora {
       void queue_debug_obb(glm::mat4 transform, glm::vec3 origin, glm::vec3 extents); 
 
     public:
+
+
+      DrawSet opaque_set;
+      DrawSet transparent_set;
+      DrawSet one_sided_set;
+
+
+      // draw set - many diff buckets (alpha cutoff, transparent, ??)
+
+      
       struct ComputePushConstants
       {
         float data1[4];
@@ -139,6 +153,7 @@ namespace Aurora {
 
       Camera mainCamera;
       DrawContext mainDrawContext;
+      DrawSet opaque_draws;
       std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes; 
       EngineStats stats{};
       
@@ -178,15 +193,15 @@ namespace Aurora {
 
 
       // BINDLESS BUFFERS 
-      AllocatedBuffer bigIndexBuffer{};
-      AllocatedBuffer bigVertexBuffer{};
-      AllocatedBuffer bigPositionBuffer{};
+      // AllocatedBuffer bigIndexBuffer{};
+      // AllocatedBuffer bigVertexBuffer{};
+      // AllocatedBuffer bigPositionBuffer{};
       
-      AllocatedBuffer bigTransformBuffer{};
-      AllocatedBuffer bigMaterialBuffer{};
-      AllocatedBuffer bigDrawDataBuffer{};
-      AllocatedBuffer indirectDrawBuffer{};
-      AllocatedBuffer bigBoundsBuffer{};
+      // AllocatedBuffer bigTransformBuffer{};
+      // AllocatedBuffer bigMaterialBuffer{};
+      // AllocatedBuffer bigDrawDataBuffer{};
+      // AllocatedBuffer indirectDrawBuffer{};
+      // AllocatedBuffer bigBoundsBuffer{};
   
     private:
       void init_vulkan();
