@@ -163,6 +163,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     meshes.push_back(newmesh);
     file.meshes[mesh.name.c_str()] = newmesh;
     newmesh->name = mesh.name;
+
+    AR_CORE_INFO("Loading new mesh! {}", mesh.name.c_str());
     
     for (auto&& p : mesh.primitives)
     {
