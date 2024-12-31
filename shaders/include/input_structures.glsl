@@ -77,6 +77,7 @@ struct DrawData
   uint32_ar firstIndex;
 };
 
+// this is the indirectcmd struct with sphere bounds at the end. data u need is only drawdata and bounds
 struct IndirectDraw
 {
   uint32_ar indexCount;

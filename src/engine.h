@@ -51,6 +51,7 @@ namespace Aurora {
 
     // GPUMeshBuffers bigMeshes;
     GPUSceneBuffers sceneBuffers;
+    AllocatedBuffer indirectCount;
   };
 
 

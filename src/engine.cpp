@@ -25,7 +25,6 @@
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_vulkan.h"
 
 #include <volk.h>
 
@@ -138,14 +137,14 @@ void Engine::init()
   loadedScenes["structure"] = *structureFile;
   
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 0, 300}), mainDrawContext); // set_draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{300, 0, 0}), mainDrawContext); // set_draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{300, 0, 300}), mainDrawContext); // set_draws
+  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 0, 3}), mainDrawContext); // add draws
+  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 0, 0}), mainDrawContext); // add draws
+  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 0, 3}), mainDrawContext); // add draws
   
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3(0, 300, 0)), mainDrawContext); // set_draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 300, 300}), mainDrawContext); // set_draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{300, 300, 0}), mainDrawContext); // set_draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{300, 300, 300}), mainDrawContext); // set_draws
+  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3(0, 3, 0)), mainDrawContext); // add draws
+  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 3, 3}), mainDrawContext); // add draws
+  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 3, 0}), mainDrawContext); // add draws
+  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 3, 3}), mainDrawContext); // add draws
 
   /*
   rough perf 8 structure.glb
@@ -155,7 +154,7 @@ void Engine::init()
   1ms when not looking at stuff
   */
 
-  
+  // do this in compute shader
   for (int idx = 0; idx < mainDrawContext.draw_datas.size(); idx++)
   {
     DrawData dd = mainDrawContext.draw_datas[idx];
@@ -171,6 +170,9 @@ void Engine::init()
     mainDrawContext.mem.push_back(c);
   }
 
+  mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+  *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 10;
+      
   mainDrawContext.sceneBuffers = upload_scene(
     mainDrawContext.positions,
     mainDrawContext.vertices,
@@ -192,6 +194,8 @@ void Engine::init()
     destroy_buffer(mainDrawContext.sceneBuffers.materialBuffer);
     destroy_buffer(mainDrawContext.sceneBuffers.indirectCmdBuffer);
     destroy_buffer(mainDrawContext.sceneBuffers.positionBuffer);
+
+    destroy_buffer(mainDrawContext.indirectCount);
   });
 
   // prepare gfx effects
@@ -564,11 +568,16 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
   
   vkCmdBindIndexBuffer(cmd, mainDrawContext.sceneBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexedIndirect(cmd, mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
-  // for (auto& r : shadow_draws)
-  // {
-  //   draw(mainDrawContext.OpaqueSurfaces[r]);
-  // }
+  
+  vkCmdDrawIndexedIndirectCount(
+    cmd,
+    mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer,
+    0,
+    mainDrawContext.indirectCount.buffer,
+    0,
+    mainDrawContext.mem.size(),
+    sizeof(IndirectDraw)
+  );
 
   vkCmdEndRendering(cmd);
 }
@@ -612,8 +621,19 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 
   vkCmdBindIndexBuffer(cmd, mainDrawContext.sceneBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-  vkCmdDrawIndexedIndirect(cmd, mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
+  //vkCmdDrawIndexedIndirect(cmd, mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
 
+
+  vkCmdDrawIndexedIndirectCount(
+    cmd,
+    mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer,
+    0,
+    mainDrawContext.indirectCount.buffer,
+    0,
+    mainDrawContext.mem.size(),
+    sizeof(IndirectDraw)
+  );
+  
   
   vkCmdEndRendering(cmd);
 }
@@ -702,7 +722,15 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
 
-  vkCmdDrawIndexedIndirect(cmd, mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer, 0, mainDrawContext.mem.size(), sizeof(IndirectDraw));
+  vkCmdDrawIndexedIndirectCount(
+    cmd,
+    mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer,
+    0,
+    mainDrawContext.indirectCount.buffer,
+    0,
+    mainDrawContext.mem.size(),
+    sizeof(IndirectDraw)
+  );
 
   // AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
 
