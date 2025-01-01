@@ -20,6 +20,10 @@ compile_shader() {
         --P "#extension GL_EXT_buffer_reference: require" \
         --P "#extension GL_EXT_nonuniform_qualifier: enable" \
         --P "#extension GL_EXT_debug_printf: enable" \
+        --P "#extension GL_KHR_shader_subgroup_basic: enable" \
+        --P "#extension GL_KHR_shader_subgroup_arithmetic: enable" \
+        --P "#extension GL_KHR_shader_subgroup_ballot: enable" \
+        --target-env vulkan1.3 \
         --glsl-version 460 \
         "$SHADER" -o "$OUTPUT_FILE"
 }

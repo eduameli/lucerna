@@ -1,6 +1,7 @@
 #include "vk_device.h"
 #include "aurora_pch.h"
 #include "ar_asserts.h"
+#include "vulkan/vulkan_core.h"
 
 namespace Aurora 
 {
@@ -14,7 +15,7 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   features.f1.drawIndirectFirstInstance = VK_TRUE;
   
   features.f11.shaderDrawParameters = VK_TRUE;
-  
+
   features.f12.descriptorIndexing = VK_TRUE;
   features.f12.descriptorBindingPartiallyBound = VK_TRUE;
   features.f12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
@@ -49,6 +50,13 @@ bool DeviceContextBuilder::check_feature_support(VkPhysicalDevice device)
 {
   Features query{};
   vkGetPhysicalDeviceFeatures2(device, &query.get());
+
+  // VkPhysicalDeviceSubgroupProperties subgroupProperties{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES, .pNext = nullptr};
+  // VkPhysicalDeviceProperties2 deviceProperties2{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, .pNext = &subgroupProperties };
+  // vkGetPhysicalDeviceProperties2(device, &deviceProperties2);
+
+  
+  
   return
     query.features.features.fillModeNonSolid &&
     query.features.features.wideLines &&

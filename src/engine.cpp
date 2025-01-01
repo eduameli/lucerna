@@ -137,14 +137,14 @@ void Engine::init()
   loadedScenes["structure"] = *structureFile;
   
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
-  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 0, 3}), mainDrawContext); // add draws
-  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 0, 0}), mainDrawContext); // add draws
-  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 0, 3}), mainDrawContext); // add draws
+  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 0, 3}), mainDrawContext); // add draws
+  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 0, 0}), mainDrawContext); // add draws
+  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 0, 3}), mainDrawContext); // add draws
   
-  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3(0, 3, 0)), mainDrawContext); // add draws
-  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 3, 3}), mainDrawContext); // add draws
-  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 3, 0}), mainDrawContext); // add draws
-  loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 3, 3}), mainDrawContext); // add draws
+  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3(0, 3, 0)), mainDrawContext); // add draws
+  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 3, 3}), mainDrawContext); // add draws
+  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 3, 0}), mainDrawContext); // add draws
+  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 3, 3}), mainDrawContext); // add draws
 
   /*
   rough perf 8 structure.glb
@@ -170,9 +170,16 @@ void Engine::init()
     mainDrawContext.mem.push_back(c);
   }
 
-  mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+
+  mainDrawContext.finalIndirectBuffer = create_buffer(sizeof(IndirectDraw) * mainDrawContext.mem.size(), VK_BUFFER_USAGE_2_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  vklog::label_buffer(device, mainDrawContext.finalIndirectBuffer.buffer, "final indirect draw compacted");
+  
+  
+  mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 10;
-      
+
+  vklog::label_buffer(device,mainDrawContext.indirectCount.buffer, "indirect count buffer");
+  
   mainDrawContext.sceneBuffers = upload_scene(
     mainDrawContext.positions,
     mainDrawContext.vertices,
@@ -196,6 +203,7 @@ void Engine::init()
     destroy_buffer(mainDrawContext.sceneBuffers.positionBuffer);
 
     destroy_buffer(mainDrawContext.indirectCount);
+    destroy_buffer(mainDrawContext.finalIndirectBuffer);
   });
 
   // prepare gfx effects
@@ -571,7 +579,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   vkCmdDrawIndexedIndirectCount(
     cmd,
-    mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer,
+    mainDrawContext.finalIndirectBuffer.buffer,
     0,
     mainDrawContext.indirectCount.buffer,
     0,
@@ -626,7 +634,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 
   vkCmdDrawIndexedIndirectCount(
     cmd,
-    mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer,
+    mainDrawContext.finalIndirectBuffer.buffer,
     0,
     mainDrawContext.indirectCount.buffer,
     0,
@@ -724,7 +732,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdDrawIndexedIndirectCount(
     cmd,
-    mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer,
+    mainDrawContext.finalIndirectBuffer.buffer,
     0,
     mainDrawContext.indirectCount.buffer,
     0,
@@ -2187,6 +2195,13 @@ void Engine::do_culling(VkCommandBuffer cmd)
 	VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.drawDataBuffer.buffer };
 	pcs.ddb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo3);
 
+
+  VkBufferDeviceAddressInfo indirectCountBuffer{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.indirectCount.buffer };
+  pcs.indirect_count = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectCountBuffer);
+
+  VkBufferDeviceAddressInfo indirectBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.finalIndirectBuffer.buffer };
+  pcs.indirect_draws = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectBuff);
+  
   pcs.view = sceneData.view;
 
 
@@ -2209,7 +2224,7 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
 
   VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-  mbar.buffer = mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer;
+  mbar.buffer = mainDrawContext.finalIndirectBuffer.buffer;
   mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
   mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
   mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;

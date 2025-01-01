@@ -85,7 +85,7 @@ struct IndirectDraw
   uint32_ar firstIndex;
   uint32_ar vertexOffset;
   uint32_ar firstInstance;
-  vec4_ar sphereBounds;
+  vec4_ar sphereBounds; // FIXME: do i need this here?? check indirect_cull.comp FIXME note
 };
 
 struct u_ShadowPass
@@ -136,6 +136,16 @@ layout(scalar, buffer_reference) buffer DrawDataBuffer{
 
 layout(scalar, buffer_reference) buffer ImVertexBuffer{
   ImVertexFormat vertices[];
+};
+
+
+layout(scalar, buffer_reference) buffer IndirectCountBuffer{
+  uint32_ar count;
+};
+
+
+layout(scalar, buffer_reference) buffer FinalIndirectDrawBuffer{
+  IndirectDraw draws[];
 };
 // layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
 //   ShadowFragmentSettings shadowSettings;

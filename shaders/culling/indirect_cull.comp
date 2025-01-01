@@ -9,9 +9,11 @@ struct indirect_cull_pcs
 #endif
     mat4_ar view;
     vec4_ar frustum;
-    buffer_ar(IndirectDrawBuffer) ids;
+    buffer_ar(IndirectDrawBuffer) ids; // FIXME: this should be DrawSetBuffer
     buffer_ar(TransformBuffer) td;
     buffer_ar(DrawDataBuffer) ddb;
+    buffer_ar(IndirectCountBuffer) indirect_count;
+    buffer_ar(FinalIndirectDrawBuffer) indirect_draws;
     uint32_ar draw_count;
 };
 
@@ -83,19 +85,47 @@ void main()
     
         
         // buffer with bounds
-        if (!is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w)))
+        bool visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
+        uint int_vis = int(visible);
+        
+        
+        // if (!visible)
+        // {
+        //     pcs.ids.draws[idx].instanceCount = 0;   
+        // }
+        // else
+        // {
+        //     pcs.ids.draws[idx].instanceCount = 1;        
+        // }
+
+
+        uint sum = subgroupExclusiveAdd(uint(visible));
+
+        if (visible)
         {
-             pcs.ids.draws[idx].instanceCount = 0;   
+            pcs.indirect_draws.draws[sum] = id;
         }
-        else
-        {
-            pcs.ids.draws[idx].instanceCount = 1;        
-        }
+    
+        pcs.indirect_count.count = subgroupAdd(int_vis);
     }
 }
 #endif
 
 /*
+
+
+
+struct IndirectDraw
+{
+  uint32_ar indexCount;
+  uint32_ar instanceCount;
+  uint32_ar firstIndex;
+  uint32_ar vertexOffset;
+  uint32_ar firstInstance;
+  vec4_ar sphereBounds; // FIXME: do i need this here?? check indirect_cull.comp FIXME note
+};
+
+
 i want this function to set instanceCount to 0 for the indirect draws that must be culled!
 
 input 
