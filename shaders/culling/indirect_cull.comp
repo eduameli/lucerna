@@ -28,6 +28,10 @@ layout( push_constant, scalar ) uniform constants
 };
 
 
+const int subgroupSize = 32; // could be a specialised constant for nvidia and amd
+
+shared uint sdata[8];
+
 bool is_visible(vec4 bounds)
 {
     vec3 centre = bounds.xyz;
@@ -79,67 +83,44 @@ void main()
 
         vec3_ar origin = vec4(sphereBounds.xyz, 1.0f).xyz;
 
-        
-        // float radius = max(max(mat[0][0], mat[1][1]), mat[2][2]) * sphereBounds.w;
-
-    
-        
-        // buffer with bounds
         bool visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
-        uint int_vis = int(visible);
-        
-        
-        // if (!visible)
-        // {
-        //     pcs.ids.draws[idx].instanceCount = 0;   
-        // }
-        // else
-        // {
-        //     pcs.ids.draws[idx].instanceCount = 1;        
-        // }
-
-
         uint sum = subgroupExclusiveAdd(uint(visible));
 
+
+        if( subgroupElect() )
+        {
+
+            sdata[gl_SubgroupID] = sum;
+            
+            memoryBarrierShared();
+            barrier();
+
+            uint groupSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
+            groupSum = subgroupInclusiveAdd(groupSum);
+            sdata[gl_SubgroupInvocationID] = groupSum;
+        }
+
+
+        memoryBarrierShared();
+        barrier();
+
+        
         if (visible)
         {
             pcs.indirect_draws.draws[sum] = id;
         }
-    
-        pcs.indirect_count.count = subgroupAdd(int_vis);
+
+        int vis_value = int(visible);
+        atomicAdd(pcs.indirect_count.count, subgroupAdd(vis_value));
     }
 }
 #endif
 
 /*
 
+32 subgroups 256 so 8 independent local workgroups as many dispatches as necessary
 
+start by making it work for 32 x 32 = 1024
 
-struct IndirectDraw
-{
-  uint32_ar indexCount;
-  uint32_ar instanceCount;
-  uint32_ar firstIndex;
-  uint32_ar vertexOffset;
-  uint32_ar firstInstance;
-  vec4_ar sphereBounds; // FIXME: do i need this here?? check indirect_cull.comp FIXME note
-};
-
-
-i want this function to set instanceCount to 0 for the indirect draws that must be culled!
-
-input 
-buffer
-
-pcs
-{
-    bda indirect draw buffer
-    uint32_t draw count
-}
-
-
-and 
-
-then compute is_visible() and set instance count to 0 if its not!
 
 */

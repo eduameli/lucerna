@@ -53,7 +53,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   LoadedGLTF& file = *scene.get();
       
   constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers;
-  fastgltf::Parser parser(fastgltf::Extensions::KHR_materials_emissive_strength);
+  fastgltf::Parser parser(fastgltf::Extensions::KHR_materials_emissive_strength | fastgltf::Extensions::KHR_texture_transform);
   auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
   
   if (data.error() != fastgltf::Error::None)
