@@ -67,52 +67,70 @@ bool is_visible(vec4 bounds)
     return visible;
 }
 
-shared uint sdata[8];
+shared uint sdata[32];
 
 void main()
 {
+
+    if (gl_SubgroupID == 0 && gl_SubgroupInvocationID == 0)
+    {
+        for (int i = 0; i < 32; i++)
+        {
+            sdata[i] = 0;        
+        }
+    }
+    
     uint idx = gl_GlobalInvocationID.x;
+    bool visible = false;
+    IndirectDraw id;
+    
     if (idx < pcs.draw_count)
     {
-        IndirectDraw id = pcs.ids.draws[idx];
+        id = pcs.ids.draws[idx];
         vec4_ar sphereBounds = id.sphereBounds;
 
         vec3_ar origin = vec4(sphereBounds.xyz, 1.0f).xyz;
 
-        bool visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
-        uint sum = subgroupInclusiveAdd(uint(visible));
-        uint sum2 = subgroupExclusiveAdd(uint(visible));
-
-
-        if (subgroupElect())
-        {
-            sdata[gl_SubgroupID] = subgroupMax(sum);
-        }
-
-        memoryBarrierShared();
-        barrier();
-
-        if (gl_SubgroupID == 0)
-        {
-            uint groupSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
-            groupSum = subgroupInclusiveAdd(groupSum);
-            sdata[gl_SubgroupInvocationID] = groupSum;
-
-            debugPrintfEXT("group sum %i", groupSum);        
-        }
-
-        memoryBarrierShared();
-        barrier();
-        
-                
-        if (visible)
-        {
-            pcs.indirect_draws.draws[sum2] = id;
-        }
-
-        int vis_value = int(visible);
-        pcs.indirect_count.count =  subgroupAdd(vis_value);
+        visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
     }
+
+    uint sum = subgroupInclusiveAdd(uint(visible));
+    uint sum2 = subgroupExclusiveAdd(uint(visible));
+    
+    if (
+        gl_SubgroupInvocationID == gl_SubgroupSize - 1)
+    {
+        debugPrintfEXT("subgroup max %u", sum);
+        sdata[gl_SubgroupID] = sum;
+    }
+
+    memoryBarrierShared();
+    barrier();
+    
+    if (gl_SubgroupID == 0)
+    {
+        uint groupSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
+        groupSum = subgroupInclusiveAdd(groupSum);
+        sdata[gl_SubgroupInvocationID] = groupSum;
+        pcs.partial.data[gl_SubgroupInvocationID] = groupSum;
+    }
+
+    memoryBarrierShared();
+    barrier();
+    
+            
+    uint offset = 0;
+    if (gl_SubgroupID != 0)
+    {
+        offset = sdata[gl_SubgroupID - 1];
+    }
+    
+    if (visible)
+    {
+        pcs.indirect_draws.draws[sum2 + offset] = id;
+    }
+
+    pcs.indirect_count.count = sdata[gl_NumSubgroups - 1];
 }
 #endif
 

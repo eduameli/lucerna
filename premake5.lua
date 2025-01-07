@@ -117,12 +117,12 @@ project "glfw"
     }
 
     defines {
-    "_GLFW_X11",
+        "_GLFW_X11",
     }
 
     files
     {
-    "vendor/glfw/src/**.c",
+        "vendor/glfw/src/**.c",
     }
 
 

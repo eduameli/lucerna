@@ -183,7 +183,7 @@ void Engine::init()
   vklog::label_buffer(device, mainDrawContext.partialSumsBuffer.buffer, "partial sums buffer compact");
   
   mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-  *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 10;
+  *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 0;
 
   vklog::label_buffer(device,mainDrawContext.indirectCount.buffer, "indirect count buffer");
   
@@ -281,6 +281,9 @@ void Engine::run()
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
       continue;
     }
+
+    // FIXME: this is a bit off - fix as right now i do atomicAdd
+    *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 0;
     
     update_scene();
     draw();
