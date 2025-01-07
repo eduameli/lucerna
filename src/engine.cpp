@@ -79,6 +79,11 @@ void FrameGraph::render_graph()
     ImGui::Text("avg: %.3f", avg);
     ImGui::Text(" sd: %.3f\t cv: %.3f", sd, sd/avg);
     ImGui::Text("min: %.3f\tmax: %.3f", min, max);
+
+
+    uint32_t* cnt = (uint32_t*) Engine::get()->mainDrawContext.indirectCount.info.pMappedData;
+    ImGui::Text("indirect count: %i", *cnt);
+    
   ImGui::End();
 }
 
@@ -173,7 +178,9 @@ void Engine::init()
 
   mainDrawContext.finalIndirectBuffer = create_buffer(sizeof(IndirectDraw) * mainDrawContext.mem.size(), VK_BUFFER_USAGE_2_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
   vklog::label_buffer(device, mainDrawContext.finalIndirectBuffer.buffer, "final indirect draw compacted");
-  
+
+  mainDrawContext.partialSumsBuffer = create_buffer(sizeof(uint32_t) * 32, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  vklog::label_buffer(device, mainDrawContext.partialSumsBuffer.buffer, "partial sums buffer compact");
   
   mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 10;
@@ -204,6 +211,7 @@ void Engine::init()
 
     destroy_buffer(mainDrawContext.indirectCount);
     destroy_buffer(mainDrawContext.finalIndirectBuffer);
+    destroy_buffer(mainDrawContext.partialSumsBuffer);
   });
 
   // prepare gfx effects
@@ -2201,6 +2209,9 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
   VkBufferDeviceAddressInfo indirectBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.finalIndirectBuffer.buffer };
   pcs.indirect_draws = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectBuff);
+
+  VkBufferDeviceAddressInfo partialBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.partialSumsBuffer.buffer };
+  pcs.partial = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &partialBuff);
   
   pcs.view = sceneData.view;
 

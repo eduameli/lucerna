@@ -147,6 +147,10 @@ layout(scalar, buffer_reference) buffer IndirectCountBuffer{
 layout(scalar, buffer_reference) buffer FinalIndirectDrawBuffer{
   IndirectDraw draws[];
 };
+
+layout(scalar, buffer_reference) buffer PartialSums{
+  uint32_ar data[];
+};
 // layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
 //   ShadowFragmentSettings shadowSettings;
 // };

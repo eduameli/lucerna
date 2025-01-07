@@ -14,6 +14,7 @@ struct indirect_cull_pcs
     buffer_ar(DrawDataBuffer) ddb;
     buffer_ar(IndirectCountBuffer) indirect_count;
     buffer_ar(FinalIndirectDrawBuffer) indirect_draws;
+    buffer_ar(PartialSums) partial;
     uint32_ar draw_count;
 };
 
@@ -27,10 +28,6 @@ layout( push_constant, scalar ) uniform constants
   indirect_cull_pcs pcs;
 };
 
-
-const int subgroupSize = 32; // could be a specialised constant for nvidia and amd
-
-shared uint sdata[8];
 
 bool is_visible(vec4 bounds)
 {
@@ -70,48 +67,51 @@ bool is_visible(vec4 bounds)
     return visible;
 }
 
+shared uint sdata[8];
+
 void main()
 {
     uint idx = gl_GlobalInvocationID.x;
     if (idx < pcs.draw_count)
     {
-
-        
-        
         IndirectDraw id = pcs.ids.draws[idx];
         vec4_ar sphereBounds = id.sphereBounds;
 
         vec3_ar origin = vec4(sphereBounds.xyz, 1.0f).xyz;
 
         bool visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
-        uint sum = subgroupExclusiveAdd(uint(visible));
+        uint sum = subgroupInclusiveAdd(uint(visible));
+        uint sum2 = subgroupExclusiveAdd(uint(visible));
 
 
-        if( subgroupElect() )
+        if (subgroupElect())
         {
-
-            sdata[gl_SubgroupID] = sum;
-            
-            memoryBarrierShared();
-            barrier();
-
-            uint groupSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
-            groupSum = subgroupInclusiveAdd(groupSum);
-            sdata[gl_SubgroupInvocationID] = groupSum;
+            sdata[gl_SubgroupID] = subgroupMax(sum);
         }
-
 
         memoryBarrierShared();
         barrier();
 
+        if (gl_SubgroupID == 0)
+        {
+            uint groupSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
+            groupSum = subgroupInclusiveAdd(groupSum);
+            sdata[gl_SubgroupInvocationID] = groupSum;
+
+            debugPrintfEXT("group sum %i", groupSum);        
+        }
+
+        memoryBarrierShared();
+        barrier();
         
+                
         if (visible)
         {
-            pcs.indirect_draws.draws[sum] = id;
+            pcs.indirect_draws.draws[sum2] = id;
         }
 
         int vis_value = int(visible);
-        atomicAdd(pcs.indirect_count.count, subgroupAdd(vis_value));
+        pcs.indirect_count.count =  subgroupAdd(vis_value);
     }
 }
 #endif

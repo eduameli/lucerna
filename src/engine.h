@@ -53,6 +53,7 @@ namespace Aurora {
     GPUSceneBuffers sceneBuffers;
     AllocatedBuffer indirectCount;
     AllocatedBuffer finalIndirectBuffer;
+    AllocatedBuffer partialSumsBuffer;
   };
 
 
