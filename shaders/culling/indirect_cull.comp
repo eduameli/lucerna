@@ -20,7 +20,7 @@ struct indirect_cull_pcs
 
 
 #ifndef __cplusplus
-layout (local_size_x = 256) in;
+layout (local_size_x = 1024) in;
 #extension GL_EXT_debug_printf : enable
 
 layout( push_constant, scalar ) uniform constants
