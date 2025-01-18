@@ -18,8 +18,6 @@
 #define AR_LOG_ASSERT(condition, ...) \
       do { \
           if (!(condition)) { \
-            /* AR_CORE_FATAL("ASSERT FAILED ({}) [{}, {}, {}]", #condition, __FILE__, __FUNCTION__, __LINE__);*/ \
-            /* AR_CORE_FATAL("{}", std::format(__VA_ARGS__));*/ \
             AR_STOP; \
           } \
       } while (false)

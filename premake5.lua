@@ -73,10 +73,10 @@ project "lucerna"
     }
   
     filter "configurations:debug"
-        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0", "AR_DEBUG"}
+        defines {"AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0", "AR_DEBUG"}
 
     filter "configurations:release"
-        defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0"}
+        defines {"AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0"}
 
 project "glfw"
     location "vendor/glfw"

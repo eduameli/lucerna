@@ -13,7 +13,7 @@ namespace Aurora {
   {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
-      AR_CORE_ERROR("Failed to initialise glfw"); 
+      // AR_CORE_ERROR("Failed to initialise glfw"); 
     
     AR_ASSERT(s_Instance == nullptr);
 
@@ -51,13 +51,13 @@ namespace Aurora {
 
   void Window::glfw_error_callback(int error, const char* description)
   {
-    AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
+    // AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
   }
 
   void Window::iconify_callback(GLFWwindow* window, int iconify)
   {
     Engine::get()->stopRendering = iconify == 0 ? false : true;
-    AR_CORE_WARN("{} Rendering", iconify == 0 ? "Resumed" : "Suspended");
+    // AR_CORE_WARN("{} Rendering", iconify == 0 ? "Resumed" : "Suspended");
   }
 
   void Window::resize_callback(GLFWwindow* window, int width, int height)

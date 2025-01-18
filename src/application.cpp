@@ -13,11 +13,11 @@ namespace Aurora {
     toml::parse_result result = toml::parse_file("config/configuration.toml");
     if (!result.succeeded())
     {
-      AR_CORE_ERROR("Error loading configuration file!");
+      // AR_CORE_ERROR("Error loading configuration file!");
       return;
     }
         auto toml = result.table();
-    AR_CORE_TRACE("Loaded configuration.toml");
+    // AR_CORE_TRACE("Loaded configuration.toml");
 
     config.scene_path = toml["startup"]["scene_path"].value_or("assets/structure.glb");
     

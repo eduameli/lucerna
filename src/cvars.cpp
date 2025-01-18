@@ -304,7 +304,7 @@ void CVarSystemImpl::draw_editor()
 				ImGui::PopID();
         break;
       default:
-        AR_CORE_WARN("Attempted to display unregisted CVar type");
+        // AR_CORE_WARN("Attempted to display unregisted CVar type");
     }
   }
 

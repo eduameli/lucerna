@@ -3,8 +3,10 @@
 #include "aurora_pch.h"
 #include <volk.h>
 #include <vulkan/vulkan_core.h>
+#include <string_view>
 
 namespace Aurora {
+
   enum class LogLevel
   {
     VERBOSE,
@@ -29,27 +31,12 @@ namespace Aurora {
     private:
       static void log(LogLevel, std::string_view message);
     private:
-      static LogLevel logLevel;
+      static inline LogLevel logLevel{ LogLevel::INFO };
   };
 } // namespace aurora
 
 
 #define STRINGIFY(x) #x
-
-#if (AR_LOG_LEVEL == 1)
-  #define AR_CORE_FATAL(...)
-  #define AR_CORE_ERROR(...)
-  #define AR_CORE_WARN(...)
-  #define AR_CORE_INFO(...)
-  #define AR_CORE_TRACE(...)
-#else
-  #define AR_CORE_FATAL(...)    
-  #define AR_CORE_ERROR(...)    
-  #define AR_CORE_WARN(...)     
-  #define AR_CORE_INFO(...)     
-  #define AR_CORE_TRACE(...)    
-#endif
-
 
 namespace vklog {
   inline void label_image(VkDevice device, VkImage image, const char* name)

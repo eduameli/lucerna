@@ -63,7 +63,7 @@ bool is_visible(vec4 bounds)
     // {
     //     // visible = visible && centre.z + radius > x c        
     // }
-        
+    return true;
     return visible;
 }
 

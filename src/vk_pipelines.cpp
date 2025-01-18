@@ -11,7 +11,7 @@ bool vkutil::load_shader_module(const char *filepath, VkDevice device, VkShaderM
   
   if (!file.is_open())
   {
-    AR_CORE_ERROR("FAILED TO OPEN FILE!");
+    // AR_CORE_ERROR("FAILED TO OPEN FILE!");
     return false;
   }
 

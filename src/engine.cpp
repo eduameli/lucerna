@@ -1404,7 +1404,7 @@ void Engine::validate_instance_supported()
   uint32_t version = 0;
   vkEnumerateInstanceVersion(&version);
   AR_LOG_ASSERT(version > VK_API_VERSION_1_3, "This Application requires Vulkan 1.3, which has not been found!");
-  AR_CORE_INFO("Using Vulkan Instance [version {}.{}.{}]", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
+  // AR_CORE_INFO("Using Vulkan Instance [version {}.{}.{}]", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
   
   // validate validation layer support
   if (m_UseValidationLayers)
@@ -1414,10 +1414,10 @@ void Engine::validate_instance_supported()
     std::vector<VkLayerProperties> supportedLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
     
-    AR_CORE_WARN("Required Validation Layers: ");
+    // AR_CORE_WARN("Required Validation Layers: ");
     for (const char* layerName : m_ValidationLayers)
     {
-      AR_CORE_WARN("\t{}", layerName);
+      // AR_CORE_WARN("\t{}", layerName);
       bool found = false;
       for (const auto& layerProperties : supportedLayers)
       {
@@ -1446,11 +1446,11 @@ void Engine::validate_instance_supported()
   vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, nullptr);
   std::vector<VkExtensionProperties> supportedExtensions(supportedCount);
   vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, supportedExtensions.data());
-  AR_CORE_WARN("Required Instance Extensions:");
+  // AR_CORE_WARN("Required Instance Extensions:");
 
   for (auto extensionName : m_InstanceExtensions)
   {
-    AR_CORE_WARN("\t{}", extensionName);
+    // AR_CORE_WARN("\t{}", extensionName);
     bool found = false;
     for (auto extension : supportedExtensions)
     {
@@ -1460,7 +1460,7 @@ void Engine::validate_instance_supported()
         break;
       }
     }
-    AR_LOG_ASSERT(found, "Required {} Extension not supported!", extensionName);
+  //   // AR_LOG_ASSERT(found, "Required {} Extension not supported!", extensionName);
   }
 }
 
@@ -1546,7 +1546,7 @@ void Engine::init_swapchain()
     .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
     .build();
     
-  AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
+  // AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
   
   m_DrawExtent = {internalExtent.width, internalExtent.height};
 
@@ -1569,7 +1569,7 @@ void Engine::init_swapchain()
   vklog::label_image(device, m_DepthImage.image, "Depth Image");
   vklog::label_image(device, m_ShadowDepthImage.image, "Shadow Mapping Image");
 
-  AR_CORE_INFO("draw idx {}", m_DrawImage.texture_idx);
+  // AR_CORE_INFO("draw idx {}", m_DrawImage.texture_idx);
   
   m_DeletionQueue.push_function([=, this]() {
     destroy_image(m_DrawImage);

@@ -29,20 +29,20 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   features.f13.synchronization2 = VK_TRUE;
 
   // out of date
-  AR_CORE_WARN("Required Features: ");
-  AR_CORE_WARN("\twideLines");
-  AR_CORE_WARN("\tmultiDrawIndirect");
-  AR_CORE_WARN("\tfillModeNonSolid");
-  AR_CORE_WARN("\tshaderDrawParameters");
-  AR_CORE_WARN("\tdescriptorIndexing");
-  AR_CORE_WARN("\tdescriptorBindingPartiallyBound");
-  AR_CORE_WARN("\tdescriptorBindingSampledImageUpdateAfterBind");
-  AR_CORE_WARN("\tdescriptorBindingStorageImageUpdateAfterBind");
-  AR_CORE_WARN("\truntimeDescriptorArray");
-  AR_CORE_WARN("\tbufferDeviceAddress");
-  AR_CORE_WARN("\tscalarBlockLayout");
-  AR_CORE_WARN("\tdynamicRendering");
-  AR_CORE_WARN("\tsynchronization2");
+  // AR_CORE_WARN("Required Features: ");
+  // AR_CORE_WARN("\twideLines");
+  // AR_CORE_WARN("\tmultiDrawIndirect");
+  // AR_CORE_WARN("\tfillModeNonSolid");
+  // AR_CORE_WARN("\tshaderDrawParameters");
+  // AR_CORE_WARN("\tdescriptorIndexing");
+  // AR_CORE_WARN("\tdescriptorBindingPartiallyBound");
+  // AR_CORE_WARN("\tdescriptorBindingSampledImageUpdateAfterBind");
+  // AR_CORE_WARN("\tdescriptorBindingStorageImageUpdateAfterBind");
+  // AR_CORE_WARN("\truntimeDescriptorArray");
+  // AR_CORE_WARN("\tbufferDeviceAddress");
+  // AR_CORE_WARN("\tscalarBlockLayout");
+  // AR_CORE_WARN("\tdynamicRendering");
+  // AR_CORE_WARN("\tsynchronization2");
 
 }
 
@@ -121,7 +121,7 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(selected, &properties);
   uint32_t version = properties.apiVersion;
-  AR_CORE_INFO("Using {} [version {}.{}.{}]", properties.deviceName, VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
+  // AR_CORE_INFO("Using {} [version {}.{}.{}]", properties.deviceName, VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
   return selected;
 }
 
@@ -230,10 +230,10 @@ DeviceContext DeviceContextBuilder::build()
   AR_ASSERT(m_Surface != VK_NULL_HANDLE);
   AR_ASSERT(m_RequiredExtensions.size() > 0);
  
-  AR_CORE_WARN("Required Device Extensions:");
+  // AR_CORE_WARN("Required Device Extensions:");
   for (auto& extension : m_RequiredExtensions)
   {
-    AR_CORE_WARN("\t{}", extension);
+    // AR_CORE_WARN("\t{}", extension);
   }
 
   VkDevice logicalDevice;
