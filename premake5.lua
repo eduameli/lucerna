@@ -3,7 +3,7 @@ workspace "lucerna"
     architecture "x86_64"
 
     language "C++"
-    cppdialect "c++20"
+    cppdialect "c++23"
     toolset "clang"
     linkoptions {"-fuse-ld=mold"}
 
@@ -42,7 +42,6 @@ project "lucerna"
 
     includedirs 
     {
-        "vendor/spdlog/include",
         "vendor/glfw/include",
         "vendor/KHR",
         "vendor/vulkan-headers/include",
@@ -62,7 +61,6 @@ project "lucerna"
 
     links 
     {
-        "spdlog",
         "glfw",
         "imgui",
         "fastgltf",
@@ -79,30 +77,6 @@ project "lucerna"
 
     filter "configurations:release"
         defines { "AR_LOG_LEVEL=1", "AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0"}
-
-project "spdlog"
-    location "vendor/spdlog"
-    kind "StaticLib"
-    targetdir ("build/lib/bin/%{cfg.buildcfg}")
-    objdir ("build/lib/obj/%{cfg.buildcfg}")
-
-    defines
-    {
-        "SPDLOG_COMPILED_LIB",
-    }
-
-
-    files
-    {
-        "vendor/spdlog/src/**.cpp"
-    }
-
-    includedirs
-    {
-        "vendor/spdlog/include"
-    }
-
-
 
 project "glfw"
     location "vendor/glfw"

@@ -68,7 +68,7 @@ void FrameGraph::render_graph()
   variance /= frametimes.size();
   float sd = glm::sqrt(variance);
     
-  std::string str = fmt::format("avg ms:  {}", avg);
+  std::string str = std::format("avg ms:  {}", avg);
   
   ImGui::Begin("Frame Graph", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::PlotLines("", [](void *data, int idx) -> float {
@@ -1473,7 +1473,7 @@ void Engine::init_vulkan()
   
   if (m_UseValidationLayers)
   {
-    Logger::setup_validation_layer_callback(m_Instance, m_DebugMessenger, Logger::validation_callback);
+    vklog::setup_validation_layer_callback(m_Instance, m_DebugMessenger, vklog::validation_callback);
     m_DeletionQueue.push_function([&]() {
       vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
     });

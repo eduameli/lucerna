@@ -10,7 +10,6 @@
 #define AR_ASSERT(condition) \
     do { \
         if (!(condition)) { \
-          AR_CORE_FATAL("ASSERT FAILED ({}) \t [{}, {}, {}]", #condition, __FILE__, __FUNCTION__, __LINE__); \
           AR_STOP; \
         } \
     } while (false)
@@ -19,8 +18,8 @@
 #define AR_LOG_ASSERT(condition, ...) \
       do { \
           if (!(condition)) { \
-            AR_CORE_FATAL("ASSERT FAILED ({}) [{}, {}, {}]", #condition, __FILE__, __FUNCTION__, __LINE__); \
-            AR_CORE_FATAL("{}", fmt::format(__VA_ARGS__)); \
+            /* AR_CORE_FATAL("ASSERT FAILED ({}) [{}, {}, {}]", #condition, __FILE__, __FUNCTION__, __LINE__);*/ \
+            /* AR_CORE_FATAL("{}", std::format(__VA_ARGS__));*/ \
             AR_STOP; \
           } \
       } while (false)
@@ -73,7 +72,6 @@ inline std::string error_to_string(VkResult errorCode)
   VkResult res = (f);																					\
   if (res != VK_SUCCESS)																				\
   {																									\
-    AR_CORE_ERROR("Error: VkResult is [{}] in at [{}, {}, {}]", error_to_string(res), __FILE__, __FUNCTION__, __LINE__); \
     AR_ASSERT(res == VK_SUCCESS);																		\
   }																									\
 }
