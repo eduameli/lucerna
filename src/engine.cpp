@@ -90,13 +90,13 @@ void FrameGraph::render_graph()
 static Engine* s_Instance = nullptr;
 Engine* Engine::get()
 {
-  AR_LOG_ASSERT(s_Instance != nullptr, "Trying to get reference to Engine but s_Instance is a null pointer!");
+  LA_LOG_ASSERT(s_Instance != nullptr, "Trying to get reference to Engine but s_Instance is a null pointer!");
   return s_Instance;
 }
 
 void Engine::init()
 {
-  AR_LOG_ASSERT(!s_Instance, "Engine already exists!");
+  LA_LOG_ASSERT(!s_Instance, "Engine already exists!");
   s_Instance = this;
   
   internalExtent = {Application::config.internal_resolution.x, Application::config.internal_resolution.y, 1};
@@ -137,7 +137,7 @@ void Engine::init()
 
   std::string structurePath = Application::config.scene_path;
   auto structureFile = load_gltf(this, structurePath);
-  AR_LOG_ASSERT(structureFile.has_value(), "GLTF Scene loaded correctly!");
+  LA_LOG_ASSERT(structureFile.has_value(), "GLTF Scene loaded correctly!");
 
   loadedScenes["structure"] = *structureFile;
   
@@ -303,7 +303,7 @@ void Engine::run()
 
 void Engine::resize_swapchain(int width, int height)
 {
-  AR_LOG_ASSERT(width > 0 && height > 0, "Attempted to resize swapchain to 0x0");
+  LA_LOG_ASSERT(width > 0 && height > 0, "Attempted to resize swapchain to 0x0");
 
   vkDeviceWaitIdle(device);
 
@@ -380,7 +380,7 @@ void Engine::draw()
     }
     else
     {
-      AR_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "Error getting next swapchain image!");
+      LA_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "Error getting next swapchain image!");
     }
   }
   if (!valid_swapchain)
@@ -490,7 +490,7 @@ void Engine::draw()
   }
   else
   {
-    AR_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "Error presenting swapchain image!");
+    LA_LOG_ASSERT(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR, "Error presenting swapchain image!");
   }
 
   frameNumber++;
@@ -864,7 +864,7 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
 
   return;
   
-  AR_LOG_ASSERT(debugLines.size() % 2 == 0, "Debug Lines buffer must be a multiple of two");
+  LA_LOG_ASSERT(debugLines.size() % 2 == 0, "Debug Lines buffer must be a multiple of two");
  
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment,  nullptr);
@@ -1403,8 +1403,8 @@ void Engine::validate_instance_supported()
   // validate instance version supported
   uint32_t version = 0;
   vkEnumerateInstanceVersion(&version);
-  AR_LOG_ASSERT(version > VK_API_VERSION_1_3, "This Application requires Vulkan 1.3, which has not been found!");
-  // AR_CORE_INFO("Using Vulkan Instance [version {}.{}.{}]", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
+  LA_LOG_ASSERT(version > VK_API_VERSION_1_3, "This Application requires Vulkan 1.3, which has not been found!");
+  LA_LOG_INFO("Using Vulkan Instance [version {}.{}.{}]", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
   
   // validate validation layer support
   if (m_UseValidationLayers)
@@ -1414,10 +1414,10 @@ void Engine::validate_instance_supported()
     std::vector<VkLayerProperties> supportedLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, supportedLayers.data());
     
-    // AR_CORE_WARN("Required Validation Layers: ");
+    LA_LOG_WARN("Required Validation Layers: ");
     for (const char* layerName : m_ValidationLayers)
     {
-      // AR_CORE_WARN("\t{}", layerName);
+      LA_LOG_INFO("\t{}", layerName);
       bool found = false;
       for (const auto& layerProperties : supportedLayers)
       {
@@ -1428,7 +1428,7 @@ void Engine::validate_instance_supported()
         }
       }
       
-      AR_LOG_ASSERT(found, "Required {} layer is not supported!", layerName);
+      LA_LOG_ASSERT(found, "Required {} layer is not supported!", layerName);
     }
   }
   // validate instance extension support
@@ -1446,11 +1446,11 @@ void Engine::validate_instance_supported()
   vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, nullptr);
   std::vector<VkExtensionProperties> supportedExtensions(supportedCount);
   vkEnumerateInstanceExtensionProperties(nullptr, &supportedCount, supportedExtensions.data());
-  // AR_CORE_WARN("Required Instance Extensions:");
+  LA_LOG_WARN("Required Instance Extensions: ");
 
   for (auto extensionName : m_InstanceExtensions)
   {
-    // AR_CORE_WARN("\t{}", extensionName);
+    LA_LOG_INFO("\t{}", extensionName);
     bool found = false;
     for (auto extension : supportedExtensions)
     {
@@ -1460,7 +1460,8 @@ void Engine::validate_instance_supported()
         break;
       }
     }
-  //   // AR_LOG_ASSERT(found, "Required {} Extension not supported!", extensionName);
+    LA_LOG_ASSERT(found, "Required {} Extension not supported!", extensionName);
+
   }
 }
 
@@ -1500,7 +1501,7 @@ void Engine::create_instance()
 {
   VkApplicationInfo app{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .pNext = nullptr};
   app.pEngineName = "Lucerna";
-  app.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+  app.engineVersion = VK_MAKE_VERSION(0, 1, 0);
   app.apiVersion = VK_API_VERSION_1_3;
 
   VkInstanceCreateInfo instance{.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pNext = nullptr};
@@ -1546,8 +1547,8 @@ void Engine::init_swapchain()
     .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
     .build();
     
-  // AR_CORE_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
-  
+  LA_LOG_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));
+
   m_DrawExtent = {internalExtent.width, internalExtent.height};
 
 	VkImageUsageFlags drawImageUsages{};
@@ -1822,13 +1823,13 @@ void Engine::init_pipelines()
   init_indirect_cull_pipeline();
 
   VkShaderModule bindlessFrag, bindlessVert;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/bindless/bindless.frag.spv", device, &bindlessFrag),
     "Error when building the bindless shader module frag"
   );
 
   
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/bindless/bindless.vert.spv", device, &bindlessVert),
     "Error when building the bindless shader module vert"
   );
@@ -1864,13 +1865,13 @@ void Engine::init_pipelines()
   // init debug line pipeline
   
   VkShaderModule debugFrag;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/debug_line/debug_line.frag.spv", device, &debugFrag),
     "Error when building the debug line fragment shader module"
   );
   
   VkShaderModule debugVert;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/debug_line/debug_line.vert.spv", device, &debugVert),
     "Error when building the debug line vertex shader module"
   );
@@ -1925,7 +1926,7 @@ void Engine::init_background_pipelines()
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &layout));
 
   VkShaderModule gradientShader;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/push_gradient.comp.spv", device, &gradientShader),
     "Error loading Gradient Compute Effect Shader"
   );  
@@ -1972,13 +1973,13 @@ void Engine::init_depth_prepass_pipeline()
 {
 
   VkShaderModule zpassFrag;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/zprepass/zprepass.frag.spv", device, &zpassFrag),
     "Error when building the shadow pass fragment shader module"
   );
   
   VkShaderModule zpassVert;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/zprepass/zprepass.vert.spv", device, &zpassVert),
     "Error when building the shadow pass vertex shader module"
   );
@@ -2029,13 +2030,13 @@ void Engine::init_depth_prepass_pipeline()
 void Engine::init_shadow_map_pipeline()
 {
   VkShaderModule shadowFrag;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/shadow/shadow_map.frag.spv", device, &shadowFrag),
     "Error when building the shadow pass fragment shader module"
   );
   
   VkShaderModule shadowVert;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/shadow/shadow_map.vert.spv", device, &shadowVert),
     "Error when building the shadow pass vertex shader module"
   );
@@ -2156,7 +2157,7 @@ void Engine::init_indirect_cull_pipeline()
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &cullPipelineLayout));
 
   VkShaderModule cullShader;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/culling/indirect_cull.comp.spv", device, &cullShader),
     "Error loading Gradient Compute Effect Shader"
   );  

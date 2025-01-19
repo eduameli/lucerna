@@ -72,12 +72,12 @@ void bloom::prepare()
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &pipelineLayout));
   
   VkShaderModule downsample, upsample;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/bloom/downsample.comp.spv", device, &downsample),
     "Error loading (Bloom) Downsample Compute Effect Shader"
   );
 
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/bloom/upsample.comp.spv", device, &upsample),
     "Error loading (Bloom) Upsample Compute Effect Shader"
   ); 
@@ -328,13 +328,13 @@ void ssao::prepare()
   vkCreatePipelineLayout(device, &ly, nullptr, &blurPipelineLayout);
     
   VkShaderModule ssaoShader;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/ssao/ssao.comp.spv", device, &ssaoShader),
     "Error loading SSAO Effect Shader"
   );  
 
   VkShaderModule blurShader;
-  AR_LOG_ASSERT(
+  LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/ssao/bilateral_filter.comp.spv", device , &blurShader),
     "Error loading Bilateral Blur SSAO Effect Shader" 
   );

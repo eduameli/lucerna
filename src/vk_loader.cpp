@@ -47,6 +47,7 @@ glm::vec2 enconde_normal(glm::vec3 n) {
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
 {
   // AR_CORE_INFO("Loading GLTF at {}", filepath.c_str());
+  // Logger::info("Loading GLTF at {}", filepath.c_str());
 
   std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
   scene->creator = engine;
@@ -457,7 +458,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
                   // specify LoadExternalBuffers, meaning all buffers
                   // are already loaded into a vector.
                   [](auto &arg) {
-                    AR_LOG_ASSERT(
+                    LA_LOG_ASSERT(
                         false,
                         "GLTF Loading only supports GLB format");
                   },

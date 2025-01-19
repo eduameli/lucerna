@@ -15,7 +15,7 @@ namespace Aurora {
     if (!glfwInit())
       // AR_CORE_ERROR("Failed to initialise glfw"); 
     
-    AR_ASSERT(s_Instance == nullptr);
+    LA_ASSERT(s_Instance == nullptr);
 
     s_Instance = new Window();
     auto& win = s_Instance->m_Window;
@@ -38,7 +38,7 @@ namespace Aurora {
   
   GLFWwindow* Window::get()
   {
-    AR_ASSERT(s_Instance != nullptr);
+    LA_ASSERT(s_Instance != nullptr);
     return s_Instance->m_Window;
   }
   

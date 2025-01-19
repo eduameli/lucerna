@@ -1,5 +1,6 @@
 #include "logger.h"
 #include "ar_asserts.h"
+#include "vulkan/vulkan_core.h"
 #include <ctime>
 #include <print>
 #include <sstream>
@@ -62,13 +63,17 @@ void Logger::fatal(std::string_view message)
 
 void Logger::log(LogLevel level, std::string_view message)
 {
+  std::ostringstream oss;
+  
   if (logLevel > level)
+  {
     return;
+  }
 
+  
   std::time_t time = std::time(nullptr);
   std::tm localTime = *std::localtime(&time);
 
-  std::ostringstream oss;
   oss << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S");
   std::print("[{0}] [{1}] {2}\n", oss.str(), log_level_to_string(level), message);
 }
@@ -87,7 +92,7 @@ VkBool32 vklog::validation_callback(
 {
   if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
   {
-    // AR_CORE_ERROR("VALIDATION LAYER ERROR: {}\n\n", pCallbackData->pMessage);
+    Aurora::Logger::error(pCallbackData->pMessage);
   }
   return VK_FALSE;
 }

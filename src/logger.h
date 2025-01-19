@@ -37,6 +37,26 @@ namespace Aurora {
 
 #define STRINGIFY(x) #x
 
+#if (LA_ENABLE_LOGS == 1)
+  #define LA_LOG_VERBOSE(...) ::Aurora::Logger::verbose(std::format(__VA_ARGS__))
+  #define LA_LOG_DEBUG(...) ::Aurora::Logger::debug(std::format(__VA_ARGS__))
+  #define LA_LOG_INFO(...) ::Aurora::Logger::info(std::format(__VA_ARGS__))
+  #define LA_LOG_WARN(...) ::Aurora::Logger::warning(std::format(__VA_ARGS__))
+  #define LA_LOG_ERROR(...) ::Aurora::Logger::error(std::format(__VA_ARGS__))
+  #define LA_LOG_FATAL(...) ::Aurora::Logger::fatal(std::format(__VA_ARGS__))
+#else
+  #define LA_LOG_VERBOSE(...)
+  #define LA_LOG_DEBUG(...)
+  #define LA_LOG_INFO(...)
+  #define LA_LOG_WARN(...)
+  #define LA_LOG_ERROR(...)
+  #define LA_LOG_FATAL(...)
+#endif
+
+
+
+
+
 namespace vklog {
   inline void label_image(VkDevice device, VkImage image, const char* name)
   {

@@ -29,20 +29,20 @@ DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR sur
   features.f13.synchronization2 = VK_TRUE;
 
   // out of date
-  // AR_CORE_WARN("Required Features: ");
-  // AR_CORE_WARN("\twideLines");
-  // AR_CORE_WARN("\tmultiDrawIndirect");
-  // AR_CORE_WARN("\tfillModeNonSolid");
-  // AR_CORE_WARN("\tshaderDrawParameters");
-  // AR_CORE_WARN("\tdescriptorIndexing");
-  // AR_CORE_WARN("\tdescriptorBindingPartiallyBound");
-  // AR_CORE_WARN("\tdescriptorBindingSampledImageUpdateAfterBind");
-  // AR_CORE_WARN("\tdescriptorBindingStorageImageUpdateAfterBind");
-  // AR_CORE_WARN("\truntimeDescriptorArray");
-  // AR_CORE_WARN("\tbufferDeviceAddress");
-  // AR_CORE_WARN("\tscalarBlockLayout");
-  // AR_CORE_WARN("\tdynamicRendering");
-  // AR_CORE_WARN("\tsynchronization2");
+  LA_LOG_WARN("Required Features: ");
+  LA_LOG_INFO("\twideLines");
+  LA_LOG_INFO("\tmultiDrawIndirect");
+  LA_LOG_INFO("\tfillModeNonSolid");
+  LA_LOG_INFO("\tshaderDrawParameters");
+  LA_LOG_INFO("\tdescriptorIndexing");
+  LA_LOG_INFO("\tdescriptorBindingPartiallyBound");
+  LA_LOG_INFO("\tdescriptorBindingSampledImageUpdateAfterBind");
+  LA_LOG_INFO("\tdescriptorBindingStorageImageUpdateAfterBind");
+  LA_LOG_INFO("\truntimeDescriptorArray");
+  LA_LOG_INFO("\tbufferDeviceAddress");
+  LA_LOG_INFO("\tscalarBlockLayout");
+  LA_LOG_INFO("\tdynamicRendering");
+  LA_LOG_INFO("\tsynchronization2");
 
 }
 
@@ -90,7 +90,7 @@ DeviceContextBuilder& DeviceContextBuilder::set_required_extensions(std::span<co
 
 DeviceContextBuilder& DeviceContextBuilder::set_preferred_gpu_type(VkPhysicalDeviceType type)
 {
-  AR_LOG_ASSERT(type != VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM, "Invalid preferred physical device type");
+  LA_LOG_ASSERT(type != VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM, "Invalid preferred physical device type");
   m_PreferredDeviceType = type;
   return *this;
 }
@@ -100,7 +100,7 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
 
   uint32_t deviceCount;
   vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
-  AR_ASSERT(deviceCount != 0);
+  LA_ASSERT(deviceCount != 0);
 
   std::vector<VkPhysicalDevice> devices(deviceCount);
   vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
@@ -116,12 +116,11 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
       selected = device;
     }
   }
-  AR_LOG_ASSERT(selected != VK_NULL_HANDLE, "Failed to find a suitable physical device!");
+  LA_LOG_ASSERT(selected != VK_NULL_HANDLE, "Failed to find a suitable physical device!");
   
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(selected, &properties);
   uint32_t version = properties.apiVersion;
-  // AR_CORE_INFO("Using {} [version {}.{}.{}]", properties.deviceName, VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
   return selected;
 }
 
@@ -169,7 +168,7 @@ bool DeviceContextBuilder::is_device_suitable(VkPhysicalDevice device)
 
 bool DeviceContextBuilder::check_extension_support(VkPhysicalDevice device)
 {
-  AR_LOG_ASSERT(m_RequiredExtensions.size() > 0, "Required Swapchain Extensions not requested");
+  LA_LOG_ASSERT(m_RequiredExtensions.size() > 0, "Required Swapchain Extensions not requested");
 
   uint32_t extensionCount;
   vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
@@ -220,20 +219,20 @@ QueueFamilyIndices DeviceContextBuilder::find_queue_indices(VkPhysicalDevice dev
       break;
   }
   
-  AR_ASSERT(indices.is_complete());
+  LA_ASSERT(indices.is_complete());
   return indices;
 }
 
 DeviceContext DeviceContextBuilder::build()
 {
-  AR_ASSERT(m_Instance != VK_NULL_HANDLE);
-  AR_ASSERT(m_Surface != VK_NULL_HANDLE);
-  AR_ASSERT(m_RequiredExtensions.size() > 0);
+  LA_ASSERT(m_Instance != VK_NULL_HANDLE);
+  LA_ASSERT(m_Surface != VK_NULL_HANDLE);
+  LA_ASSERT(m_RequiredExtensions.size() > 0);
  
-  // AR_CORE_WARN("Required Device Extensions:");
+  LA_LOG_WARN("Required Device Extensions: ");
   for (auto& extension : m_RequiredExtensions)
   {
-    // AR_CORE_WARN("\t{}", extension);
+    LA_LOG_INFO("\t{}", extension);
   }
 
   VkDevice logicalDevice;

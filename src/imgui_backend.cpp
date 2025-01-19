@@ -57,9 +57,9 @@ void VulkanImGuiBackend::init(Engine* engine)
   VkDevice device = engine->device;
 
   VkShaderModule frag, vert;
-  AR_LOG_ASSERT(vkutil::load_shader_module("shaders/imgui/imgui_backend.frag.spv", device, &frag),
+  LA_LOG_ASSERT(vkutil::load_shader_module("shaders/imgui/imgui_backend.frag.spv", device, &frag),
   "Failed to load imgui backend fragment shader!");
-  AR_LOG_ASSERT(vkutil::load_shader_module("shaders/imgui/imgui_backend.vert.spv", device, &vert),
+  LA_LOG_ASSERT(vkutil::load_shader_module("shaders/imgui/imgui_backend.vert.spv", device, &vert),
   "Failed to load imgui backend vertex shader!");
 
   VkPushConstantRange range{
@@ -117,7 +117,7 @@ void VulkanImGuiBackend::draw(
   Engine* engine = Engine::get();
   const ImDrawData* drawData = ImGui::GetDrawData();
 
-  AR_ASSERT(drawData != nullptr);
+  LA_ASSERT(drawData != nullptr);
 
   
   if (drawData->TotalVtxCount == 0)
@@ -125,7 +125,7 @@ void VulkanImGuiBackend::draw(
     return;
   }
 
-  AR_LOG_ASSERT(drawData->TotalIdxCount < MAX_IDX_COUNT && drawData->TotalVtxCount < MAX_VTX_COUNT, 
+  LA_LOG_ASSERT(drawData->TotalIdxCount < MAX_IDX_COUNT && drawData->TotalVtxCount < MAX_VTX_COUNT, 
   "Custom ImGuiBackend surpassed hardcoded upper limit for indices/vertices, buffer resize is not implemented yet!");
   
   copy_buffers(cmd, device);
@@ -176,7 +176,7 @@ void VulkanImGuiBackend::draw(
           imCmd.UserCallback(&cmdList, &imCmd);
           continue;
         }
-        AR_LOG_ASSERT(false, "ImDrawCallback_RenderState is not supported");
+        LA_LOG_ASSERT(false, "ImDrawCallback_RenderState is not supported");
       }
 
       if (imCmd.ElemCount == 0)

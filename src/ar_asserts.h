@@ -5,29 +5,31 @@
 
 #if AR_ENABLE_ASSERTS == 1
 #include <signal.h>
-#define AR_STOP raise(SIGTRAP)
+#define LA_STOP raise(SIGTRAP)
 
-#define AR_ASSERT(condition) \
+#define LA_ASSERT(condition) \
     do { \
         if (!(condition)) { \
-          Aurora::Logger::debug(std::format("assertion - {} failed", #condition)); \
-          AR_STOP; \
+          Aurora::Logger::fatal(std::format("assertion - {} failed", #condition)); \
+          LA_STOP; \
         } \
     } while (false)
 
 
-#define AR_LOG_ASSERT(condition, ...) \
+#define LA_LOG_ASSERT(condition, ...) \
       do { \
           if (!(condition)) { \
-            AR_STOP; \
+            Aurora::Logger::fatal(std::format("ASSERT FAILED ({}), [{}, {}, {}]", #condition, __FILE__, __FUNCTION__, __LINE__)); \
+            Aurora::Logger::fatal(std::format(__VA_ARGS__)); \
+            LA_STOP; \
           } \
       } while (false)
 
 
 #else
-#define AR_ASSERT(condition) condition
-#define AR_LOG_ASSERT(condition, ...) condition
-#define AR_STOP
+#define LA_ASSERT(condition)_ASSERT(condition) condition
+#define LA_LOG_ASSERT(condition, ...) condition
+#define LA_STOP
 #endif
 
 
@@ -71,6 +73,6 @@ inline std::string error_to_string(VkResult errorCode)
   VkResult res = (f);																					\
   if (res != VK_SUCCESS)																				\
   {																									\
-    AR_ASSERT(res == VK_SUCCESS);																		\
+    LA_ASSERT(res == VK_SUCCESS);																		\
   }																									\
 }
