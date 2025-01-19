@@ -3,7 +3,6 @@
 #include "aurora_pch.h"
 #include <volk.h>
 #include <vulkan/vulkan_core.h>
-#include <string_view>
 
 namespace Aurora {
 
@@ -31,7 +30,7 @@ namespace Aurora {
     private:
       static void log(LogLevel, std::string_view message);
     private:
-      static inline LogLevel logLevel{ LogLevel::INFO };
+      static inline LogLevel logLevel{ LogLevel::VERBOSE };
   };
 } // namespace aurora
 

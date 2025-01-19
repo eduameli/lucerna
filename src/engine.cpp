@@ -176,14 +176,14 @@ void Engine::init()
   }
 
 
-  mainDrawContext.finalIndirectBuffer = create_buffer(sizeof(IndirectDraw) * mainDrawContext.mem.size(), VK_BUFFER_USAGE_2_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  mainDrawContext.finalIndirectBuffer = create_buffer(sizeof(IndirectDraw) * mainDrawContext.mem.size(), VK_BUFFER_USAGE_2_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   vklog::label_buffer(device, mainDrawContext.finalIndirectBuffer.buffer, "final indirect draw compacted");
 
   mainDrawContext.partialSumsBuffer = create_buffer(sizeof(uint32_t) * 32, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
   vklog::label_buffer(device, mainDrawContext.partialSumsBuffer.buffer, "partial sums buffer compact");
   
   mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-  *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 0;
+  *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 1;
 
   vklog::label_buffer(device,mainDrawContext.indirectCount.buffer, "indirect count buffer");
   
@@ -283,7 +283,7 @@ void Engine::run()
     }
 
     // FIXME: this is a bit off - fix as right now i do atomicAdd
-    *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 0;
+    // *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 0;
     
     update_scene();
     draw();
@@ -1755,7 +1755,7 @@ void Engine::init_bindless_pipeline_layout()
 void Engine::update_descriptors()
 {
   if (upload_storage.size() + upload_sampled.size() == 0) return;
-
+  
   std::vector<VkWriteDescriptorSet> writes;
   std::vector<VkDescriptorImageInfo> infos;
   writes.reserve(upload_sampled.size() + upload_storage.size());
@@ -2185,7 +2185,7 @@ void Engine::init_indirect_cull_pipeline()
 
 void Engine::do_culling(VkCommandBuffer cmd)
 {
- 
+
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
   
   indirect_cull_pcs pcs;

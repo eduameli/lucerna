@@ -10,6 +10,7 @@
 #define AR_ASSERT(condition) \
     do { \
         if (!(condition)) { \
+          Aurora::Logger::debug(std::format("assertion - {} failed", #condition)); \
           AR_STOP; \
         } \
     } while (false)

@@ -27,32 +27,37 @@ void Logger::set_min_log_level(LogLevel level)
 
 void Logger::verbose(std::string_view message)
 {
-  
+  log(LogLevel::VERBOSE, message);
 }
 
 void Logger::debug(std::string_view message)
 {
   
+  log(LogLevel::DEBUG, message);
 }
 
 void Logger::info(std::string_view message)
 {
   
+  log(LogLevel::INFO, message);
 }
 
 void Logger::warning(std::string_view message)
 {
   
+  log(LogLevel::WARNING, message);
 }
 
 void Logger::error(std::string_view message)
 {
   
+  log(LogLevel::ERROR, message);
 }
 
 void Logger::fatal(std::string_view message)
 {
   
+  log(LogLevel::FATAL, message);
 }
 
 void Logger::log(LogLevel level, std::string_view message)
@@ -65,7 +70,7 @@ void Logger::log(LogLevel level, std::string_view message)
 
   std::ostringstream oss;
   oss << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S");
-  // std::print("[{0}] [{1}] {2}!\n", oss.str(), log_level_to_string(level), message);
+  std::print("[{0}] [{1}] {2}\n", oss.str(), log_level_to_string(level), message);
 }
 
 

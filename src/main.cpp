@@ -3,9 +3,11 @@
 
 int main(int argc, char* argv[])
 {
+  Aurora::Logger::info("starting lucerna");
+  
   Aurora::Application app;
   app.run();
 
-  // AR_CORE_INFO("goodbye world :(");
+  Aurora::Logger::info("goodbye world :(");
 }
 

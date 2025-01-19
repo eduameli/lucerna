@@ -5,6 +5,7 @@ workspace "lucerna"
     language "C++"
     cppdialect "c++23"
     toolset "clang"
+
     linkoptions {"-fuse-ld=mold"}
 
     filter "configurations:debug"
