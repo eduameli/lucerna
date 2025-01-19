@@ -35,6 +35,7 @@
 [submodule "vendor/tomlplusplus"]
 	path = vendor/tomlplusplus
 	url = https://github.com/marzer/tomlplusplus.git
+
 [submodule "vendor/vulkan-headers"]
 	path = vendor/vulkan-headers
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
