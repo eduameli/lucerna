@@ -31,7 +31,7 @@ project "lucerna"
       "GLM_FORCE_XYZW_ONLY",
     }
     
-    pchheader "src/aurora_pch.h"
+    pchheader "src/lucerna_pch.h"
     
     buildoptions {"-Wno-nullability-completeness"}
 
@@ -74,10 +74,10 @@ project "lucerna"
     }
   
     filter "configurations:debug"
-        defines {"LA_ENABLE_LOGS", "AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0", "AR_DEBUG"}
+        defines {"LA_ENABLE_LOGS", "LA_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0", "LA_DEBUG"}
 
     filter "configurations:release"
-        defines {"LA_ENABLE_LOGS", "AR_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0"}
+        defines {"LA_ENABLE_LOGS", "LA_ENABLE_ASSERTS=1", "TOML_EXCEPTIONS=0"}
 
 project "glfw"
     location "vendor/glfw"

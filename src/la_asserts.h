@@ -3,7 +3,7 @@
 #include <volk.h>
 #include "logger.h" 
 
-#if AR_ENABLE_ASSERTS == 1
+#if LA_ENABLE_ASSERTS == 1
 #include <signal.h>
 #define LA_STOP raise(SIGTRAP)
 
@@ -27,7 +27,7 @@
 
 
 #else
-#define LA_ASSERT(condition)_ASSERT(condition) condition
+#define LA_ASSERT(condition) condition
 #define LA_LOG_ASSERT(condition, ...) condition
 #define LA_STOP
 #endif

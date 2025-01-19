@@ -1,5 +1,5 @@
 #pragma once
-#include "aurora_pch.h"
+#include "lucerna_pch.h"
 #include "input_structures.glsl"
 #include "vk_descriptors.h"
 #include "vk_types.h"
@@ -286,7 +286,7 @@ namespace Aurora {
       VkExtent2D m_WindowExtent{};
       float m_RenderScale = 1.0f;
 
-      #ifdef AR_DEBUG 
+      #ifdef LA_DEBUG 
       constexpr static bool m_UseValidationLayers = true;
       #else
       constexpr static bool m_UseValidationLayers = false;

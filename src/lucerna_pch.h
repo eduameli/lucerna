@@ -1,5 +1,5 @@
-#ifndef AURORA_PCH
-#define AURORA_PCH
+#ifndef LUCERNA_PCH
+#define LUCERNA_PCH
 
 #include <memory>
 #include <utility>
@@ -45,8 +45,6 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include "cvars.h"
-
-
 
 
 #endif

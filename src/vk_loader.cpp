@@ -1,5 +1,5 @@
 #include "vk_loader.h"
-#include "aurora_pch.h"
+#include "lucerna_pch.h"
 #include "cvars.h"
 #include "engine.h"
 #include "vk_initialisers.h"
@@ -14,7 +14,7 @@
 
 #include "logger.h"
 
-#include "ar_asserts.h"
+#include "la_asserts.h"
 
 #include "vk_images.h"
 #include "stb_image.h"
@@ -46,8 +46,7 @@ glm::vec2 enconde_normal(glm::vec3 n) {
 // FIXME: repeated vertex info buffers if meshes r repeated...
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
 {
-  // AR_CORE_INFO("Loading GLTF at {}", filepath.c_str());
-  // Logger::info("Loading GLTF at {}", filepath.c_str());
+  LA_LOG_INFO("Loading GLTF at {}", filepath.c_str());
 
   std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
   scene->creator = engine;
@@ -59,7 +58,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   if (data.error() != fastgltf::Error::None)
   {
-    // AR_CORE_ERROR("Error loading GLTF File! 1");
+    LA_LOG_ERROR("Error loading GLTF File! 1");
     return {};
   }
 
@@ -67,7 +66,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
   if (auto error = asset_exp.error(); error != fastgltf::Error::None)
   {
-    // AR_CORE_ERROR("Error parsing GLTF File! 2");
+    LA_LOG_ERROR("Error parsing GLTF File! 2");
     return {};
   }
 
@@ -121,7 +120,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     else
     {
       images.push_back(engine->m_ErrorCheckerboardImage);
-      // AR_CORE_WARN("Failed to load a texture from GLTF, (using placeholder)");
+      LA_LOG_WARN("Failed to load a texture from GLTF, (using placeholder)");
     }
   }
 
@@ -165,7 +164,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     file.meshes[mesh.name.c_str()] = newmesh;
     newmesh->name = mesh.name;
 
-    // AR_CORE_INFO("Loading new mesh! {}", mesh.name.c_str());
+    LA_LOG_VERBOSE("Loading new mesh! {}", mesh.name.c_str());
     
     for (auto&& p : mesh.primitives)
     {
@@ -392,7 +391,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
   std::visit(
     fastgltf::visitor{
         [](auto &arg) {
-          // AR_CORE_INFO("bruh");
+          LA_LOG_ERROR("Attempted to load IMAGE from unsupported source!");
         },
         [&](fastgltf::sources::URI &filePath) {
           assert(filePath.fileByteOffset ==
@@ -417,7 +416,6 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
           unsigned char *data =
               stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
           if (data) {
-            // AR_CORE_INFO("LOADED IMG!!!");
             VkExtent3D imagesize;
             imagesize.width = width;
             imagesize.height = height;
@@ -431,7 +429,6 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
           }
         },
         [&](fastgltf::sources::Vector &vector) {
-          // AR_CORE_ERROR("vector load");
           unsigned char *data =
               stbi_load_from_memory((unsigned char *)vector.bytes.data(),
                                     static_cast<int>(vector.bytes.size()),

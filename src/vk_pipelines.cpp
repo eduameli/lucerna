@@ -1,8 +1,8 @@
 #include "vk_pipelines.h"
 #include <fstream>
-#include "aurora_pch.h"
+#include "lucerna_pch.h"
 #include "vk_initialisers.h"
-#include "ar_asserts.h"
+#include "la_asserts.h"
 #include "logger.h"
 
 bool vkutil::load_shader_module(const char *filepath, VkDevice device, VkShaderModule* outShaderModule)
