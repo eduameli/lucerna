@@ -5,7 +5,7 @@ int main(int argc, char* argv[])
 {
   LA_LOG_INFO("Starting Lucerna...");
 
-  Aurora::Application app;
+  Lucerna::Application app;
   app.run();
   
   LA_LOG_INFO("goodbye world :(");

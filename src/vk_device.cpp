@@ -3,8 +3,7 @@
 #include "la_asserts.h"
 #include "vulkan/vulkan_core.h"
 
-namespace Aurora 
-{
+namespace Lucerna {
 
 DeviceContextBuilder::DeviceContextBuilder(VkInstance instance, VkSurfaceKHR surface)
   : m_Instance{instance}, m_Surface{surface} 
@@ -293,4 +292,4 @@ DeviceContext DeviceContextBuilder::build()
 
 
 
-} // namespace Aurora
+} // namespace Lucerna

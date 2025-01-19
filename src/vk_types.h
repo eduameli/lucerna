@@ -8,8 +8,8 @@
 
 
 
-namespace Aurora
-{
+namespace Lucerna {
+
   struct AllocatedImage
   {
     VkImage image;
@@ -164,4 +164,4 @@ namespace Aurora
 
   
 
-} // namespace aurora
+} // namespace Lucerna

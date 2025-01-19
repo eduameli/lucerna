@@ -6,8 +6,7 @@
 #include "logger.h"
 #include "imgui.h"
 
-namespace Aurora
-{
+namespace Lucerna {
 
 enum class CVarType : uint8_t
 {
@@ -383,4 +382,4 @@ void AutoCVar_Int::toggle()
 }
 
 
-} // aurora namespace
+} // namespace Lucerna

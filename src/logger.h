@@ -4,7 +4,7 @@
 #include <volk.h>
 #include <vulkan/vulkan_core.h>
 
-namespace Aurora {
+namespace Lucerna {
 
   enum class LogLevel
   {
@@ -32,18 +32,18 @@ namespace Aurora {
     private:
       static inline LogLevel logLevel{ LogLevel::VERBOSE };
   };
-} // namespace aurora
+} // namespace Lucerna
 
 
 #define STRINGIFY(x) #x
 
 #if (LA_ENABLE_LOGS == 1)
-  #define LA_LOG_VERBOSE(...) ::Aurora::Logger::verbose(std::format(__VA_ARGS__))
-  #define LA_LOG_DEBUG(...) ::Aurora::Logger::debug(std::format(__VA_ARGS__))
-  #define LA_LOG_INFO(...) ::Aurora::Logger::info(std::format(__VA_ARGS__))
-  #define LA_LOG_WARN(...) ::Aurora::Logger::warning(std::format(__VA_ARGS__))
-  #define LA_LOG_ERROR(...) ::Aurora::Logger::error(std::format(__VA_ARGS__))
-  #define LA_LOG_FATAL(...) ::Aurora::Logger::fatal(std::format(__VA_ARGS__))
+  #define LA_LOG_VERBOSE(...) ::Lucerna::Logger::verbose(std::format(__VA_ARGS__))
+  #define LA_LOG_DEBUG(...) ::Lucerna::Logger::debug(std::format(__VA_ARGS__))
+  #define LA_LOG_INFO(...) ::Lucerna::Logger::info(std::format(__VA_ARGS__))
+  #define LA_LOG_WARN(...) ::Lucerna::Logger::warning(std::format(__VA_ARGS__))
+  #define LA_LOG_ERROR(...) ::Lucerna::Logger::error(std::format(__VA_ARGS__))
+  #define LA_LOG_FATAL(...) ::Lucerna::Logger::fatal(std::format(__VA_ARGS__))
 #else
   #define LA_LOG_VERBOSE(...)
   #define LA_LOG_DEBUG(...)

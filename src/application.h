@@ -3,7 +3,7 @@
 #include "engine.h"
 #include "window.h"
 
-namespace Aurora {
+namespace Lucerna {
   class Application
   {
     public:
@@ -26,4 +26,4 @@ namespace Aurora {
       Engine m_Engine;
       Window m_Window;
   };
-} // namespace aurora
+} // namespace Lucerna

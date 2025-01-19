@@ -3,7 +3,7 @@
 #include "la_asserts.h"
 #include <vulkan/vulkan_core.h>
 
-namespace Aurora {
+namespace Lucerna {
 
 void DescriptorLayoutBuilder::add_binding(uint32_t binding, VkDescriptorType type)
 {
@@ -251,4 +251,4 @@ void DescriptorWriter::update_set(VkDevice device, VkDescriptorSet set)
   vkUpdateDescriptorSets(device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
 
-} // namespace aurora
+} // namespace Lucerna

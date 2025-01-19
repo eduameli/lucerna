@@ -1,8 +1,7 @@
 #pragma once
 #include "vk_types.h"
 
-namespace Aurora
-{
+namespace Lucerna {
 
   class Engine;
 
@@ -53,4 +52,4 @@ namespace Aurora
       static inline AllocatedBuffer ssaoUniform{};
       static inline AllocatedImage noiseImage{}; // NOTE: could be part of engine as might be reused a lot!
   };
-} // aurora namespace
+} // namespace Lucerna

@@ -29,7 +29,7 @@
 #include <volk.h>
 
 
-namespace Aurora {
+namespace Lucerna {
 
 AutoCVar_Int shadowEnabled("shadow_mapping.enabled", "is shadow mapping enabled", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int shadowViewFromLight("shadow_mapping.view_from_light", "view scene from view of directional light shadow caster", 0, CVarFlags::EditCheckbox);
@@ -2254,4 +2254,4 @@ void Engine::do_culling(VkCommandBuffer cmd)
 }
 
 
-} // namespace aurora
+} // namespace Lucerna

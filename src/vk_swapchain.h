@@ -3,7 +3,7 @@
 #include <volk.h>
 #include "vk_device.h"
 
-namespace Aurora {
+namespace Lucerna {
   struct SwapchainContext
   {
     VkSwapchainKHR handle;
@@ -43,7 +43,7 @@ namespace Aurora {
       VkColorSpaceKHR m_ColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
       VkPresentModeKHR m_PresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
   };
-} // namespace aurora
+} // namespace Lucerna
 
 namespace vkutil
 {

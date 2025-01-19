@@ -2,7 +2,7 @@
 #include <volk.h>
 #include "lucerna_pch.h"
 
-namespace Aurora {
+namespace Lucerna {
 
 struct DescriptorLayoutBuilder
 {
@@ -64,4 +64,4 @@ struct DescriptorWriter
   void update_set(VkDevice device, VkDescriptorSet set);
 };
 
-} // namespace aurora
+} // namespace Lucerna

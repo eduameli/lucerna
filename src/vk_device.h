@@ -2,8 +2,8 @@
 #include <volk.h>
 #include "lucerna_pch.h"
 #include "logger.h"
-namespace Aurora 
-{
+
+namespace Lucerna {
   struct QueueFamilyIndices
   {
     std::optional<uint32_t> graphics;
@@ -77,4 +77,4 @@ namespace Aurora
       
       VkPhysicalDeviceType m_PreferredDeviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
   };
-} // namespace Aurora
+} // namespace Lucerna

@@ -4,7 +4,8 @@
 #include <filesystem>
 #include "vk_descriptors.h"
 #include "fastgltf/core.hpp"
-namespace Aurora {
+
+namespace Lucerna{
 
 // forward declaration
 class Engine;
@@ -44,6 +45,4 @@ struct MeshNode : public Node
 
 
 
-} // namespace aurora
-
-
+} // namespace Lucerna

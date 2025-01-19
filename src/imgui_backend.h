@@ -3,8 +3,7 @@
 #include "vk_types.h"
 #include "engine.h"
 
-namespace Aurora
-{
+namespace Lucerna {
   class VulkanImGuiBackend
   {
     public:
@@ -22,4 +21,4 @@ namespace Aurora
       static inline VkPipelineLayout pipLayout{};
   };
 
-} // namespace aurora
+} // namespace Lucerna

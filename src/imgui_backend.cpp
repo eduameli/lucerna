@@ -8,8 +8,7 @@
 #include <imgui.h>
 #include <vulkan/vulkan_core.h>
 
-namespace Aurora
-{
+namespace Lucerna {
 
 static const uint32_t MAX_IDX_COUNT = 100000000;
 static const uint32_t MAX_VTX_COUNT = 100000000;
@@ -410,4 +409,4 @@ void VulkanImGuiBackend::cleanup(Engine* engine)
   engine->destroy_image(fontImage);
 }
 
-} // aurora namespace
+} // namespace Lucerna

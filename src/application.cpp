@@ -6,7 +6,7 @@
 #include "toml++/impl/node.hpp"
 #include "toml++/toml.hpp"
 
-namespace Aurora {
+namespace Lucerna {
 
   Application::Application()
   {
@@ -50,4 +50,4 @@ namespace Aurora {
     m_Engine.shutdown();
   }
 
-} // namespace aurora
+} // namespace Lucerna

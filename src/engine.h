@@ -10,10 +10,7 @@
 #include <vulkan/vulkan_core.h>
 
 
-
-
-
-namespace Aurora {
+namespace Lucerna {
   struct FrameData
   {
     VkCommandPool commandPool{};
@@ -334,6 +331,6 @@ namespace Aurora {
         glm::mat4 lightView; 
       } shadowPass;
   };
-} // namespace aurora
+} // namespace Lucerna
 
 

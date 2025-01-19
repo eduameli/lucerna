@@ -24,7 +24,7 @@
 #include <volk.h>
 #include "vk_pipelines.h"
 
-namespace Aurora
+namespace Lucerna
 
 {
 
@@ -517,4 +517,4 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
   Node::queue_draw(topMatrix, ctx);
 }
 
-} // namespace aurora
+} // namespace Lucerna

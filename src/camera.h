@@ -5,7 +5,7 @@
 
 class GLFWwindow;
 
-namespace Aurora
+namespace Lucerna
 {
   class Camera
   {
@@ -26,4 +26,4 @@ namespace Aurora
       static inline float s_LastMouseY{0.0f};
       static inline bool s_CursorCaptured{false};
   };
-} // namespace aurora
+} // namespace Lucerna

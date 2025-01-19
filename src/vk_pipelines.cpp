@@ -11,7 +11,7 @@ bool vkutil::load_shader_module(const char *filepath, VkDevice device, VkShaderM
   
   if (!file.is_open())
   {
-    Aurora::Logger::error("FAILED TO OPEN SHADER FILE!");
+    LA_LOG_ERROR("FAILED TO OPEN SHADER FILE!");
     return false;
   }
 

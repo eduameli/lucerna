@@ -3,7 +3,8 @@
 #include "vk_images.h"
 #include "window.h"
 #include <GLFW/glfw3.h>
-namespace Aurora {
+
+namespace Lucerna{
 
 SwapchainContextBuilder::SwapchainContextBuilder(DeviceContext device, VkSurfaceKHR surface)
   : m_Device{device}, m_Surface{surface}
@@ -148,7 +149,7 @@ VkExtent2D SwapchainContextBuilder::choose_extent(VkSurfaceCapabilitiesKHR capab
   else
   {
     int width, height;
-    glfwGetFramebufferSize(Aurora::Window::get(), &width, &height);
+    glfwGetFramebufferSize(Lucerna::Window::get(), &width, &height);
     VkExtent2D actualExtent = Window::get_extent(); 
     actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
     actualExtent.height = std::clamp(actualExtent.width, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
@@ -157,7 +158,7 @@ VkExtent2D SwapchainContextBuilder::choose_extent(VkSurfaceCapabilitiesKHR capab
   }
 }
 
-} // namespace aurora
+} // namespace Lucerna
 
 std::string vkutil::stringify_present_mode(VkPresentModeKHR presentMode)
 {

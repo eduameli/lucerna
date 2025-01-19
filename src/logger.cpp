@@ -5,7 +5,7 @@
 #include <print>
 #include <sstream>
 
-namespace Aurora {
+namespace Lucerna {
 
 constexpr std::string_view log_level_to_string(LogLevel level)
 {
@@ -82,7 +82,7 @@ void Logger::log(LogLevel level, std::string_view message)
 
 
   
-} // namespace aurora
+} // namespace Lucerna
 
 VkBool32 vklog::validation_callback(
   VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -92,7 +92,7 @@ VkBool32 vklog::validation_callback(
 {
   if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
   {
-    Aurora::Logger::error(pCallbackData->pMessage);
+    LA_LOG_ERROR("{}", pCallbackData->pMessage);
   }
   return VK_FALSE;
 }

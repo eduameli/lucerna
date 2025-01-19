@@ -8,8 +8,7 @@
 #include "vk_pipelines.h"
 #include <vulkan/vulkan_core.h>
 
-namespace Aurora
-{
+namespace Lucerna {
 
 AutoCVar_Int bloomEnabled{"bloom.enabled", "", 1, CVarFlags::EditCheckbox};
 
@@ -537,4 +536,4 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   // FIXME: do i need a barrier here??
 }
 
-} // aurora namespace
+} // namespace Lucerna

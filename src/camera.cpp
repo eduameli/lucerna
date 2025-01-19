@@ -8,7 +8,7 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 
-namespace Aurora
+namespace Lucerna
 {
   void Camera::init()
   {
@@ -103,4 +103,4 @@ namespace Aurora
     return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
   }
 
-} // namespace aurora
+} // namespace Lucerna

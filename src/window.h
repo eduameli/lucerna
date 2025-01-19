@@ -5,7 +5,7 @@
 
 class GLFWwindow;
 
-namespace Aurora {
+namespace Lucerna {
   class Window
   {
     public:
@@ -20,4 +20,4 @@ namespace Aurora {
     private:
       GLFWwindow* m_Window{nullptr};
   };
-} // namespace Aurora
+} // namespace Lucerna 

@@ -10,7 +10,7 @@
 #define LA_ASSERT(condition) \
     do { \
         if (!(condition)) { \
-          Aurora::Logger::fatal(std::format("assertion - {} failed", #condition)); \
+          Lucerna::Logger::fatal(std::format("assertion - {} failed", #condition)); \
           LA_STOP; \
         } \
     } while (false)
@@ -19,8 +19,8 @@
 #define LA_LOG_ASSERT(condition, ...) \
       do { \
           if (!(condition)) { \
-            Aurora::Logger::fatal(std::format("ASSERT FAILED ({}), [{}, {}, {}]", #condition, __FILE__, __FUNCTION__, __LINE__)); \
-            Aurora::Logger::fatal(std::format(__VA_ARGS__)); \
+            Lucerna::Logger::fatal(std::format("ASSERT FAILED ({}), [{}, {}, {}]", #condition, __FILE__, __FUNCTION__, __LINE__)); \
+            Lucerna::Logger::fatal(std::format(__VA_ARGS__)); \
             LA_STOP; \
           } \
       } while (false)

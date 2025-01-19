@@ -5,7 +5,7 @@
 #include "logger.h"
 #include "la_asserts.h"
 
-namespace Aurora {
+namespace Lucerna {
   
   static Window* s_Instance;
 
@@ -68,4 +68,4 @@ namespace Aurora {
     }
   }
 
-} // namespace aurora
+} // namespace Lucerna

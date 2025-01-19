@@ -36,8 +36,7 @@ namespace StringUtils {
 	};
 }
 
-namespace Aurora
-{
+namespace Lucerna {
 
 enum class CVarFlags : uint32_t
 {
