@@ -46,7 +46,7 @@ glm::vec2 enconde_normal(glm::vec3 n) {
 // FIXME: repeated vertex info buffers if meshes r repeated...
 std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesystem::path filepath)
 {
-  LA_LOG_INFO("Loading GLTF at {}", filepath.c_str());
+  LA_LOG_INFO("Started loading GLTF Scene at {}", filepath.c_str());
 
   std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
   scene->creator = engine;
@@ -56,9 +56,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   fastgltf::Parser parser(fastgltf::Extensions::KHR_materials_emissive_strength | fastgltf::Extensions::KHR_texture_transform);
   auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
   
-  if (data.error() != fastgltf::Error::None)
+  if (auto error = data.error(); error !=  fastgltf::Error::None)
   {
-    LA_LOG_ERROR("Error loading GLTF File! 1");
+    LA_LOG_ERROR("Error loading GLTF File! {}", (uint64_t) error);
     return {};
   }
 
@@ -66,7 +66,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
   if (auto error = asset_exp.error(); error != fastgltf::Error::None)
   {
-    LA_LOG_ERROR("Error parsing GLTF File! 2");
+    LA_LOG_ERROR("Error parsing GLTF File! {}", (uint64_t) error);
     return {};
   }
 
@@ -164,7 +164,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     file.meshes[mesh.name.c_str()] = newmesh;
     newmesh->name = mesh.name;
 
-    LA_LOG_VERBOSE("Loading new mesh! {}", mesh.name.c_str());
+    LA_LOG_VERBOSE(" - {}", mesh.name.c_str());
     
     for (auto&& p : mesh.primitives)
     {
@@ -321,6 +321,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
   }
 
+  LA_LOG_INFO("Finished loading {}", filepath.c_str());
   return scene;
 }
 
