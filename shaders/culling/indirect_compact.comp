@@ -1,0 +1,68 @@
+#include "common.h"
+#include "input_structures.glsl"
+
+struct indirect_cull_pcs
+{
+#ifdef __cplusplus
+    indirect_cull_pcs()
+        : view{1.0f}, frustum{1.0f}, ids{0}, draw_count{0} {}
+#endif
+    mat4_ar view;
+    vec4_ar frustum;
+    buffer_ar(IndirectDrawBuffer) ids; // FIXME: this should be DrawSetBuffer
+    buffer_ar(TransformBuffer) td;
+    buffer_ar(DrawDataBuffer) ddb;
+    buffer_ar(IndirectCountBuffer) indirect_count;
+    buffer_ar(FinalIndirectDrawBuffer) indirect_draws;
+    buffer_ar(PartialSums) partial;
+    uint32_ar draw_count;
+};
+
+
+#ifndef __cplusplus
+layout (local_size_x = 32) in;
+#extension GL_EXT_debug_printf : enable
+
+layout( push_constant, scalar ) uniform constants
+{
+  indirect_cull_pcs pcs;
+};
+
+
+shared uint sdata[32];
+
+void main()
+{
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx < ceil(pcs.draw_count / 1024.0))
+    {
+        uint last = pcs.partial.data[((idx+1) * 1024) - 1];
+        uint sum = subgroupInclusiveAdd(last);
+        sdata[gl_GlobalInvocationID.x] = sum;
+
+        subgroupMemoryBarrier();        
+        barrier();
+
+        uint offset = 0;
+
+        if (gl_GlobalInvocationID.x != 0)
+        {
+            offset = sdata[gl_GlobalInvocationID.x - 1];    
+            debugPrintfEXT("offset %u", offset);
+        }
+        
+        // kind of really bad...
+        for (int i = 0; i < 1024; i++)
+        {
+            pcs.partial.data[i + idx*1024] += offset;
+            debugPrintfEXT("%u %u", i + idx*1024, offset);      
+        }
+        
+    }
+
+    
+    // 0 1 ... 1024 | 1 2 ... | ...
+    // i wanna get element 1024*n(gp)
+        
+}
+#endif

@@ -70,15 +70,6 @@ shared uint sdata[32];
 
 void main()
 {
-
-    if (gl_SubgroupID == 0 && gl_SubgroupInvocationID == 0)
-    {
-        for (int i = 0; i < 32; i++)
-        {
-            sdata[i] = 0;        
-        }
-    }
-    
     uint idx = gl_GlobalInvocationID.x;
     bool visible = false;
     IndirectDraw id;
@@ -97,8 +88,7 @@ void main()
     uint sum = subgroupInclusiveAdd(uint(visible));
     uint sum2 = subgroupExclusiveAdd(uint(visible));
     
-    if (
-        gl_SubgroupInvocationID == gl_SubgroupSize - 1)
+    if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) // or if doing < subgroup size! but still final one..
     {
         debugPrintfEXT("subgroup max %u", sum);
         sdata[gl_SubgroupID] = sum;
@@ -112,12 +102,11 @@ void main()
         uint groupSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
         groupSum = subgroupInclusiveAdd(groupSum);
         sdata[gl_SubgroupInvocationID] = groupSum;
-        pcs.partial.data[gl_SubgroupInvocationID] = groupSum;
+        // pcs.partial.data[gl_SubgroupInvocationID] = groupSum;
     }
 
     memoryBarrierShared();
     barrier();
-    
             
     uint offset = 0;
     if (gl_SubgroupID != 0)
@@ -129,6 +118,16 @@ void main()
     {
         pcs.indirect_draws.draws[sum2 + offset] = id;
     }
+
+
+    pcs.partial.data[gl_GlobalInvocationID.x] = sum2 + offset + (uint(gl_WorkGroupID.x != 0));
+    
+
+    // if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1)
+    // {
+    //     pcs.partial.data[gl_WorkGroupID.x] = sum2 + offset;
+    //     debugPrintfEXT("final shared value %u", sum2 + offset);
+    // }
 
     pcs.indirect_count.count = sdata[gl_NumSubgroups - 1];
 }
