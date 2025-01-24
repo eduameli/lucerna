@@ -78,7 +78,7 @@ namespace Lucerna
       ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
 
       float v = s_Speed + yoffset*0.01;
-      s_Speed = std::clamp(v, 0.0001f, 1.0f);
+      s_Speed = std::clamp(v, 0.0001f, 10.0f);
  
     });
   }

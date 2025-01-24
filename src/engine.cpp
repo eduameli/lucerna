@@ -2269,7 +2269,7 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
 	
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, 2, 1, 1);
+  vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 1024.0), 1, 1);
 
 
   VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -2288,7 +2288,7 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, compactPipeline);
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, 2, 1, 1);
+  vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 1024.0), 1, 1);
 
   {
     VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -2308,7 +2308,7 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, writeIndirectPipeline);
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, 2, 1, 1);
+  vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 1024.0), 1, 1);
 
   
   {

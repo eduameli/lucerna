@@ -259,7 +259,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     }
   }
 
-
+  
 
   for (fastgltf::Node& node : asset.nodes)
   {

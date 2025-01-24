@@ -37,10 +37,22 @@ void main()
     if (gl_WorkGroupID.x == 0)
         return;
 
-    pcs.outb.data[gl_GlobalInvocationID.x] += pcs.partial.data[gl_WorkGroupID.x - 1];
+    uint sum = pcs.partial.data[gl_WorkGroupID.x];
 
+    // need to do prefix sum on this. 
+    if (gl_SubgroupID == 0)
+    {
+        uint value = pcs.partial.data[gl_SubgroupInvocationID];
+        uint prefix = subgroupExclusiveAdd(value);
+        pcs.partial.data[gl_SubgroupInvocationID] = prefix;
+        debugPrintfEXT("prefix %u value %u", prefix, value);
+    }
 
     barrier();
+    
+    pcs.outb.data[gl_GlobalInvocationID.x] += pcs.partial.data[gl_WorkGroupID.x];
+
+
 
 
     // uint partial = pcs.partial.data[gl_GlobalInvocationID.x];
