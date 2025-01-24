@@ -151,6 +151,12 @@ layout(scalar, buffer_reference) buffer FinalIndirectDrawBuffer{
 layout(scalar, buffer_reference) buffer PartialSums{
   uint32_ar data[];
 };
+
+
+layout(scalar, buffer_reference) buffer OutputCulling{
+  uint32_ar data[];
+};
+
 // layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
 //   ShadowFragmentSettings shadowSettings;
 // };

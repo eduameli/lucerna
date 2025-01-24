@@ -16,6 +16,7 @@
 #include "vk_swapchain.h"
 #include "gfx_effects.h"
 #include <GLFW/glfw3.h>
+#include <cstring>
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 #include "imgui_backend.h"
@@ -179,8 +180,14 @@ void Engine::init()
   mainDrawContext.finalIndirectBuffer = create_buffer(sizeof(IndirectDraw) * mainDrawContext.mem.size(), VK_BUFFER_USAGE_2_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   vklog::label_buffer(device, mainDrawContext.finalIndirectBuffer.buffer, "final indirect draw compacted");
 
-  mainDrawContext.partialSumsBuffer = create_buffer(sizeof(uint32_t) * glm::ceil(mainDrawContext.mem.size() / 1024.0)*1024, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  mainDrawContext.outputCulling = create_buffer(sizeof(uint32_t) * glm::ceil(mainDrawContext.mem.size() / 1024.0)*1024, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  vklog::label_buffer(device, mainDrawContext.outputCulling.buffer, "output culling prefix sum");
+
+  // IMPORTANT: 32 is the subgroup size. should be queried (NVIDIA is 32 and AMD is 64)
+  mainDrawContext.partialSumsBuffer = create_buffer(sizeof(uint32_t) * 32, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
   vklog::label_buffer(device, mainDrawContext.partialSumsBuffer.buffer, "partial sums buffer compact");
+
+  // memset(mainDrawContext.partialSumsBuffer.info.pMappedData, 1, 32);  
   
   mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 1;
@@ -212,6 +219,7 @@ void Engine::init()
     destroy_buffer(mainDrawContext.indirectCount);
     destroy_buffer(mainDrawContext.finalIndirectBuffer);
     destroy_buffer(mainDrawContext.partialSumsBuffer);
+    destroy_buffer(mainDrawContext.outputCulling);
   });
 
   // prepare gfx effects
@@ -2156,7 +2164,7 @@ void Engine::init_indirect_cull_pipeline()
 
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &cullPipelineLayout));
 
-  VkShaderModule cullShader, outCompact;
+  VkShaderModule cullShader, outCompact, writeIndirect;
   LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/culling/indirect_cull.comp.spv", device, &cullShader),
     "Error loading Gradient Compute Effect Shader"
@@ -2166,6 +2174,12 @@ void Engine::init_indirect_cull_pipeline()
   LA_LOG_ASSERT(
     vkutil::load_shader_module("shaders/culling/indirect_compact.comp.spv", device, &outCompact),
     "Error loading compute compact shader effect"
+  );
+
+
+  LA_LOG_ASSERT(
+    vkutil::load_shader_module("shaders/culling/indirect_write.comp.spv", device, &writeIndirect),
+    "Error loading compute write to indirect hader"
   );
 
   VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, cullShader);
@@ -2183,13 +2197,19 @@ void Engine::init_indirect_cull_pipeline()
 
   VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &compactPipeline));
 
+  computePipelineCreateInfo.stage = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, writeIndirect);
+  VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &writeIndirectPipeline));
+  
+  
   vkDestroyShaderModule(device, cullShader, nullptr);
   vkDestroyShaderModule(device, outCompact, nullptr);
+  vkDestroyShaderModule(device, writeIndirect, nullptr);
 
   m_DeletionQueue.push_function([&]() {
     vkDestroyPipelineLayout(device, cullPipelineLayout, nullptr);
     vkDestroyPipeline(device, cullPipeline, nullptr);
     vkDestroyPipeline(device, compactPipeline, nullptr);
+    vkDestroyPipeline(device, writeIndirectPipeline, nullptr);
   });
 
 }
@@ -2227,6 +2247,9 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
   VkBufferDeviceAddressInfo partialBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.partialSumsBuffer.buffer };
   pcs.partial = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &partialBuff);
+
+  VkBufferDeviceAddressInfo outCull{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.outputCulling.buffer };
+  pcs.outb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &outCull);
   
   pcs.view = sceneData.view;
 
@@ -2265,8 +2288,29 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, compactPipeline);
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, 1, 1, 1);
+  vkCmdDispatch(cmd, 2, 1, 1);
 
+  {
+    VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
+    mbar.buffer = mainDrawContext.outputCulling.buffer;
+    mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+    mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+    mbar.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+    mbar.size = VK_WHOLE_SIZE;
+  
+    VkDependencyInfo info{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};
+    info.bufferMemoryBarrierCount = 1;
+    info.pBufferMemoryBarriers = &mbar;
+
+    vkCmdPipelineBarrier2(cmd, &info);
+  }
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, writeIndirectPipeline);
+  vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
+  vkCmdDispatch(cmd, 2, 1, 1);
+
+  
   {
     VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
     mbar.buffer = mainDrawContext.finalIndirectBuffer.buffer;

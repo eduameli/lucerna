@@ -51,6 +51,7 @@ namespace Lucerna {
     AllocatedBuffer indirectCount;
     AllocatedBuffer finalIndirectBuffer;
     AllocatedBuffer partialSumsBuffer;
+    AllocatedBuffer outputCulling;
   };
 
 
@@ -230,6 +231,8 @@ namespace Lucerna {
       // FIXME: scuffed now culls WHOLE DRAWING EVEN FOR SHADOWS
       VkPipeline cullPipeline{};
       VkPipeline compactPipeline{};
+      VkPipeline writeIndirectPipeline{};
+      
       VkPipelineLayout cullPipelineLayout{};
       void init_indirect_cull_pipeline();
       void do_culling(VkCommandBuffer cmd); // 

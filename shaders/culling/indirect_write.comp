@@ -30,6 +30,8 @@ layout( push_constant, scalar ) uniform constants
 };
 
 
+shared uint sdata[32];
+
 bool is_visible(vec4 bounds)
 {
     vec3 centre = bounds.xyz;
@@ -69,12 +71,13 @@ bool is_visible(vec4 bounds)
     return visible;
 }
 
-shared uint sdata[32];
 
 void main()
 {
-    uint idx = gl_GlobalInvocationID.x;
 
+    // is is visible, read from index from pcs.outb and write to indirect_draws        
+    
+    uint idx = gl_GlobalInvocationID.x;
     bool visible = false;
     IndirectDraw id;
    
@@ -85,54 +88,13 @@ void main()
         vec3_ar origin = vec4(sphereBounds.xyz, 1.0f).xyz;
         visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
     }
-        
-    // this is wrong. if gl_WorkGroupID.x == 0 or sm add 1 
-    uint sum = subgroupInclusiveAdd(uint(visible));
-    uint sum2 = subgroupExclusiveAdd(uint(visible));
-    
-    if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) // or if doing < subgroup size! but still final one..
+
+
+    if (visible)
     {
-        sdata[gl_SubgroupID] = sum;
+        pcs.indirect_draws.draws[pcs.outb.data[gl_GlobalInvocationID.x]] = id;
     }
 
-    memoryBarrierShared();
-    barrier();
-    
-    if (gl_SubgroupID == 0)
-    {
-        uint groupSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
-        groupSum = subgroupInclusiveAdd(groupSum);
-        sdata[gl_SubgroupInvocationID] = groupSum;
-    }
-
-    memoryBarrierShared();
-    barrier();
-            
-    uint offset = 0;
-    if (gl_SubgroupID != 0)
-    {
-        offset = sdata[gl_SubgroupID - 1];
-    }
-    
-
-    if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1)
-    {
-        pcs.partial.data[gl_WorkGroupID.x] = sum + offset;
-    }
-
-    
-    
-    pcs.outb.data[gl_GlobalInvocationID.x] = sum2 + offset;
-  
-   
+    pcs.indirect_count.count = pcs.outb.data[(1024 * gl_NumWorkGroups.x) - 1]; 
 }
 #endif
-
-/*
-
-32 subgroups 256 so 8 independent local workgroups as many dispatches as necessary
-
-start by making it work for 32 x 32 = 1024
-
-
-*/
