@@ -2276,8 +2276,8 @@ void Engine::do_culling(VkCommandBuffer cmd)
   mbar.buffer = mainDrawContext.partialSumsBuffer.buffer;
   mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
   mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-  mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-  mbar.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+  mbar.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+  mbar.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
   mbar.size = VK_WHOLE_SIZE;
   
   VkDependencyInfo info{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};
@@ -2295,8 +2295,8 @@ void Engine::do_culling(VkCommandBuffer cmd)
     mbar.buffer = mainDrawContext.outputCulling.buffer;
     mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
     mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-    mbar.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+    mbar.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+    mbar.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     mbar.size = VK_WHOLE_SIZE;
   
     VkDependencyInfo info{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};

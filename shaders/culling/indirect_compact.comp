@@ -37,68 +37,18 @@ void main()
     if (gl_WorkGroupID.x == 0)
         return;
 
-    uint sum = pcs.partial.data[gl_WorkGroupID.x];
 
     // need to do prefix sum on this. 
     if (gl_SubgroupID == 0)
     {
         uint value = pcs.partial.data[gl_SubgroupInvocationID];
         uint prefix = subgroupExclusiveAdd(value);
-        pcs.partial.data[gl_SubgroupInvocationID] = prefix;
-        debugPrintfEXT("prefix %u value %u", prefix, value);
+        sdata[gl_SubgroupInvocationID] = prefix;
     }
 
     barrier();
     
-    pcs.outb.data[gl_GlobalInvocationID.x] += pcs.partial.data[gl_WorkGroupID.x];
-
-
-
-
-    // uint partial = pcs.partial.data[gl_GlobalInvocationID.x];
-    // partial = subgroupExclusiveAdd(partial);
-    // debugPrintfEXT("partial sum %u", partial);
-
-    // pcs.outb.data[gl_GlobalInvocationID.x] = gl_GlobalInvocationID.x % 3;
-
-
-
-    
-    // uint idx = gl_GlobalInvocationID.x;
-    // if (idx < ceil(pcs.draw_count / 1024.0))
-    // {
-    //     uint last = pcs.partial.data[((idx+1) * 1024) - 1];
-    //     uint sum = subgroupInclusiveAdd(last);
-    //     sdata[gl_GlobalInvocationID.x] = sum;
-
-    //     subgroupMemoryBarrier();        
-    //     barrier();
-
-    //     uint offset = 0;
-
-    //     if (gl_GlobalInvocationID.x != 0)
-    //     {
-    //         offset = sdata[gl_GlobalInvocationID.x - 1];    
-    //         debugPrintfEXT("offset %u", offset);
-    //     }
-        
-    //     // kind of really bad...
-    //     for (int i = 0; i < 1024; i++)
-    //     {
-    //         pcs.partial.data[i + idx*1024] += offset;
-    //         debugPrintfEXT("%u %u", i + idx*1024, offset);      
-    //     }
-        
-    // }
-
-    // uint sum = 0;
-    // if (gl_WorkGroupID == 0)
-    // {
-    //     sum = pcs.partial.data[((gl_GlobalInvocationID.x + 1) * 1024) - 1];
-    //     sum = subgroupInclusiveAdd(sum);
-    // }
-
-        
-        
+    pcs.outb.data[gl_GlobalInvocationID.x] += sdata[gl_WorkGroupID.x];
+       
 }
 #endif

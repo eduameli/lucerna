@@ -89,9 +89,7 @@ void main()
         visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
     }
         
-    // this is wrong. if gl_WorkGroupID.x == 0 or sm add 1 
     uint sum = subgroupInclusiveAdd(uint(visible));
-    uint sum2 = subgroupExclusiveAdd(uint(visible));
     
     if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) // or if doing < subgroup size! but still final one..
     {
@@ -125,17 +123,8 @@ void main()
 
     
     
-    pcs.outb.data[gl_GlobalInvocationID.x] = sum2 + offset;
+    pcs.outb.data[gl_GlobalInvocationID.x] = sum + offset;
   
    
 }
 #endif
-
-/*
-
-32 subgroups 256 so 8 independent local workgroups as many dispatches as necessary
-
-start by making it work for 32 x 32 = 1024
-
-
-*/

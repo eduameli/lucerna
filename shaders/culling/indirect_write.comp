@@ -30,8 +30,6 @@ layout( push_constant, scalar ) uniform constants
 };
 
 
-shared uint sdata[32];
-
 bool is_visible(vec4 bounds)
 {
 
@@ -99,6 +97,5 @@ void main()
     }
 
     pcs.indirect_count.count = pcs.outb.data[(1024 * gl_NumWorkGroups.x) - 1] + 1; 
-    // pcs.indirect_count.count = 
 }
 #endif
