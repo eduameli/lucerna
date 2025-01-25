@@ -142,7 +142,6 @@ namespace Lucerna {
 
 
   // still using global buffers
-  // FIXME: do this later down the line..
   struct DrawSetBuffers
   {
     AllocatedBuffer indexBuffer;
@@ -157,7 +156,6 @@ namespace Lucerna {
     std::vector<Bounds> bounds;
     std::vector<DrawData> draw_datas;
     std::vector<IndirectDraw> indirect_draws;
-    
     DrawSetBuffers buffers;
   };
 

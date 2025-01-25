@@ -120,6 +120,8 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(selected, &properties);
   uint32_t version = properties.apiVersion;
+
+  LA_LOG_INFO("Using {}", properties.deviceName);
   return selected;
 }
 
