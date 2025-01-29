@@ -86,7 +86,7 @@ void main()
         visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
     }
         
-    uint sum = subgroupInclusiveAdd(uint(visible));
+    uint sum = subgroupExclusiveAdd(uint(visible));
     
     if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) // or if doing < subgroup size! but still final one..
     {

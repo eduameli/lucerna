@@ -147,6 +147,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
     mat_idxs.push_back(engine->mainDrawContext.materials.size());
     engine->mainDrawContext.materials.push_back(m);
+
+
+    StandardMaterial sm;
+    sm.albedo = m.albedo;
+    sm.emissions = m.emissions;
+    sm.modulate = m.modulate;
+    sm.strength = m.strength;
+    sm.type = MaterialType::OPAQUE;
+    engine->mainDrawContext.other_mats.push_back(sm);
+    
   }
 
 
@@ -505,12 +515,27 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
   for (auto& s : mesh->surfaces)
   {
-    Engine::get()->opaque_set.draw_datas.push_back({
+
+    DrawData dd =
+    {
       .material_idx = s.mat_idx,
       .transform_idx = (uint32_t) mesh_idx,
       .indexCount = s.count,
       .firstIndex = s.startIndex,
-    });
+    };
+
+
+    switch(ctx.other_mats[s.mat_idx].type)
+    {
+      case MaterialType::OPAQUE:
+        Engine::get()->opaque_set.draw_datas.push_back(dd);
+        break;
+      case MaterialType::TRANSPARENT:
+        Engine::get()->transparent_set.draw_datas.push_back(dd);
+        break;
+      default:
+        break;
+    }
 
     ctx.bounds.push_back(s.bounds);
   }
