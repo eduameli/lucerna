@@ -490,7 +490,7 @@ std::optional<AllocatedImage> load_image(Engine* engine, fastgltf::Asset& asset,
   );
 
   if (newImage.image == VK_NULL_HANDLE) {
-    // AR_CORE_ERROR("[resource] Loaded image is VK_NULL_HANDLE");
+    LA_LOG_ERROR("Loaded image is VK_NULL_HANDLE!");
     return {};
   } else {
     return newImage;
