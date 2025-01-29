@@ -8,9 +8,9 @@ compile_shader() {
     local OUTPUT_FILE="${SHADER}.spv"
     
     # Check if .spv file exists and is not older than the shader file
-    if [ -f "$OUTPUT_FILE" ] && [ "$OUTPUT_FILE" -nt "$SHADER" ]; then
-        return
-    fi
+    # if [ -f "$OUTPUT_FILE" ] && [ "$OUTPUT_FILE" -nt "$SHADER" ]; then
+    #     return
+    # fi
     
     echo "Compiling $SHADER..."
     glslangValidator -V -I"$INCLUDE_DIR" \

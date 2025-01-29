@@ -4,7 +4,7 @@
 #ifndef __cplusplus
 
 layout(set = 0, binding = 0) uniform GPUSceneDataBlock { GPUSceneData sceneData; }; 
-layout(set = 0, binding = 6, scalar) readonly buffer materialBuffer { BindlessMaterial materials[]; };
+layout(set = 0, binding = 6, scalar) readonly buffer materialBuffer { StandardMaterial materials[]; };
 
 
 layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
@@ -100,7 +100,7 @@ float shadow_pcf(vec3 projCoords, float radius)
 
 void main() 
 {
-  BindlessMaterial mat = materials[material_idx];
+  StandardMaterial mat = materials[material_idx];
 
   uint sampled = mat.albedo & 0x00FFFFFF;
   uint samp = mat.albedo >> 24;

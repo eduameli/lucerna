@@ -37,8 +37,7 @@ namespace Lucerna {
 
   struct DrawContext {
     std::vector<glm::mat4x3> transforms;
-    std::vector<BindlessMaterial> materials;
-    std::vector<StandardMaterial> other_mats;
+    std::vector<StandardMaterial> standard_materials;
     std::vector<DrawData> draw_datas; // seperate into different draw_sets? (opaque, transparent, alpha cutoff, shadows?)
     std::vector<uint32_t> indices;
     std::vector<glm::vec3> positions;
@@ -93,7 +92,14 @@ namespace Lucerna {
         std::span<uint32_t> indices,
         std::span<glm::mat4x3> transforms,
         std::span<DrawData> draw_datas,
-        std::span<BindlessMaterial> materials,
+        std::span<StandardMaterial> materials,
+        std::span<IndirectDraw> indirect_cmds
+      );
+
+
+      DrawSetBuffers upload_draw_set(
+        std::span<uint32_t> indices,
+        std::span<DrawData> draw_data,
         std::span<IndirectDraw> indirect_cmds
       );
       
@@ -203,6 +209,9 @@ namespace Lucerna {
       void validate_instance_supported();
       void create_instance();
       void create_device();
+
+
+      void init_draw_sets();
 
       public:
       constexpr static uint32_t SAMPLED_IMAGE_BINDING = 0;

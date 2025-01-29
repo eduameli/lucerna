@@ -15,7 +15,7 @@ layout(set = 0, binding = 0, scalar) uniform GPUSceneDataBlock {
 
 layout(set = 0, binding = 1, scalar) readonly buffer drawDataBuffer { DrawData draws[]; };
 layout(set = 0, binding = 2, scalar) readonly buffer transformBuffer { mat4x3 transforms[]; };
-layout(set = 0, binding = 3, scalar) readonly buffer materialBuffer { BindlessMaterial materials[]; };
+layout(set = 0, binding = 3, scalar) readonly buffer materialBuffer { StandardMaterial materials[]; };
 layout(set = 0, binding = 4, scalar) readonly buffer positionBuffer { vec3_ar positions[]; };
 layout(set = 0, binding = 5, scalar) readonly buffer vertexBuffer { Vertex vertices[]; };
 

@@ -54,18 +54,41 @@ struct Bounds
 };
 
 
+#ifdef __cplusplus
 
-struct BindlessMaterial
+
+enum class MaterialFlags: uint32_ar
 {
-// #ifdef __cplusplus
-//   BindlessMaterial()
-//     : modulate{1.0f}, albedo{3}, emissions{1.0f}, strength{0.0f} {}
-// #endif
-  vec3_ar modulate;
-  vec3_ar emissions;
-  uint32_ar albedo;
-  float strength;
+  NONE = 0,
+  OPAQUE = 1 << 0,
+  TRANSPARENT = 1 << 1,
+  DOUBLE_SIDED = 1 << 2,
 };
+
+constexpr enum MaterialFlags operator | (const enum MaterialFlags self, const enum MaterialFlags in)
+{
+  return (enum MaterialFlags) ((uint32_t) self | (uint32_t) in);
+}
+
+constexpr enum MaterialFlags operator & (const enum MaterialFlags self, const enum MaterialFlags in)
+{
+  return (enum MaterialFlags) ((uint32_t) self & (uint32_t) in);
+}
+
+#else
+#define MaterialFlags uint32_ar
+#endif
+
+  
+  struct StandardMaterial
+  {
+    vec3_ar modulate;
+    vec3_ar emissions;
+    uint32_ar albedo;
+    MaterialFlags flags;
+    float strength;
+  };
+
 
 
 struct DrawData

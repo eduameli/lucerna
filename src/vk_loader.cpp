@@ -107,7 +107,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::vector<std::shared_ptr<MeshAsset>> meshes;
   std::vector<std::shared_ptr<Node>> nodes;
   std::vector<AllocatedImage> images;
-  std::vector<std::shared_ptr<BindlessMaterial>> mats;
   
   for (fastgltf::Image& image : asset.images)
   {
@@ -128,7 +127,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   
   for (fastgltf::Material& mat : asset.materials)
   {
-    BindlessMaterial m;
+    StandardMaterial m;
     if (mat.pbrData.baseColorTexture.has_value())
     {
       
@@ -145,17 +144,17 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     m.emissions = {glm::vec3(mat.emissiveFactor.x(), mat.emissiveFactor.y(), mat.emissiveFactor.z())};
     m.strength = mat.emissiveStrength;
 
-    mat_idxs.push_back(engine->mainDrawContext.materials.size());
-    engine->mainDrawContext.materials.push_back(m);
 
 
-    StandardMaterial sm;
-    sm.albedo = m.albedo;
-    sm.emissions = m.emissions;
-    sm.modulate = m.modulate;
-    sm.strength = m.strength;
-    sm.type = MaterialType::OPAQUE;
-    engine->mainDrawContext.other_mats.push_back(sm);
+    m.flags = MaterialFlags::OPAQUE;
+    if (mat.alphaMode == fastgltf::AlphaMode::Blend)
+    {
+      m.flags = MaterialFlags::TRANSPARENT;
+    }
+
+    
+    mat_idxs.push_back(engine->mainDrawContext.standard_materials.size());
+    engine->mainDrawContext.standard_materials.push_back(m);
     
   }
 
@@ -164,8 +163,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   std::vector<uint32_t>& indices = engine->opaque_set.indices;
   std::vector<Vertex>& vertices = engine->mainDrawContext.vertices;
   std::vector<glm::vec3>& positions = engine->mainDrawContext.positions;
-
-  uint32_t idx_counter = 0;
   
   for(fastgltf::Mesh& mesh : asset.meshes)
   {
@@ -173,12 +170,36 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
     meshes.push_back(newmesh);
     file.meshes[mesh.name.c_str()] = newmesh;
     newmesh->name = mesh.name;
-
     LA_LOG_VERBOSE(" - {}", mesh.name.c_str());
     
     for (auto&& p : mesh.primitives)
     {
       GeoSurface newSurface{};
+
+      if (p.materialIndex.has_value())
+      {
+        newSurface.mat_idx = mat_idxs[p.materialIndex.value()];
+      }
+      else
+      {
+        // use placeholder
+        newSurface.mat_idx = mat_idxs[0];
+      }
+
+
+      MaterialFlags flags = engine->mainDrawContext.standard_materials[newSurface.mat_idx].flags;
+
+      if ((flags & MaterialFlags::OPAQUE) != MaterialFlags::NONE)
+      {
+        indices = engine->opaque_set.indices;
+      }
+      else if ((flags & MaterialFlags::TRANSPARENT) != MaterialFlags::NONE)
+      {
+        LA_LOG_INFO("Transparent Geometry Surface");
+        indices = engine->transparent_set.indices;
+      }
+      
+      
       newSurface.startIndex = static_cast<uint32_t>(indices.size());
       newSurface.count = static_cast<uint32_t>(asset.accessors[p.indicesAccessor.value()].count);
 
@@ -243,15 +264,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
          fastgltf::iterateAccessorWithIndex<glm::vec4>(asset, asset.accessors[(*colors).accessorIndex], lambda);
       }
 
-      if (p.materialIndex.has_value())
-      {
-        newSurface.mat_idx = mat_idxs[p.materialIndex.value()];
-      }
-      else
-      {
-        // use placeholder
-        newSurface.mat_idx = mat_idxs[0];
-      }
 
       glm::vec3  minpos = positions[initial_vtx];
       glm::vec3  maxpos = positions[initial_vtx];
@@ -524,14 +536,16 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
       .firstIndex = s.startIndex,
     };
 
-
-    switch(ctx.other_mats[s.mat_idx].type)
+    // mutually exclusive flags
+    switch(ctx.standard_materials[s.mat_idx].flags)
     {
-      case MaterialType::OPAQUE:
+      case MaterialFlags::OPAQUE:
         Engine::get()->opaque_set.draw_datas.push_back(dd);
         break;
-      case MaterialType::TRANSPARENT:
+      case MaterialFlags::TRANSPARENT:
         Engine::get()->transparent_set.draw_datas.push_back(dd);
+        break;
+      case MaterialFlags::DOUBLE_SIDED:
         break;
       default:
         break;

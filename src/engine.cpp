@@ -193,30 +193,14 @@ void Engine::init()
   *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 1;
 
   vklog::label_buffer(device,mainDrawContext.indirectCount.buffer, "indirect count buffer");
-
-
-
-  // std::vector<BindlessMaterial> mats;
-  // for (auto& m : mainDrawContext.materials)
-  // {
-  //   BindlessMaterial mat = {
-  //     .modulate = m.modulate,
-  //     .emissions = m.emissions,
-  //     .albedo = m.albedo,
-  //     .strength = m.strength,
-  //   };
-  //   mats.push_back(mat);
-  //   LA_LOG_INFO("material..");
-  // }
-
-  
+ 
   mainDrawContext.sceneBuffers = upload_scene(
     mainDrawContext.positions,
     mainDrawContext.vertices,
     opaque_set.indices,
     mainDrawContext.transforms,
     opaque_set.draw_datas,
-    mainDrawContext.materials,
+    mainDrawContext.standard_materials,
     mainDrawContext.mem
   );
 
@@ -656,7 +640,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   writer.write_buffer(4, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(5, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(3, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(3, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.update_set(device, depth);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_DepthPrepassPipeline);
@@ -739,7 +723,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
   
   writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   
   writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -1056,7 +1040,7 @@ GPUSceneBuffers Engine::upload_scene(
   std::span<uint32_t> indices,
   std::span<glm::mat4x3> transforms,
   std::span<DrawData> draw_datas,
-  std::span<BindlessMaterial> materials,
+  std::span<StandardMaterial> materials,
   std::span<IndirectDraw> indirect_cmds)
 {
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
@@ -1064,7 +1048,7 @@ GPUSceneBuffers Engine::upload_scene(
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
   const size_t transformBufferSize = transforms.size() * sizeof(glm::mat4x3);
   const size_t drawDataBufferSize = draw_datas.size() * sizeof(DrawData);
-  const size_t materialBufferSize = materials.size() * sizeof(BindlessMaterial);
+  const size_t materialBufferSize = materials.size() * sizeof(StandardMaterial);
   const size_t indirectCmdBufferSize = indirect_cmds.size() * sizeof(IndirectDraw);
   
   
@@ -1873,11 +1857,19 @@ void Engine::init_pipelines()
   std_pipeline = b.build_pipeline(device);
 
 
+  opaque_set.pipeline = std_pipeline;
+
+
+  b.enable_blending_alphablend();
+  transparent_set.pipeline = b.build_pipeline(device);
+
+
   vkDestroyShaderModule(device, bindlessFrag, nullptr);
   vkDestroyShaderModule(device, bindlessVert, nullptr);
 
   m_DeletionQueue.push_function([=, this](){
     vkDestroyPipeline(device, std_pipeline, nullptr);
+    vkDestroyPipeline(device, transparent_set.pipeline, nullptr);
   });
 
 
@@ -2345,5 +2337,26 @@ void Engine::do_culling(VkCommandBuffer cmd)
   
 }
 
+DrawSetBuffers Engine::upload_draw_set(
+  std::span<uint32_t> indices,
+  std::span<DrawData> draw_data,
+  std::span<IndirectDraw> indirect_cmds
+)
+{
+  return {};
+}
+
+void Engine::init_draw_sets()
+{
+  // make pipeline for opaque, transparent, etc...
+  // layout and descriptor is the same for all of them, except the pipeline config changes for blend and double sided...
+  VkPipeline opaque, transparent;
+
+
+  m_DeletionQueue.push_function([=, this](){
+    // destroy all draw_sets
+  });
+
+}
 
 } // namespace Lucerna

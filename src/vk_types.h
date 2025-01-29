@@ -153,30 +153,15 @@ namespace Lucerna {
   struct DrawSet
   {
     std::vector<uint32_t> indices;
-    std::vector<Bounds> bounds;
     std::vector<DrawData> draw_datas;
     std::vector<IndirectDraw> indirect_draws;
     DrawSetBuffers buffers;
+
+    VkPipeline pipeline;
   };
 
 
 
-  enum class MaterialType: uint32_ar
-  {
-    OPAQUE = 0,
-    TRANSPARENT = 1,
-    DOUBLE_SIDED = 2,
-  };
-
-  
-  struct StandardMaterial
-  {
-    vec3_ar modulate;
-    vec3_ar emissions;
-    uint32_ar albedo;
-    MaterialType type;
-    float strength;
-  };
 
 
 } // namespace Lucerna
