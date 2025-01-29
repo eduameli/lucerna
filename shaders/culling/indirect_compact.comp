@@ -42,7 +42,7 @@ void main()
     if (gl_SubgroupID == 0)
     {
         uint value = pcs.partial.data[gl_SubgroupInvocationID];
-        uint prefix = subgroupInclusiveAdd(value);
+        uint prefix = subgroupExclusiveAdd(value);
         sdata[gl_SubgroupInvocationID] = prefix;
     }
 
