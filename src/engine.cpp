@@ -161,9 +161,9 @@ void Engine::init()
   */
 
   // do this in compute shader
-  for (int idx = 0; idx < mainDrawContext.draw_datas.size(); idx++)
+  for (int idx = 0; idx < opaque_set.draw_datas.size(); idx++)
   {
-    DrawData dd = mainDrawContext.draw_datas[idx];
+    DrawData dd = opaque_set.draw_datas[idx];
     Bounds b = mainDrawContext.bounds[idx];
     
     IndirectDraw c{};
@@ -193,18 +193,35 @@ void Engine::init()
   *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 1;
 
   vklog::label_buffer(device,mainDrawContext.indirectCount.buffer, "indirect count buffer");
+
+
+
+  // std::vector<BindlessMaterial> mats;
+  // for (auto& m : mainDrawContext.materials)
+  // {
+  //   BindlessMaterial mat = {
+  //     .modulate = m.modulate,
+  //     .emissions = m.emissions,
+  //     .albedo = m.albedo,
+  //     .strength = m.strength,
+  //   };
+  //   mats.push_back(mat);
+  //   LA_LOG_INFO("material..");
+  // }
+
   
   mainDrawContext.sceneBuffers = upload_scene(
     mainDrawContext.positions,
     mainDrawContext.vertices,
-    mainDrawContext.indices,
+    opaque_set.indices,
     mainDrawContext.transforms,
-    mainDrawContext.draw_datas,
+    opaque_set.draw_datas,
     mainDrawContext.materials,
     mainDrawContext.mem
   );
 
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
   m_DeletionQueue.push_function([=, this] {
     destroy_buffer(shadowPass.buffer);
 
@@ -577,7 +594,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   DescriptorWriter writer;
   writer.write_buffer(0, shadowPass.buffer.buffer, sizeof(u_ShadowPass), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
 
-  writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(2, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(3, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
      
@@ -637,7 +654,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
   writer.write_buffer(2, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(4, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(5, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(3, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.update_set(device, depth);
@@ -647,9 +664,6 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, zpassLayout, 1, 1, &bindless_descriptor_set, 0, nullptr); 
 
   vkCmdBindIndexBuffer(cmd, mainDrawContext.sceneBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-  //vkCmdDrawIndexedIndirect(cmd, mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer, 0, mainDrawContext.draw_datas.size(), sizeof(IndirectDraw));
-
 
   vkCmdDrawIndexedIndirectCount(
     cmd,
@@ -721,7 +735,9 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   
-  writer.write_buffer(4, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, mainDrawContext.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(4, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
+  
   writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.materials.size() * sizeof(BindlessMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   
@@ -759,7 +775,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
     sizeof(IndirectDraw)
   );
 
-  // AR_CORE_INFO("draw datas {}", mainDrawContext.draw_datas.size());
 
   // vkCmdDrawIndexed(cmd, 36, 1, 0, 0, 0);
 
@@ -1533,7 +1548,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
     .build();
 
   device = m_Device.logical;

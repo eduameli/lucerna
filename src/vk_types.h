@@ -144,9 +144,9 @@ namespace Lucerna {
   // still using global buffers
   struct DrawSetBuffers
   {
-    AllocatedBuffer indexBuffer;
-    AllocatedBuffer drawDataBuffer;
-    AllocatedBuffer indirectDrawBuffer;
+    AllocatedBuffer indices;
+    AllocatedBuffer draws;
+    AllocatedBuffer indirectDraws;
   };
 
 
@@ -160,6 +160,23 @@ namespace Lucerna {
   };
 
 
+
+  enum class MaterialType: uint32_ar
+  {
+    OPAQUE = 0,
+    TRANSPARENT = 1,
+    DOUBLE_SIDED = 2,
+  };
+
   
+  struct StandardMaterial
+  {
+    vec3_ar modulate;
+    vec3_ar emissions;
+    uint32_ar albedo;
+    MaterialType type;
+    float strength;
+  };
+
 
 } // namespace Lucerna

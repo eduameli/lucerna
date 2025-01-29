@@ -100,17 +100,16 @@ float shadow_pcf(vec3 projCoords, float radius)
 
 void main() 
 {
-
   BindlessMaterial mat = materials[material_idx];
 
   uint sampled = mat.albedo & 0x00FFFFFF;
   uint samp = mat.albedo >> 24;
 
-
   
   vec4 albedo = texture(sampler2D(global_textures[sampled], global_samplers[samp]), inUV) * vec4(inColor, 1.0) * vec4(mat.modulate, 1.0);
+  
   float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
-
+  
   
   if (shadowSettings.enabled == 1 && mat.strength < 1.01)
   {
@@ -126,7 +125,6 @@ void main()
 
   vec4 color = albedo * lightValue * (ssao);
   color += vec4(mat.emissions * mat.strength, 1.0f);
-  
     
   outColour = color;   
 }

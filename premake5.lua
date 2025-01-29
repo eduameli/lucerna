@@ -3,7 +3,7 @@ workspace "lucerna"
     architecture "x86_64"
 
     language "C++"
-    cppdialect "c++23"
+    cppdialect "C++23"
     toolset "clang"
 
     linkoptions {"-fuse-ld=mold"}

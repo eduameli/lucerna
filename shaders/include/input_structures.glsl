@@ -54,15 +54,15 @@ struct Bounds
 };
 
 
+
 struct BindlessMaterial
 {
-#ifdef __cplusplus
-  BindlessMaterial()
-    : modulate{1.0f, 1.0f, 1.0f}, albedo{3}, emissions{1.0f}, strength{0.0f} {}
-#endif
+// #ifdef __cplusplus
+//   BindlessMaterial()
+//     : modulate{1.0f}, albedo{3}, emissions{1.0f}, strength{0.0f} {}
+// #endif
   vec3_ar modulate;
   vec3_ar emissions;
-  // vec3_ar emission;
   uint32_ar albedo;
   float strength;
 };

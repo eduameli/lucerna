@@ -38,6 +38,7 @@ namespace Lucerna {
   struct DrawContext {
     std::vector<glm::mat4x3> transforms;
     std::vector<BindlessMaterial> materials;
+    std::vector<StandardMaterial> other_mats;
     std::vector<DrawData> draw_datas; // seperate into different draw_sets? (opaque, transparent, alpha cutoff, shadows?)
     std::vector<uint32_t> indices;
     std::vector<glm::vec3> positions;
@@ -54,8 +55,6 @@ namespace Lucerna {
     AllocatedBuffer outputCulling;
   };
 
-
-  
 
   struct EngineStats
   {
@@ -118,8 +117,7 @@ namespace Lucerna {
       // NOTE: unused, just to get an idea of possible architecture
       DrawSet opaque_set;
       DrawSet transparent_set;
-      DrawSet one_sided_set;
-      DrawSet csm_sets[4];
+
       // NOTE: end unused
       // draw set - many diff buckets (alpha cutoff, transparent, ??)
 
@@ -154,7 +152,6 @@ namespace Lucerna {
 
       Camera mainCamera;
       DrawContext mainDrawContext;
-      DrawSet opaque_draws;
       std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes; 
       EngineStats stats{};
       

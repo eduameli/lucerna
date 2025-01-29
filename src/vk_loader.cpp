@@ -151,7 +151,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
 
   
-  std::vector<uint32_t>& indices = engine->mainDrawContext.indices;
+  std::vector<uint32_t>& indices = engine->opaque_set.indices;
   std::vector<Vertex>& vertices = engine->mainDrawContext.vertices;
   std::vector<glm::vec3>& positions = engine->mainDrawContext.positions;
 
@@ -505,7 +505,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
   for (auto& s : mesh->surfaces)
   {
-    ctx.draw_datas.push_back({
+    Engine::get()->opaque_set.draw_datas.push_back({
       .material_idx = s.mat_idx,
       .transform_idx = (uint32_t) mesh_idx,
       .indexCount = s.count,
