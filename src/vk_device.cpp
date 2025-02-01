@@ -101,6 +101,9 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
   vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
   LA_ASSERT(deviceCount != 0);
 
+
+  LA_LOG_DEBUG("device count {}", deviceCount);
+  
   std::vector<VkPhysicalDevice> devices(deviceCount);
   vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
   
@@ -109,6 +112,7 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
   for (const auto& device : devices)
   {
     int score = rate_physical_device(device);
+    LA_LOG_DEBUG("score... {}", score);
     if (score > highscore)
     {
       highscore = score;
@@ -120,8 +124,6 @@ VkPhysicalDevice DeviceContextBuilder::select_physical_device()
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(selected, &properties);
   uint32_t version = properties.apiVersion;
-
-  LA_LOG_INFO("Using {}", properties.deviceName);
   return selected;
 }
 

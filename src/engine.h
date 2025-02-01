@@ -173,8 +173,9 @@ namespace Lucerna {
       VkDescriptorSetLayout m_SceneDescriptorLayout;
       VkDescriptorSetLayout m_SingleImageDescriptorLayout;
 
-      // GLTFMetallic_Roughness metalRoughMaterial;
+
       
+          
       // NOTE move to pcss_settings & add hard shadow setting
       glm::mat4 lView{ 1.0f };
       glm::mat4 lightProj{ 1.0f };
@@ -233,8 +234,10 @@ namespace Lucerna {
       VkPipeline writeIndirectPipeline{};
       
       VkPipelineLayout cullPipelineLayout{};
+      VkDescriptorSetLayout compact_descriptor_layout{};
+      
       void init_indirect_cull_pipeline();
-      void do_culling(VkCommandBuffer cmd); // 
+      void do_culling(VkCommandBuffer cmd, DrawSet& set); // 
       
     private:
       

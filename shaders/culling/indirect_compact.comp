@@ -10,10 +10,10 @@ struct indirect_cull_pcs
     mat4_ar view;
     vec4_ar frustum;
     buffer_ar(IndirectDrawBuffer) ids; // FIXME: this should be DrawSetBuffer
-    buffer_ar(TransformBuffer) td;
-    buffer_ar(DrawDataBuffer) ddb;
+    // buffer_ar(TransformBuffer) td;
+    // buffer_ar(DrawDataBuffer) ddb;
     buffer_ar(IndirectCountBuffer) indirect_count;
-    buffer_ar(BoundsBuffer) bounds;
+    // buffer_ar(BoundsBuffer) bounds;
     buffer_ar(PartialSums) partial;
     buffer_ar(OutputCulling) outb;
     uint32_ar draw_count;
@@ -23,6 +23,11 @@ struct indirect_cull_pcs
 #ifndef __cplusplus
 layout (local_size_x = 1024) in;
 #extension GL_EXT_debug_printf : enable
+
+
+layout(set = 0, binding = 0, scalar) readonly buffer drawDataBuffer { DrawData draws[]; };
+layout(set = 0, binding = 1, scalar) readonly buffer transformBuffer { mat4x3 transforms[]; };
+layout(set = 0, binding = 2, scalar) readonly buffer boundsBuffer{ vec4_ar bounds[]; };
 
 layout( push_constant, scalar ) uniform constants
 {

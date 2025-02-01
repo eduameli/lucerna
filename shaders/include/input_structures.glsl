@@ -100,7 +100,6 @@ struct DrawData
   uint32_ar firstIndex;
 };
 
-// this is the indirectcmd struct with sphere bounds at the end. data u need is only drawdata and bounds
 struct IndirectDraw
 {
   uint32_ar indexCount;
@@ -196,6 +195,4 @@ struct imgui_pcs
     vec2_ar translate;
     vec2_ar scale; 
 };
-
-  
 #endif // input structs

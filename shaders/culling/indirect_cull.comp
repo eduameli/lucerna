@@ -10,19 +10,29 @@ struct indirect_cull_pcs
     mat4_ar view;
     vec4_ar frustum;
     buffer_ar(IndirectDrawBuffer) ids; // FIXME: this should be DrawSetBuffer
-    buffer_ar(TransformBuffer) td;
-    buffer_ar(DrawDataBuffer) ddb;
+    // buffer_ar(TransformBuffer) td;
+    // buffer_ar(DrawDataBuffer) ddb;
     buffer_ar(IndirectCountBuffer) indirect_count;
-    buffer_ar(BoundsBuffer) bounds;
+    // buffer_ar(BoundsBuffer) bounds;
     buffer_ar(PartialSums) partial;
     buffer_ar(OutputCulling) outb;
     uint32_ar draw_count;
 };
 
 
+// global descriptor set
+// transforms, draw data, bounds, ...
+
+
+
 #ifndef __cplusplus
 layout (local_size_x = 1024) in;
 #extension GL_EXT_debug_printf : enable
+
+
+layout(set = 0, binding = 0, scalar) readonly buffer drawDataBuffer { DrawData draws[]; };
+layout(set = 0, binding = 1, scalar) readonly buffer transformBuffer { mat4x3 transforms[]; };
+layout(set = 0, binding = 2, scalar) readonly buffer boundsBuffer{ vec4_ar bounds[]; };
 
 layout( push_constant, scalar ) uniform constants
 {
@@ -38,8 +48,8 @@ bool is_visible(vec4 bounds)
     float radius = bounds.w;
 
 
-    DrawData dd = pcs.ddb.value[gl_GlobalInvocationID.x];
-    mat4x3 td = pcs.td.transforms[dd.mesh_idx];
+    DrawData dd = draws[gl_GlobalInvocationID.x];
+    mat4x3 td = transforms[dd.mesh_idx];
 
     centre = (td * vec4(centre.x, centre.y, centre.z, 1.0)).xyz;
     centre = (pcs.view * vec4(centre, 1.0f)).xyz;
@@ -82,8 +92,8 @@ void main()
    
     if (idx < pcs.draw_count)
     {
-        dd = pcs.ddb.value[idx];
-        vec4_ar sphereBounds = pcs.bounds.data[dd.mesh_idx];
+        dd = draws[idx];
+        vec4_ar sphereBounds = bounds[dd.mesh_idx];
         vec3_ar origin = vec4(sphereBounds.xyz, 1.0f).xyz;
         visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
     }

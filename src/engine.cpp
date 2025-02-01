@@ -375,7 +375,7 @@ void Engine::draw()
   // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 1, 1, &bindless_descriptor_set, 0, nullptr);
   // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &global_descriptor_set, 0, nullptr);
 
-  do_culling(cmd);
+  do_culling(cmd, opaque_set);
   
 
 
@@ -1342,9 +1342,13 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
     .build();
 
+  VkPhysicalDeviceProperties properties{};
+  vkGetPhysicalDeviceProperties(m_Device.physical, &properties);
+  LA_LOG_INFO("Using {}", properties.deviceName);
+  
   device = m_Device.logical;
   physicalDevice = m_Device.physical;
   
@@ -1979,6 +1983,18 @@ void Engine::init_indirect_cull_pipeline()
   computeLayout.pPushConstantRanges = &pcs;
   computeLayout.pushConstantRangeCount = 1;
 
+
+  {
+    DescriptorLayoutBuilder builder;
+    builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);    
+    builder.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);    
+    builder.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);    
+    compact_descriptor_layout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
+  }
+
+  computeLayout.setLayoutCount = 1;
+  computeLayout.pSetLayouts = &compact_descriptor_layout;
+  
   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &cullPipelineLayout));
 
   VkShaderModule cullShader, outCompact, writeIndirect;
@@ -2027,37 +2043,48 @@ void Engine::init_indirect_cull_pipeline()
     vkDestroyPipeline(device, cullPipeline, nullptr);
     vkDestroyPipeline(device, compactPipeline, nullptr);
     vkDestroyPipeline(device, writeIndirectPipeline, nullptr);
+
+    vkDestroyDescriptorSetLayout(device, compact_descriptor_layout, nullptr);
   });
 
 }
 
 
-void Engine::do_culling(VkCommandBuffer cmd)
+void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
 {
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
+
+  // this should be part of the mainDrawContext - not allocated every frame etc... its literally only updated once and then can just bind it when u change pipeline
+
+  VkDescriptorSet cullDescriptor = get_current_frame().frameDescriptors.allocate(device, compact_descriptor_layout);
+  DescriptorWriter writer;
+  writer.write_buffer(0, draw_set.buffers.draw_data.buffer, draw_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER); // FIXME: .buffer .buffer :sob:
+  writer.write_buffer(1, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(2, mainDrawContext.sceneBuffers.boundsBuffer.buffer, mainDrawContext.sphere_bounds.size() * sizeof(glm::vec4) , 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.update_set(device, cullDescriptor);
   
   indirect_cull_pcs pcs;
-  pcs.draw_count = opaque_set.draw_datas.size();
+  pcs.draw_count = draw_set.draw_datas.size();
 
-	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = opaque_set.buffers.indirect_draws.buffer };
+	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.indirect_draws.buffer };
 	pcs.ids = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo);
 
 
-	VkBufferDeviceAddressInfo deviceAdressInfo2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.transformBuffer.buffer };
-	pcs.td = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo2);
+	// VkBufferDeviceAddressInfo deviceAdressInfo2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.transformBuffer.buffer };
+	// pcs.td = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo2);
 
 
 
-	VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = opaque_set.buffers.draw_data.buffer };
-	pcs.ddb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo3);
+	// VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.draw_data.buffer };
+	// pcs.ddb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo3);
 
 
   VkBufferDeviceAddressInfo indirectCountBuffer{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.indirectCount.buffer };
   pcs.indirect_count = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectCountBuffer);
 
-  VkBufferDeviceAddressInfo boundsBuff{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.boundsBuffer.buffer};
-  pcs.bounds = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &boundsBuff);
+  // VkBufferDeviceAddressInfo boundsBuff{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.boundsBuffer.buffer};
+  // pcs.bounds = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &boundsBuff);
 
   VkBufferDeviceAddressInfo partialBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.partialSumsBuffer.buffer };
   pcs.partial = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &partialBuff);
@@ -2081,9 +2108,10 @@ void Engine::do_culling(VkCommandBuffer cmd)
   // end
 
 
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipelineLayout, 0, 1, &cullDescriptor, 0, nullptr);
 	
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(opaque_set.draw_datas.size() / 1024.0), 1, 1);
+  vkCmdDispatch(cmd, std::ceil(draw_set.draw_datas.size() / 1024.0), 1, 1);
 
 
   VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -2101,8 +2129,10 @@ void Engine::do_culling(VkCommandBuffer cmd)
   vkCmdPipelineBarrier2(cmd, &info);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, compactPipeline);
+  
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipelineLayout, 0, 1, &cullDescriptor, 0, nullptr);
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(opaque_set.draw_datas.size() / 1024.0), 1, 1);
+  vkCmdDispatch(cmd, std::ceil(draw_set.draw_datas.size() / 1024.0), 1, 1);
 
   {
     VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -2121,8 +2151,10 @@ void Engine::do_culling(VkCommandBuffer cmd)
   }
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, writeIndirectPipeline);
+
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipelineLayout, 0, 1, &cullDescriptor, 0, nullptr);
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(opaque_set.draw_datas.size() / 1024.0), 1, 1);
+  vkCmdDispatch(cmd, std::ceil(draw_set.draw_datas.size() / 1024.0), 1, 1);
 
   
   {
