@@ -144,23 +144,6 @@ void Engine::init()
   
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
 
-  
-  // do this in compute shader
-  // for (int idx = 0; idx < opaque_set.draw_datas.size(); idx++)
-  // {
-  //   DrawData dd = opaque_set.draw_datas[idx];
-  //   Bounds b = mainDrawContext.bounds[idx];
-    
-  //   IndirectDraw c{};
-  //   c.indexCount = dd.indexCount;
-  //   c.firstIndex = dd.firstIndex;
-  //   c.firstInstance = idx;
-  //   c.instanceCount = 1;
-  //   c.vertexOffset = 0;
-  //   c.sphereBounds = {b.origin.x, b.origin.y, b.origin.z, b.sphereRadius};
-  //   opaque_set.indirect_draws.push_back(c);
-  // }
-
   mainDrawContext.outputCulling = create_buffer(sizeof(uint32_t) * glm::ceil(opaque_set.draw_datas.size() / 1024.0)*1024, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
   vklog::label_buffer(device, mainDrawContext.outputCulling.buffer, "output culling prefix sum");
 
@@ -812,12 +795,6 @@ void Engine::queue_debug_obb(glm::mat4 transform, glm::vec3 origin, glm::vec3 ex
         origin + glm::vec3{-extents.x, -extents.y, -extents.z},
         origin + glm::vec3{extents.x, -extents.y, -extents.z},
     };
-
-    // Transform the vertices using the provided transformation matrix
-    // for (int i = 0; i < 8; ++i) {
-    //     glm::vec4 transformedVertex = transform * glm::vec4(v[i], 1.0f); // Apply transform to each vertex
-    //     v[i] = glm::vec3(transformedVertex.x, transformedVertex.y, transformedVertex.z);
-    // }
 
     // Queue the debug lines for the OBB (lines between vertices)
     queue_debug_line(v[0], v[1]);
