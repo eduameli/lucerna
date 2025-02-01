@@ -32,6 +32,8 @@ layout( push_constant, scalar ) uniform constants
 
 bool is_visible(vec4 bounds)
 {
+    return true;
+
     vec3 centre = bounds.xyz;
     float radius = bounds.w;
 
@@ -85,12 +87,13 @@ void main()
         vec3_ar origin = vec4(sphereBounds.xyz, 1.0f).xyz;
         visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
     }
-        
+
+    uint sum2 = subgroupInclusiveAdd(uint(visible));
     uint sum = subgroupExclusiveAdd(uint(visible));
     
     if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) // or if doing < subgroup size! but still final one..
     {
-        sdata[gl_SubgroupID] = sum;
+        sdata[gl_SubgroupID] = sum2;
     }
 
     memoryBarrierShared();
@@ -115,7 +118,7 @@ void main()
 
     if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1)
     {
-        pcs.partial.data[gl_WorkGroupID.x] = sum + offset;
+        pcs.partial.data[gl_WorkGroupID.x + 1] = sum2 + offset;
     }
 
     
