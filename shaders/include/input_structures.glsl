@@ -95,7 +95,7 @@ struct DrawData
 {
 
   uint32_ar material_idx;
-  uint32_ar transform_idx;
+  uint32_ar mesh_idx;
   uint32_ar indexCount;
   uint32_ar firstIndex;
 };
@@ -108,7 +108,6 @@ struct IndirectDraw
   uint32_ar firstIndex;
   uint32_ar vertexOffset;
   uint32_ar firstInstance;
-  vec4_ar sphereBounds; // FIXME: do i need this here?? check indirect_cull.comp FIXME note
 };
 
 struct u_ShadowPass
@@ -167,8 +166,8 @@ layout(scalar, buffer_reference) buffer IndirectCountBuffer{
 };
 
 
-layout(scalar, buffer_reference) buffer FinalIndirectDrawBuffer{
-  IndirectDraw draws[];
+layout(scalar, buffer_reference) buffer BoundsBuffer{
+  vec4_ar data[];
 };
 
 layout(scalar, buffer_reference) buffer PartialSums{

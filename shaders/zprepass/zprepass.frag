@@ -10,8 +10,6 @@ layout (location = 2) in flat uint albedo_idx;
 
 void main() 
 {
-
-
     uint sampled = albedo_idx & 0x00FFFFFF;
     uint samp = albedo_idx >> 24;
 

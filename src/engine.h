@@ -27,7 +27,7 @@ namespace Lucerna {
   struct RenderObject {
     uint32_t indexCount, firstIndex;
     VkBuffer indexBuffer;
-    uint32_t transform_idx;
+    uint32_t mesh_idx;
     uint32_t material_idx;
     
     Bounds bounds;
@@ -42,14 +42,15 @@ namespace Lucerna {
     std::vector<uint32_t> indices;
     std::vector<glm::vec3> positions;
     std::vector<Vertex> vertices;
-    std::vector<IndirectDraw> mem;
 
-    std::vector<Bounds> bounds;
+    // std::vector<Bounds> bounds;
+
+    std::vector<glm::vec4> sphere_bounds;
+
 
     // GPUMeshBuffers bigMeshes;
     GPUSceneBuffers sceneBuffers;
     AllocatedBuffer indirectCount;
-    AllocatedBuffer finalIndirectBuffer;
     AllocatedBuffer partialSumsBuffer;
     AllocatedBuffer outputCulling;
   };
@@ -84,23 +85,20 @@ namespace Lucerna {
       
       AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
       void destroy_buffer(const AllocatedBuffer& buffer);
-      GPUMeshBuffers upload_mesh(std::span<glm::vec3> positions, std::span<Vertex> vertices, std::span<uint32_t> indices);
       
       GPUSceneBuffers upload_scene(
         std::span<glm::vec3> positions,
         std::span<Vertex> vertices,
         std::span<uint32_t> indices,
         std::span<glm::mat4x3> transforms,
-        std::span<DrawData> draw_datas,
-        std::span<StandardMaterial> materials,
-        std::span<IndirectDraw> indirect_cmds
+        std::span<glm::vec4> sphere_bounds,
+        std::span<StandardMaterial> materials
+        // std::span<IndirectDraw> indirect_cmds
       );
 
 
-      DrawSetBuffers upload_draw_set(
-        std::span<uint32_t> indices,
-        std::span<DrawData> draw_data,
-        std::span<IndirectDraw> indirect_cmds
+      void  upload_draw_set(
+        DrawSet& set
       );
       
       AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
@@ -121,8 +119,8 @@ namespace Lucerna {
     public:
 
       // NOTE: unused, just to get an idea of possible architecture
-      DrawSet opaque_set;
-      DrawSet transparent_set;
+      DrawSet opaque_set{.name = "Opaque Set"};
+      DrawSet transparent_set{.name = "Transparent Set"};
 
       // NOTE: end unused
       // draw set - many diff buckets (alpha cutoff, transparent, ??)

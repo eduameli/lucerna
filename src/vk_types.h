@@ -46,8 +46,7 @@ namespace Lucerna {
     AllocatedBuffer positionBuffer{};
     AllocatedBuffer materialBuffer{};
     AllocatedBuffer transformBuffer{};
-    AllocatedBuffer drawDataBuffer{};
-    AllocatedBuffer indirectCmdBuffer{};
+    AllocatedBuffer boundsBuffer{};
   };
 
 
@@ -144,20 +143,18 @@ namespace Lucerna {
   // still using global buffers
   struct DrawSetBuffers
   {
-    AllocatedBuffer indices;
-    AllocatedBuffer draws;
-    AllocatedBuffer indirectDraws;
+    AllocatedBuffer draw_data;
+    AllocatedBuffer indirect_draws;
   };
 
 
   struct DrawSet
   {
-    std::vector<uint32_t> indices;
     std::vector<DrawData> draw_datas;
-    std::vector<IndirectDraw> indirect_draws;
     DrawSetBuffers buffers;
 
     VkPipeline pipeline;
+    std::string name;
   };
 
 

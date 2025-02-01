@@ -13,7 +13,7 @@ struct indirect_cull_pcs
     buffer_ar(TransformBuffer) td;
     buffer_ar(DrawDataBuffer) ddb;
     buffer_ar(IndirectCountBuffer) indirect_count;
-    buffer_ar(FinalIndirectDrawBuffer) indirect_draws;
+    buffer_ar(BoundsBuffer) bounds;
     buffer_ar(PartialSums) partial;
     buffer_ar(OutputCulling) outb;
     uint32_ar draw_count;

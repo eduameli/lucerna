@@ -17,7 +17,7 @@ void main()
     DrawData dd = draws[gl_BaseInstance];
 
 	vec4 positionLocal = vec4(positions[gl_VertexIndex], 1.0);
-	vec3 positionWorld = transforms[dd.transform_idx] * positionLocal;
+	vec3 positionWorld = transforms[dd.mesh_idx] * positionLocal;
 
     gl_Position = shadowSettings.lightViewProj * vec4(positionWorld, 1.0f);
 }

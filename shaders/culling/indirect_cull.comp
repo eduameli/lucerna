@@ -13,7 +13,7 @@ struct indirect_cull_pcs
     buffer_ar(TransformBuffer) td;
     buffer_ar(DrawDataBuffer) ddb;
     buffer_ar(IndirectCountBuffer) indirect_count;
-    buffer_ar(FinalIndirectDrawBuffer) indirect_draws;
+    buffer_ar(BoundsBuffer) bounds;
     buffer_ar(PartialSums) partial;
     buffer_ar(OutputCulling) outb;
     uint32_ar draw_count;
@@ -32,12 +32,13 @@ layout( push_constant, scalar ) uniform constants
 
 bool is_visible(vec4 bounds)
 {
+    return true;
     vec3 centre = bounds.xyz;
     float radius = bounds.w;
 
 
     DrawData dd = pcs.ddb.value[gl_GlobalInvocationID.x];
-    mat4x3 td = pcs.td.transforms[dd.transform_idx];
+    mat4x3 td = pcs.td.transforms[dd.mesh_idx];
 
     centre = (td * vec4(centre.x, centre.y, centre.z, 1.0)).xyz;
     centre = (pcs.view * vec4(centre, 1.0f)).xyz;
@@ -76,12 +77,12 @@ void main()
     uint idx = gl_GlobalInvocationID.x;
 
     bool visible = false;
-    IndirectDraw id;
+    DrawData dd;
    
     if (idx < pcs.draw_count)
     {
-        id = pcs.ids.draws[idx];
-        vec4_ar sphereBounds = id.sphereBounds;
+        dd = pcs.ddb.value[idx];
+        vec4_ar sphereBounds = pcs.bounds.data[dd.mesh_idx];
         vec3_ar origin = vec4(sphereBounds.xyz, 1.0f).xyz;
         visible = is_visible(vec4(origin.x, origin.y, origin.z, sphereBounds.w));
     }

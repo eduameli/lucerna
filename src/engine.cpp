@@ -143,51 +143,31 @@ void Engine::init()
   loadedScenes["structure"] = *structureFile;
   
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 0, 3}), mainDrawContext); // add draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 0, 0}), mainDrawContext); // add draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 0, 3}), mainDrawContext); // add draws
+
   
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3(0, 3, 0)), mainDrawContext); // add draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{0, 3, 3}), mainDrawContext); // add draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 3, 0}), mainDrawContext); // add draws
-  // loadedScenes["structure"]->queue_draw(glm::translate(glm::mat4{1.0f}, glm::vec3{3, 3, 3}), mainDrawContext); // add draws
-
-  /*
-  rough perf 8 structure.glb
-  5.5 ms when looking at all
-  1.7-2.3 when looking at 2 or 3
-
-  1ms when not looking at stuff
-  */
-
   // do this in compute shader
-  for (int idx = 0; idx < opaque_set.draw_datas.size(); idx++)
-  {
-    DrawData dd = opaque_set.draw_datas[idx];
-    Bounds b = mainDrawContext.bounds[idx];
+  // for (int idx = 0; idx < opaque_set.draw_datas.size(); idx++)
+  // {
+  //   DrawData dd = opaque_set.draw_datas[idx];
+  //   Bounds b = mainDrawContext.bounds[idx];
     
-    IndirectDraw c{};
-    c.indexCount = dd.indexCount;
-    c.firstIndex = dd.firstIndex;
-    c.firstInstance = idx;
-    c.instanceCount = 1;
-    c.vertexOffset = 0;
-    c.sphereBounds = {b.origin.x, b.origin.y, b.origin.z, b.sphereRadius};
-    mainDrawContext.mem.push_back(c);
-  }
+  //   IndirectDraw c{};
+  //   c.indexCount = dd.indexCount;
+  //   c.firstIndex = dd.firstIndex;
+  //   c.firstInstance = idx;
+  //   c.instanceCount = 1;
+  //   c.vertexOffset = 0;
+  //   c.sphereBounds = {b.origin.x, b.origin.y, b.origin.z, b.sphereRadius};
+  //   opaque_set.indirect_draws.push_back(c);
+  // }
 
-
-  mainDrawContext.finalIndirectBuffer = create_buffer(sizeof(IndirectDraw) * mainDrawContext.mem.size(), VK_BUFFER_USAGE_2_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-  vklog::label_buffer(device, mainDrawContext.finalIndirectBuffer.buffer, "final indirect draw compacted");
-
-  mainDrawContext.outputCulling = create_buffer(sizeof(uint32_t) * glm::ceil(mainDrawContext.mem.size() / 1024.0)*1024, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  mainDrawContext.outputCulling = create_buffer(sizeof(uint32_t) * glm::ceil(opaque_set.draw_datas.size() / 1024.0)*1024, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
   vklog::label_buffer(device, mainDrawContext.outputCulling.buffer, "output culling prefix sum");
 
   // IMPORTANT: 32 is the subgroup size. should be queried (NVIDIA is 32 and AMD is 64)
   mainDrawContext.partialSumsBuffer = create_buffer(sizeof(uint32_t) * 32, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
   vklog::label_buffer(device, mainDrawContext.partialSumsBuffer.buffer, "partial sums buffer compact");
 
-  // memset(mainDrawContext.partialSumsBuffer.info.pMappedData, 1, 32);  
   
   mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 1;
@@ -197,13 +177,16 @@ void Engine::init()
   mainDrawContext.sceneBuffers = upload_scene(
     mainDrawContext.positions,
     mainDrawContext.vertices,
-    opaque_set.indices,
+    mainDrawContext.indices,
     mainDrawContext.transforms,
-    opaque_set.draw_datas,
-    mainDrawContext.standard_materials,
-    mainDrawContext.mem
+    mainDrawContext.sphere_bounds,
+    mainDrawContext.standard_materials
   );
 
+
+  upload_draw_set(opaque_set);
+
+  
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
   m_DeletionQueue.push_function([=, this] {
@@ -212,13 +195,11 @@ void Engine::init()
     destroy_buffer(mainDrawContext.sceneBuffers.indexBuffer);
     destroy_buffer(mainDrawContext.sceneBuffers.vertexBuffer);
     destroy_buffer(mainDrawContext.sceneBuffers.transformBuffer);
-    destroy_buffer(mainDrawContext.sceneBuffers.drawDataBuffer);
     destroy_buffer(mainDrawContext.sceneBuffers.materialBuffer);
-    destroy_buffer(mainDrawContext.sceneBuffers.indirectCmdBuffer);
     destroy_buffer(mainDrawContext.sceneBuffers.positionBuffer);
+    destroy_buffer(mainDrawContext.sceneBuffers.boundsBuffer);
 
     destroy_buffer(mainDrawContext.indirectCount);
-    destroy_buffer(mainDrawContext.finalIndirectBuffer);
     destroy_buffer(mainDrawContext.partialSumsBuffer);
     destroy_buffer(mainDrawContext.outputCulling);
   });
@@ -578,7 +559,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   DescriptorWriter writer;
   writer.write_buffer(0, shadowPass.buffer.buffer, sizeof(u_ShadowPass), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
 
-  writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(1, opaque_set.buffers.draw_data.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(2, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(3, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
      
@@ -599,11 +580,11 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
   
   vkCmdDrawIndexedIndirectCount(
     cmd,
-    mainDrawContext.finalIndirectBuffer.buffer,
+    opaque_set.buffers.indirect_draws.buffer,
     0,
     mainDrawContext.indirectCount.buffer,
     0,
-    mainDrawContext.mem.size(),
+    opaque_set.draw_datas.size(),
     sizeof(IndirectDraw)
   );
 
@@ -638,7 +619,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
   writer.write_buffer(2, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(4, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(1, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(1, opaque_set.buffers.draw_data.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(5, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(3, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.update_set(device, depth);
@@ -651,11 +632,11 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 
   vkCmdDrawIndexedIndirectCount(
     cmd,
-    mainDrawContext.finalIndirectBuffer.buffer,
+    opaque_set.buffers.indirect_draws.buffer,
     0,
     mainDrawContext.indirectCount.buffer,
     0,
-    mainDrawContext.mem.size(),
+    opaque_set.draw_datas.size(),
     sizeof(IndirectDraw)
   );
   
@@ -719,7 +700,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   
-  writer.write_buffer(4, mainDrawContext.sceneBuffers.drawDataBuffer.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  writer.write_buffer(4, opaque_set.buffers.draw_data.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
   
   writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -751,11 +732,11 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdDrawIndexedIndirectCount(
     cmd,
-    mainDrawContext.finalIndirectBuffer.buffer,
+    opaque_set.buffers.indirect_draws.buffer,
     0,
     mainDrawContext.indirectCount.buffer,
     0,
-    mainDrawContext.mem.size(),
+    opaque_set.draw_datas.size(),
     sizeof(IndirectDraw)
   );
 
@@ -1039,17 +1020,15 @@ GPUSceneBuffers Engine::upload_scene(
   std::span<Vertex> vertices,
   std::span<uint32_t> indices,
   std::span<glm::mat4x3> transforms,
-  std::span<DrawData> draw_datas,
-  std::span<StandardMaterial> materials,
-  std::span<IndirectDraw> indirect_cmds)
+  std::span<glm::vec4> sphere_bounds,
+  std::span<StandardMaterial> materials)
 {
   const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
   const size_t positionBufferSize = positions.size() * sizeof(glm::vec3);
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
   const size_t transformBufferSize = transforms.size() * sizeof(glm::mat4x3);
-  const size_t drawDataBufferSize = draw_datas.size() * sizeof(DrawData);
+  const size_t boundsBufferSize = sphere_bounds.size() * sizeof(glm::vec4);
   const size_t materialBufferSize = materials.size() * sizeof(StandardMaterial);
-  const size_t indirectCmdBufferSize = indirect_cmds.size() * sizeof(IndirectDraw);
   
   
   GPUSceneBuffers scene;
@@ -1071,12 +1050,6 @@ GPUSceneBuffers Engine::upload_scene(
     VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY
   );
-    
-  scene.drawDataBuffer = create_buffer(
-    drawDataBufferSize,
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-    VMA_MEMORY_USAGE_GPU_ONLY
-  );
 
   scene.transformBuffer = create_buffer(
     transformBufferSize,
@@ -1084,14 +1057,15 @@ GPUSceneBuffers Engine::upload_scene(
     VMA_MEMORY_USAGE_GPU_ONLY
   );
 
+  scene.boundsBuffer = create_buffer(
+    boundsBufferSize,
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+    VMA_MEMORY_USAGE_GPU_ONLY
+  );
+  
   scene.materialBuffer = create_buffer(
     materialBufferSize,
     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-    VMA_MEMORY_USAGE_GPU_ONLY
-  );
-  scene.indirectCmdBuffer = create_buffer(
-    indirectCmdBufferSize,
-    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
     VMA_MEMORY_USAGE_GPU_ONLY
   );
 
@@ -1099,21 +1073,17 @@ GPUSceneBuffers Engine::upload_scene(
   vklog::label_buffer(device, scene.vertexBuffer.buffer, "big vertex buffer");
   vklog::label_buffer(device, scene.positionBuffer.buffer, "big position buffer");
   vklog::label_buffer(device, scene.indexBuffer.buffer, "big index buffer");
-  vklog::label_buffer(device, scene.drawDataBuffer.buffer, "big draw data buffer");
   vklog::label_buffer(device, scene.transformBuffer.buffer, "big transform buffer");
   vklog::label_buffer(device, scene.materialBuffer.buffer, "big material buffer");
-  vklog::label_buffer(device, scene.indirectCmdBuffer.buffer, "big indirect cmd buffer");
-
-
+  vklog::label_buffer(device, scene.boundsBuffer.buffer, "big bounds buffer");
 
   AllocatedBuffer staging = create_buffer(
     vertexBufferSize +
     positionBufferSize +
     indexBufferSize +
-    drawDataBufferSize +
     transformBufferSize +
-    materialBufferSize +
-    indirectCmdBufferSize,
+    boundsBufferSize + 
+    materialBufferSize,
     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
     VMA_MEMORY_USAGE_CPU_ONLY);
   void* data = staging.allocation->GetMappedData();
@@ -1121,13 +1091,9 @@ GPUSceneBuffers Engine::upload_scene(
   memcpy(data, positions.data(), positionBufferSize);
   memcpy((char*) data + positionBufferSize, vertices.data(), vertexBufferSize);
   memcpy((char*) data + positionBufferSize + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
-  // pos, vert, idx
-
-  // draw data, transform, material, indirect_cmd
-  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize, draw_datas.data(), drawDataBufferSize);
-  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize, transforms.data(), transformBufferSize);
-  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize, materials.data(), materialBufferSize);
-  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize + materialBufferSize, indirect_cmds.data(), indirectCmdBufferSize);
+  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize, transforms.data(), transformBufferSize);
+  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize + transformBufferSize, sphere_bounds.data(), boundsBufferSize);
+  memcpy((char*) data + positionBufferSize + vertexBufferSize + indexBufferSize + transformBufferSize + boundsBufferSize, materials.data(), materialBufferSize);
 
 
 
@@ -1151,122 +1117,30 @@ GPUSceneBuffers Engine::upload_scene(
     indexCopy.size = indexBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.indexBuffer.buffer, 1, &indexCopy);
 
-                
-    VkBufferCopy drawCopy{};
-    drawCopy.dstOffset = 0;
-    drawCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize;
-    drawCopy.size = drawDataBufferSize;
-    vkCmdCopyBuffer(cmd, staging.buffer, scene.drawDataBuffer.buffer, 1, &drawCopy);
-
-    VkBufferCopy materialCopy{};
-    materialCopy.dstOffset = 0;
-    materialCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize;
-    materialCopy.size = materialBufferSize;
-    vkCmdCopyBuffer(cmd, staging.buffer, scene.materialBuffer.buffer, 1, &materialCopy);
-
     VkBufferCopy transformCopy{};
     transformCopy.dstOffset = 0;
-    transformCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize;
+    transformCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize;
     transformCopy.size = transformBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.transformBuffer.buffer, 1, &transformCopy);
 
+    VkBufferCopy boundsCopy{};
+    boundsCopy.dstOffset = 0;
+    boundsCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + transformBufferSize;
+    boundsCopy.size = boundsBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.boundsBuffer.buffer, 1, &boundsCopy);
+    
+    VkBufferCopy materialCopy{};
+    materialCopy.dstOffset = 0;
+    materialCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + transformBufferSize;
+    materialCopy.size = materialBufferSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, scene.materialBuffer.buffer, 1, &materialCopy);
 
-    VkBufferCopy cmdCopy{};
-    cmdCopy.dstOffset = 0;
-    cmdCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + drawDataBufferSize + transformBufferSize + materialBufferSize;
-    cmdCopy.size = indirectCmdBufferSize;
-    vkCmdCopyBuffer(cmd, staging.buffer, scene.indirectCmdBuffer.buffer, 1, &cmdCopy);
  });
 
-  
-
-
   destroy_buffer(staging);
-
-
-  
   return scene;
 }
 
-
-GPUMeshBuffers Engine::upload_mesh(std::span<glm::vec3> positions, std::span<Vertex> vertices, std::span<uint32_t> indices)
-{
-  // vertices interleaved(normal uv colour) | positions (only pos)
-  const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
-  const size_t positionBufferSize = positions.size() * sizeof(glm::vec3);
-  const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
-
-  GPUMeshBuffers newSurface;
-
-  newSurface.vertexBuffer = create_buffer(
-    vertexBufferSize,
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-    VMA_MEMORY_USAGE_GPU_ONLY);
- 
-  VkBufferDeviceAddressInfo attributesBDA {
-    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-    .buffer = newSurface.vertexBuffer.buffer
-  };
-  newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(device, &attributesBDA);
-  
-  newSurface.positionBuffer = create_buffer(
-    positionBufferSize,
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-    VMA_MEMORY_USAGE_GPU_ONLY);
-
-  VkBufferDeviceAddressInfo positionBDA {
-    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-    .buffer = newSurface.positionBuffer.buffer
-  };
-  newSurface.positionBufferAddress = vkGetBufferDeviceAddress(device, &positionBDA);
-
-
-  newSurface.indexBuffer = create_buffer(
-    indexBufferSize,
-    VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-    VMA_MEMORY_USAGE_GPU_ONLY);
-  
-
-  //FIXME: compare perf cpu to gpu instead of gpu only! (small gpu/cpu shared mem)
-  AllocatedBuffer staging = create_buffer(vertexBufferSize + positionBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-  void* data = staging.allocation->GetMappedData();
-
-  memcpy(data, positions.data(), positionBufferSize);
-  memcpy((uint8_t*) data + positionBufferSize, vertices.data(), vertexBufferSize);
-  memcpy((uint8_t*) data + positionBufferSize + vertexBufferSize, indices.data(), indexBufferSize); //FIXME: C style casting
-
-  immediate_submit([&](VkCommandBuffer cmd){
-    VkBufferCopy positionCopy{};
-    positionCopy.dstOffset = 0;
-    positionCopy.srcOffset = 0;
-    positionCopy.size = positionBufferSize;
-    
-    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.positionBuffer.buffer, 1, &positionCopy);
-
-    VkBufferCopy vertexCopy{};
-    vertexCopy.dstOffset = 0;
-    vertexCopy.srcOffset = positionBufferSize;
-    vertexCopy.size = vertexBufferSize;
-
-    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
-    
-    VkBufferCopy indexCopy{};
-    indexCopy.dstOffset = 0;
-    indexCopy.srcOffset = positionBufferSize + vertexBufferSize;
-    indexCopy.size = indexBufferSize;
-
-    vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
-  });
-  destroy_buffer(staging);
-
-
-  vklog::label_buffer(device, newSurface.vertexBuffer.buffer, "VERTEX ATTRIBUTES");
-  std::string pos = "POSITION BUFFER";
-  
-  vklog::label_buffer(device, newSurface.positionBuffer.buffer, pos.c_str());
-
-  return newSurface;
-}
 
 AllocatedImage Engine::create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
@@ -1850,7 +1724,8 @@ void Engine::init_pipelines()
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   b.set_multisampling_none();
   b.disable_blending();
-  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  b.disable_depthtest();
   
   
   b.PipelineLayout = bindless_pipeline_layout;
@@ -2228,12 +2103,9 @@ void Engine::do_culling(VkCommandBuffer cmd)
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
   
   indirect_cull_pcs pcs;
-  pcs.ids = (VkDeviceAddress) mainDrawContext.sceneBuffers.indirectCmdBuffer.info.pMappedData;
-  pcs.draw_count = mainDrawContext.mem.size();
+  pcs.draw_count = opaque_set.draw_datas.size();
 
-
-
-	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.indirectCmdBuffer.buffer };
+	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = opaque_set.buffers.indirect_draws.buffer };
 	pcs.ids = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo);
 
 
@@ -2242,15 +2114,15 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
 
 
-	VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.drawDataBuffer.buffer };
+	VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = opaque_set.buffers.draw_data.buffer };
 	pcs.ddb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo3);
 
 
   VkBufferDeviceAddressInfo indirectCountBuffer{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.indirectCount.buffer };
   pcs.indirect_count = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectCountBuffer);
 
-  VkBufferDeviceAddressInfo indirectBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.finalIndirectBuffer.buffer };
-  pcs.indirect_draws = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectBuff);
+  VkBufferDeviceAddressInfo boundsBuff{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.boundsBuffer.buffer};
+  pcs.bounds = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &boundsBuff);
 
   VkBufferDeviceAddressInfo partialBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.partialSumsBuffer.buffer };
   pcs.partial = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &partialBuff);
@@ -2276,7 +2148,7 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
 	
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 1024.0), 1, 1);
+  vkCmdDispatch(cmd, std::ceil(opaque_set.draw_datas.size() / 1024.0), 1, 1);
 
 
   VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -2295,7 +2167,7 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, compactPipeline);
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 1024.0), 1, 1);
+  vkCmdDispatch(cmd, std::ceil(opaque_set.draw_datas.size() / 1024.0), 1, 1);
 
   {
     VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
@@ -2315,12 +2187,12 @@ void Engine::do_culling(VkCommandBuffer cmd)
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, writeIndirectPipeline);
   vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(mainDrawContext.mem.size() / 1024.0), 1, 1);
+  vkCmdDispatch(cmd, std::ceil(opaque_set.draw_datas.size() / 1024.0), 1, 1);
 
   
   {
     VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-    mbar.buffer = mainDrawContext.finalIndirectBuffer.buffer;
+    mbar.buffer = opaque_set.buffers.indirect_draws.buffer;
     mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
     mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
@@ -2337,13 +2209,40 @@ void Engine::do_culling(VkCommandBuffer cmd)
   
 }
 
-DrawSetBuffers Engine::upload_draw_set(
-  std::span<uint32_t> indices,
-  std::span<DrawData> draw_data,
-  std::span<IndirectDraw> indirect_cmds
-)
+void Engine::upload_draw_set(DrawSet& set)
 {
-  return {};
+  // upload to cpu staging buffer
+  const size_t drawDataSize = set.draw_datas.size() * sizeof(DrawData);
+  const size_t indirectDrawSize = set.draw_datas.size() * sizeof(IndirectDraw);
+
+  set.buffers.draw_data = create_buffer(drawDataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  set.buffers.indirect_draws = create_buffer(indirectDrawSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+  vklog::label_buffer(device, set.buffers.draw_data.buffer, std::string(set.name + " - Draw Data Buffer").c_str());
+  vklog::label_buffer(device, set.buffers.indirect_draws.buffer, std::string(set.name + " - Indirect Draw Buffer").c_str());
+  
+  AllocatedBuffer staging = create_buffer(
+    drawDataSize,
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    VMA_MEMORY_USAGE_CPU_ONLY
+  );
+
+  void* data = staging.allocation->GetMappedData();
+
+
+  memcpy(data, set.draw_datas.data(), drawDataSize);
+  // memcpy((uint8_t*) data + drawDataSize, set.indirect_draws.data(), indirectDrawSize);
+
+
+  immediate_submit([&](VkCommandBuffer cmd){
+    VkBufferCopy drawDataCopy{};
+    drawDataCopy.dstOffset = 0;
+    drawDataCopy.srcOffset = 0;
+    drawDataCopy.size = drawDataSize;
+    vkCmdCopyBuffer(cmd, staging.buffer, set.buffers.draw_data.buffer, 1, &drawDataCopy);
+  });
+
+  destroy_buffer(staging);    
 }
 
 void Engine::init_draw_sets()
@@ -2355,8 +2254,10 @@ void Engine::init_draw_sets()
 
   m_DeletionQueue.push_function([=, this](){
     // destroy all draw_sets
+    destroy_buffer(opaque_set.buffers.draw_data);
+    destroy_buffer(opaque_set.buffers.indirect_draws);
   });
-
 }
+
 
 } // namespace Lucerna

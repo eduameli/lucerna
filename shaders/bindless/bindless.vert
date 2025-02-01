@@ -42,13 +42,13 @@ void main()
 
   DrawData dd = draws[gl_BaseInstance];
   vec4 positionLocal = vec4(positions[gl_VertexIndex], 1.0);
-  vec3 positionWorld = transforms[dd.transform_idx] * positionLocal;
+  vec3 positionWorld = transforms[dd.mesh_idx] * positionLocal;
 
   gl_Position = sceneData.viewproj * vec4(positionWorld, 1.0f);
 
   Vertex v = vertices[gl_VertexIndex];
   vec3 normal_unpacked = decode_normal(v.normal_uv.xy);
-  outNormal = normalize(transforms[dd.transform_idx] * vec4(normal_unpacked, 0.0));
+  outNormal = normalize(transforms[dd.mesh_idx] * vec4(normal_unpacked, 0.0));
   outNormal = normal_unpacked;
   outColor = v.color.xyz;
   outUV.x = v.normal_uv.z;

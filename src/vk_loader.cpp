@@ -160,7 +160,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
 
 
   
-  std::vector<uint32_t>& indices = engine->opaque_set.indices;
+  std::vector<uint32_t>& indices = engine->mainDrawContext.indices;
   std::vector<Vertex>& vertices = engine->mainDrawContext.vertices;
   std::vector<glm::vec3>& positions = engine->mainDrawContext.positions;
   
@@ -185,21 +185,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
         // use placeholder
         newSurface.mat_idx = mat_idxs[0];
       }
-
-
-      MaterialFlags flags = engine->mainDrawContext.standard_materials[newSurface.mat_idx].flags;
-
-      if ((flags & MaterialFlags::OPAQUE) != MaterialFlags::NONE)
-      {
-        indices = engine->opaque_set.indices;
-      }
-      else if ((flags & MaterialFlags::TRANSPARENT) != MaterialFlags::NONE)
-      {
-        LA_LOG_INFO("Transparent Geometry Surface");
-        indices = engine->transparent_set.indices;
-      }
-      
-      
+     
       newSurface.startIndex = static_cast<uint32_t>(indices.size());
       newSurface.count = static_cast<uint32_t>(asset.accessors[p.indicesAccessor.value()].count);
 
@@ -531,7 +517,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
     DrawData dd =
     {
       .material_idx = s.mat_idx,
-      .transform_idx = (uint32_t) mesh_idx,
+      .mesh_idx = (uint32_t) mesh_idx,
       .indexCount = s.count,
       .firstIndex = s.startIndex,
     };
@@ -551,7 +537,7 @@ void MeshNode::queue_draw(const glm::mat4& topMatrix, DrawContext& ctx)
         break;
     }
 
-    ctx.bounds.push_back(s.bounds);
+    ctx.sphere_bounds.emplace_back(glm::vec4{s.bounds.origin.x, s.bounds.origin.y, s.bounds.origin.z, s.bounds.sphereRadius});
   }
 
   Node::queue_draw(topMatrix, ctx);
