@@ -179,13 +179,6 @@ layout(scalar, buffer_reference) buffer OutputCulling{
   uint32_ar data[];
 };
 
-// layout (set = 0, binding = 2) uniform ShadowMappingSettingsBlock {
-//   ShadowFragmentSettings shadowSettings;
-// };
-
-// layout(set = 0, binding = 3) uniform sampler2D ssaoAmbient;
-
-
 #endif // is glsl
 
 

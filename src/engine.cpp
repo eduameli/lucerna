@@ -183,8 +183,7 @@ void Engine::init()
     mainDrawContext.standard_materials
   );
 
-
-  upload_draw_set(opaque_set);
+  init_draw_sets();
 
   
   shadowPass.buffer = create_buffer(sizeof(u_ShadowPass), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -928,46 +927,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
 }
 
-// FIXME: utterly scuffed, i ignore the min max .y for the aabb collision test between the cannonical viewing volume and the projected obb
-bool Engine::is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
-    return true; // still gets false positives even when ignoring miny maxy
-    std::array<glm::vec3, 8> corners {
-        glm::vec3 { 1, 1, 1 },
-        glm::vec3 { 1, 1, -1 },
-        glm::vec3 { 1, -1, 1 },
-        glm::vec3 { 1, -1, -1 },
-        glm::vec3 { -1, 1, 1 },
-        glm::vec3 { -1, 1, -1 },
-        glm::vec3 { -1, -1, 1 },
-        glm::vec3 { -1, -1, -1 },
-    };
-
-    
-    glm::mat4 matrix = viewproj * obj.transform;
-
-    glm::vec3 min = { 1.5, 1.5, 1.5 };
-    glm::vec3 max = { -1.5, -1.5, -1.5 };
-
-    for (int c = 0; c < 8; c++) {
-        // project each corner into clip space
-        glm::vec4 v = matrix * glm::vec4(obj.bounds.origin + (corners[c] * obj.bounds.extents), 1.f);
-        // perspective correction
-        v.x = v.x / v.w;
-        v.y =  v.y / v.w;
-        v.z = v.z / v.w;
-
-        min = glm::min(glm::vec3 { v.x, v.y, v.z }, min);
-        max = glm::max(glm::vec3 { v.x, v.y, v.z }, max);
-
-        // AR_CORE_WARN("clip space coords({}):",std::to_string(i),  glm::to_string(v));
-    }
-
-    return !(min.z > 1.f || max.z < 0.0f || min.x > 1.f || max.x < -1.f /*|| min.y > 1.f || max.y < -1.f*/);
- }
-
-
-
-
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
 {
   VK_CHECK_RESULT(vkResetFences(device, 1, &m_ImmFence));
@@ -1131,7 +1090,7 @@ GPUSceneBuffers Engine::upload_scene(
     
     VkBufferCopy materialCopy{};
     materialCopy.dstOffset = 0;
-    materialCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + transformBufferSize;
+    materialCopy.srcOffset = positionBufferSize + vertexBufferSize + indexBufferSize + transformBufferSize + boundsBufferSize;
     materialCopy.size = materialBufferSize;
     vkCmdCopyBuffer(cmd, staging.buffer, scene.materialBuffer.buffer, 1, &materialCopy);
 
@@ -1724,8 +1683,7 @@ void Engine::init_pipelines()
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   b.set_multisampling_none();
   b.disable_blending();
-  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
-  b.disable_depthtest();
+  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
   
   
   b.PipelineLayout = bindless_pipeline_layout;
@@ -2251,6 +2209,7 @@ void Engine::init_draw_sets()
   // layout and descriptor is the same for all of them, except the pipeline config changes for blend and double sided...
   VkPipeline opaque, transparent;
 
+  upload_draw_set(opaque_set);
 
   m_DeletionQueue.push_function([=, this](){
     // destroy all draw_sets

@@ -107,7 +107,6 @@ void main()
 
   
   vec4 albedo = texture(sampler2D(global_textures[sampled], global_samplers[samp]), inUV) * vec4(inColor, 1.0) * vec4(mat.modulate, 1.0);
-  
   float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
   
   

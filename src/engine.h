@@ -30,7 +30,6 @@ namespace Lucerna {
     uint32_t mesh_idx;
     uint32_t material_idx;
     
-    Bounds bounds;
     glm::mat4 transform;
     VkDeviceAddress vertexBufferAddress, positionBufferAddress;
   };
@@ -38,18 +37,15 @@ namespace Lucerna {
   struct DrawContext {
     std::vector<glm::mat4x3> transforms;
     std::vector<StandardMaterial> standard_materials;
-    std::vector<DrawData> draw_datas; // seperate into different draw_sets? (opaque, transparent, alpha cutoff, shadows?)
     std::vector<uint32_t> indices;
     std::vector<glm::vec3> positions;
     std::vector<Vertex> vertices;
-
-    // std::vector<Bounds> bounds;
-
     std::vector<glm::vec4> sphere_bounds;
 
 
     // GPUMeshBuffers bigMeshes;
     GPUSceneBuffers sceneBuffers;
+
     AllocatedBuffer indirectCount;
     AllocatedBuffer partialSumsBuffer;
     AllocatedBuffer outputCulling;
@@ -93,7 +89,6 @@ namespace Lucerna {
         std::span<glm::mat4x3> transforms,
         std::span<glm::vec4> sphere_bounds,
         std::span<StandardMaterial> materials
-        // std::span<IndirectDraw> indirect_cmds
       );
 
 
