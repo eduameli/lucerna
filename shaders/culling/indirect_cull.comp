@@ -121,7 +121,6 @@ void main()
     
     
     pcs.outb.data[gl_GlobalInvocationID.x] = sum + offset;
-  
    
 }
 #endif
