@@ -13,9 +13,9 @@ void main()
     uint sampled = albedo_idx & 0x00FFFFFF;
     uint samp = albedo_idx >> 24;
 
-    // if (texture(sampler2D(global_textures[sampled], global_samplers[samp]), inUV).w < 0.5)
-    // {
-    //     discard;
-    // }
+    if (texture(sampler2D(global_textures[sampled], global_samplers[samp]), inUV).w < 0.5)
+    {
+        discard;
+    }
 }
 
