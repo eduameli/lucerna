@@ -17,6 +17,7 @@
 #include "gfx_effects.h"
 #include <GLFW/glfw3.h>
 #include <cstring>
+#include <format>
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 #include "imgui_backend.h"
@@ -144,16 +145,10 @@ void Engine::init()
   
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
 
-  mainDrawContext.outputCulling = create_buffer(sizeof(uint32_t) * glm::ceil(opaque_set.draw_datas.size() / 1024.0)*1024, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-  vklog::label_buffer(device, mainDrawContext.outputCulling.buffer, "output culling prefix sum");
-
-  // IMPORTANT: 32 is the subgroup size. should be queried (NVIDIA is 32 and AMD is 64)
-  mainDrawContext.partialSumsBuffer = create_buffer(sizeof(uint32_t) * 32, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-  vklog::label_buffer(device, mainDrawContext.partialSumsBuffer.buffer, "partial sums buffer compact");
 
   
-  mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-  *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 1;
+  mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t) * 2 /*number of global sets?*/, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+  *(uint64_t*) mainDrawContext.indirectCount.info.pMappedData = 0;
 
   vklog::label_buffer(device,mainDrawContext.indirectCount.buffer, "indirect count buffer");
  
@@ -182,8 +177,6 @@ void Engine::init()
     destroy_buffer(mainDrawContext.sceneBuffers.boundsBuffer);
 
     destroy_buffer(mainDrawContext.indirectCount);
-    destroy_buffer(mainDrawContext.partialSumsBuffer);
-    destroy_buffer(mainDrawContext.outputCulling);
   });
 
   // prepare gfx effects
@@ -376,6 +369,7 @@ void Engine::draw()
   // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &global_descriptor_set, 0, nullptr);
 
   do_culling(cmd, opaque_set);
+  do_culling(cmd, transparent_set);
   
 
 
@@ -575,6 +569,9 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
 void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 {
+
+  if (opaque_set.draw_datas.size() == 0)
+    return;
   
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
@@ -682,7 +679,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   
-  writer.write_buffer(4, opaque_set.buffers.draw_data.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
   
   writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -690,7 +686,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   
   writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.update_set(device, globalDescriptor);
+  // writer.update_set(device, globalDescriptor);
   
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
   vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -700,7 +696,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std_pipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 1, 1, &bindless_descriptor_set, 0, nullptr);  
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
 
 
   
@@ -712,16 +707,49 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
 
-  vkCmdDrawIndexedIndirectCount(
-    cmd,
-    opaque_set.buffers.indirect_draws.buffer,
-    0,
-    mainDrawContext.indirectCount.buffer,
-    0,
-    opaque_set.draw_datas.size(),
-    sizeof(IndirectDraw)
-  );
+  if (opaque_set.draw_datas.size() != 0)
+  {
 
+    writer.write_buffer(4, opaque_set.buffers.draw_data.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.update_set(device, globalDescriptor);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
+
+    vkCmdDrawIndexedIndirectCount(
+      cmd,
+      opaque_set.buffers.indirect_draws.buffer,
+      0,
+      mainDrawContext.indirectCount.buffer,
+      0,
+      opaque_set.draw_datas.size(),
+      sizeof(IndirectDraw)
+    );
+  }
+
+
+  // draw transparent
+  // bind transparent pipeline!
+
+
+  
+  
+
+  if (transparent_set.draw_datas.size() != 0)
+  {
+
+    DescriptorWriter w;
+    w.write_buffer(4, transparent_set.buffers.draw_data.buffer, transparent_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.update_set(device, globalDescriptor);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
+    vkCmdDrawIndexedIndirectCount(
+      cmd,
+      transparent_set.buffers.indirect_draws.buffer,
+      0,
+      mainDrawContext.indirectCount.buffer,
+      4,
+      transparent_set.draw_datas.size(),
+      sizeof(IndirectDraw)
+    );
+  }
 
   // vkCmdDrawIndexed(cmd, 36, 1, 0, 0, 0);
 
@@ -899,6 +927,30 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
     ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{250, 250});
   ImGui::End();
 
+
+  // debug overlay!
+  ImGuiWindowFlags flags =
+    ImGuiWindowFlags_NoMove |
+    ImGuiWindowFlags_NoBackground |
+    ImGuiWindowFlags_NoCollapse |
+    ImGuiWindowFlags_NoResize |
+    ImGuiWindowFlags_NoTitleBar |
+    ImGuiWindowFlags_NoSavedSettings |
+    ImGuiWindowFlags_NoScrollbar;
+
+  ImGui::SetNextWindowPos({1, 1});
+  ImGui::Begin("Debug Overlay", nullptr, flags);
+    VkExtent2D extent = Window::get_extent();
+    ImGui::Text("lucerna-dev (pre-alpha)");
+    ImGui::Text("[instance version %s]", instanceVersion.c_str());
+    ImGui::Text("gpu: %s", gpuName.c_str());
+    ImGui::Text("resolution: %dx%d", extent.width, extent.height);
+    ImGui::Text("present mode: %s", vkutil::stringify_present_mode(m_Swapchain.presentMode).c_str());
+    ImGui::Text("frame: %zu", frameNumber);
+
+    ImGui::Text("opaque %zu | transparent %zu", opaque_set.draw_datas.size(), transparent_set.draw_datas.size());
+  ImGui::End();
+  
   ImGui::EndFrame();
   ImGui::Render();
   VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
@@ -1222,6 +1274,7 @@ void Engine::validate_instance_supported()
   vkEnumerateInstanceVersion(&version);
   LA_LOG_ASSERT(version > VK_API_VERSION_1_3, "This Application requires Vulkan 1.3, which has not been found!");
   LA_LOG_INFO("Using Vulkan Instance [version {}.{}.{}]", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
+  instanceVersion = std::format("{}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
   
   // validate validation layer support
   if (m_UseValidationLayers)
@@ -1348,7 +1401,8 @@ void Engine::create_device()
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(m_Device.physical, &properties);
   LA_LOG_INFO("Using {}", properties.deviceName);
-  
+  gpuName = properties.deviceName;
+    
   device = m_Device.logical;
   physicalDevice = m_Device.physical;
   
@@ -1664,7 +1718,7 @@ void Engine::init_pipelines()
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   b.set_multisampling_none();
   b.disable_blending();
-  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
   
   
   b.PipelineLayout = bindless_pipeline_layout;
@@ -2053,6 +2107,9 @@ void Engine::init_indirect_cull_pipeline()
 void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
 {
 
+  if (draw_set.draw_datas.size() == 0)
+    return;
+
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
 
   // this should be part of the mainDrawContext - not allocated every frame etc... its literally only updated once and then can just bind it when u change pipeline
@@ -2071,25 +2128,14 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
 	pcs.ids = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo);
 
 
-	// VkBufferDeviceAddressInfo deviceAdressInfo2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.transformBuffer.buffer };
-	// pcs.td = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo2);
-
-
-
-	// VkBufferDeviceAddressInfo deviceAdressInfo3{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.draw_data.buffer };
-	// pcs.ddb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo3);
-
-
   VkBufferDeviceAddressInfo indirectCountBuffer{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.indirectCount.buffer };
   pcs.indirect_count = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectCountBuffer);
+  pcs.indirect_count += draw_set.indirect_count_offset;
 
-  // VkBufferDeviceAddressInfo boundsBuff{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.sceneBuffers.boundsBuffer.buffer};
-  // pcs.bounds = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &boundsBuff);
-
-  VkBufferDeviceAddressInfo partialBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.partialSumsBuffer.buffer };
+  VkBufferDeviceAddressInfo partialBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.partialSums.buffer };
   pcs.partial = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &partialBuff);
 
-  VkBufferDeviceAddressInfo outCull{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.outputCulling.buffer };
+  VkBufferDeviceAddressInfo outCull{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.outputCompact.buffer };
   pcs.outb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &outCull);
   
   pcs.view = sceneData.view;
@@ -2115,7 +2161,7 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
 
 
   VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-  mbar.buffer = mainDrawContext.partialSumsBuffer.buffer;
+  mbar.buffer = draw_set.buffers.partialSums.buffer;
   mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
   mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
   mbar.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
@@ -2136,7 +2182,7 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
 
   {
     VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-    mbar.buffer = mainDrawContext.outputCulling.buffer;
+    mbar.buffer = draw_set.buffers.outputCompact.buffer;
     mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
     mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     mbar.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
@@ -2159,7 +2205,7 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
   
   {
     VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-    mbar.buffer = opaque_set.buffers.indirect_draws.buffer;
+    mbar.buffer = draw_set.buffers.indirect_draws.buffer;
     mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
     mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
@@ -2178,7 +2224,21 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
 
 void Engine::upload_draw_set(DrawSet& set)
 {
-  // upload to cpu staging buffer
+  if (set.draw_datas.size() == 0)
+    return;
+
+
+
+  set.buffers.outputCompact= create_buffer(sizeof(uint32_t) * glm::ceil(set.draw_datas.size() / 1024.0)*1024, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  vklog::label_buffer(device, set.buffers.outputCompact.buffer, std::format("{}- output culling prefix sum", set.name).c_str());
+  
+  // // IMPORTANT: 32 is the subgroup size. should be queried (NVIDIA is 32 and AMD is 64)
+  set.buffers.partialSums= create_buffer(sizeof(uint32_t) * 32, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  vklog::label_buffer(device, set.buffers.partialSums.buffer, std::format("{} - partial sums buffer compact", set.name).c_str());
+
+
+  
+  // upload draw data to gpu 
   const size_t drawDataSize = set.draw_datas.size() * sizeof(DrawData);
   const size_t indirectDrawSize = set.draw_datas.size() * sizeof(IndirectDraw);
 
@@ -2219,11 +2279,26 @@ void Engine::init_draw_sets()
   VkPipeline opaque, transparent;
 
   upload_draw_set(opaque_set);
+  upload_draw_set(transparent_set);
+
+
+
+
+  
+  opaque_set.indirect_count_offset = 0;
+  transparent_set.indirect_count_offset = sizeof(uint32_t);
 
   m_DeletionQueue.push_function([=, this](){
     // destroy all draw_sets
     destroy_buffer(opaque_set.buffers.draw_data);
     destroy_buffer(opaque_set.buffers.indirect_draws);
+    destroy_buffer(opaque_set.buffers.outputCompact);
+    destroy_buffer(opaque_set.buffers.partialSums);
+
+    destroy_buffer(transparent_set.buffers.draw_data);
+    destroy_buffer(transparent_set.buffers.indirect_draws);
+    destroy_buffer(transparent_set.buffers.outputCompact);
+    destroy_buffer(transparent_set.buffers.partialSums);
   });
 }
 

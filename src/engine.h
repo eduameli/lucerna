@@ -47,8 +47,8 @@ namespace Lucerna {
     GPUSceneBuffers sceneBuffers;
 
     AllocatedBuffer indirectCount;
-    AllocatedBuffer partialSumsBuffer;
-    AllocatedBuffer outputCulling;
+    // AllocatedBuffer partialSumsBuffer;
+    // AllocatedBuffer outputCulling;
   };
 
 
@@ -295,6 +295,10 @@ namespace Lucerna {
       constexpr static bool m_UseValidationLayers = false;
       #endif
 
+
+      std::string gpuName{};
+      std::string instanceVersion{};
+      
       glm::mat4 lastDebugFrustum{1.0f};
       
       VkFence m_ImmFence;
