@@ -10,10 +10,7 @@ struct indirect_cull_pcs
     mat4_ar view;
     vec4_ar frustum;
     buffer_ar(IndirectDrawBuffer) ids; // FIXME: this should be DrawSetBuffer
-    // buffer_ar(TransformBuffer) td;
-    // buffer_ar(DrawDataBuffer) ddb;
     buffer_ar(IndirectCountBuffer) indirect_count;
-    // buffer_ar(BoundsBuffer) bounds;
     buffer_ar(PartialSums) partial;
     buffer_ar(OutputCulling) outb;
     uint32_ar draw_count;

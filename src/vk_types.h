@@ -157,6 +157,7 @@ namespace Lucerna {
     DrawSetBuffers buffers;
 
     VkPipeline pipeline;
+    VkPipelineLayout pipelineLayout;
     uint32_t indirect_count_offset{0};
     std::string name;
   };

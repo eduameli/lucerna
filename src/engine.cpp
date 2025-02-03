@@ -672,20 +672,6 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   *sceneUniformData = sceneData;
 
 
-  VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
-  DescriptorWriter writer;
-  writer.write_buffer(0, sceneDataBuf.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  
-  // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
-  
-  writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  
-  writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   // writer.update_set(device, globalDescriptor);
   
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
@@ -694,7 +680,7 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   VkRect2D scissor = vkinit::dynamic_scissor(m_DrawExtent);
   vkCmdSetScissor(cmd , 0, 1, &scissor);
 
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std_pipeline);
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, opaque_set.pipeline);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 1, 1, &bindless_descriptor_set, 0, nullptr);  
 
 
@@ -710,8 +696,25 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   if (opaque_set.draw_datas.size() != 0)
   {
 
+    VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
+    DescriptorWriter writer;
+    writer.write_buffer(0, sceneDataBuf.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  
+    // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
+  
+    writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  
+    writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     writer.write_buffer(4, opaque_set.buffers.draw_data.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     writer.update_set(device, globalDescriptor);
+
+
+    
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
 
     vkCmdDrawIndexedIndirectCount(
@@ -735,10 +738,26 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   if (transparent_set.draw_datas.size() != 0)
   {
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, transparent_set.pipeline);
+    
+    VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
+    DescriptorWriter writer;
+    writer.write_buffer(0, sceneDataBuf.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-    DescriptorWriter w;
-    w.write_buffer(4, transparent_set.buffers.draw_data.buffer, transparent_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
+
+    writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+    writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    
+    writer.write_buffer(4, transparent_set.buffers.draw_data.buffer, transparent_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     writer.update_set(device, globalDescriptor);
+
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
     vkCmdDrawIndexedIndirectCount(
       cmd,
@@ -1718,7 +1737,7 @@ void Engine::init_pipelines()
   b.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
   b.set_multisampling_none();
   b.disable_blending();
-  // b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
+  b.enable_depthtest(true, VK_COMPARE_OP_EQUAL);
   
   
   b.PipelineLayout = bindless_pipeline_layout;
@@ -1728,7 +1747,8 @@ void Engine::init_pipelines()
   opaque_set.pipeline = std_pipeline;
 
 
-  b.enable_blending_alphablend();
+  b.enable_blending_additive();
+  b.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);  
   transparent_set.pipeline = b.build_pipeline(device);
 
 
@@ -2276,8 +2296,6 @@ void Engine::init_draw_sets()
 {
   // make pipeline for opaque, transparent, etc...
   // layout and descriptor is the same for all of them, except the pipeline config changes for blend and double sided...
-  VkPipeline opaque, transparent;
-
   upload_draw_set(opaque_set);
   upload_draw_set(transparent_set);
 
