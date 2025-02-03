@@ -145,7 +145,7 @@ namespace Lucerna {
   {
     AllocatedBuffer draw_data;
     AllocatedBuffer indirect_draws;
-    
+    AllocatedBuffer indirect_count;
     AllocatedBuffer partialSums;
     AllocatedBuffer outputCompact;
   };
@@ -157,8 +157,6 @@ namespace Lucerna {
     DrawSetBuffers buffers;
 
     VkPipeline pipeline;
-    VkPipelineLayout pipelineLayout;
-    uint32_t indirect_count_offset{0};
     std::string name;
   };
 

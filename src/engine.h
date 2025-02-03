@@ -41,14 +41,7 @@ namespace Lucerna {
     std::vector<glm::vec3> positions;
     std::vector<Vertex> vertices;
     std::vector<glm::vec4> sphere_bounds;
-
-
-    // GPUMeshBuffers bigMeshes;
     GPUSceneBuffers sceneBuffers;
-
-    AllocatedBuffer indirectCount;
-    // AllocatedBuffer partialSumsBuffer;
-    // AllocatedBuffer outputCulling;
   };
 
 
@@ -59,6 +52,9 @@ namespace Lucerna {
     int drawcall_count;
     float scene_update_time;
     float mesh_draw_time;
+    
+    std::string gpuName{};
+    std::string instanceVersion{};
   };
 
   
@@ -266,7 +262,9 @@ namespace Lucerna {
       void draw_shadow_pass(VkCommandBuffer cmd);
       void draw_debug_lines(VkCommandBuffer cmd);
       void draw_imgui(VkCommandBuffer cmd, VkImageView target);
-      bool is_visible(const RenderObject& obj, const glm::mat4& viewproj);
+      
+      void render_draw_set(VkCommandBuffer cmd, DrawSet& draw_set);
+      
     private:
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
@@ -295,10 +293,6 @@ namespace Lucerna {
       constexpr static bool m_UseValidationLayers = false;
       #endif
 
-
-      std::string gpuName{};
-      std::string instanceVersion{};
-      
       glm::mat4 lastDebugFrustum{1.0f};
       
       VkFence m_ImmFence;

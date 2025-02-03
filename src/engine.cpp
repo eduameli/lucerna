@@ -83,7 +83,7 @@ void FrameGraph::render_graph()
     ImGui::Text("min: %.3f\tmax: %.3f", min, max);
 
 
-    uint32_t* cnt = (uint32_t*) Engine::get()->mainDrawContext.indirectCount.info.pMappedData;
+    uint32_t* cnt = (uint32_t*) Engine::get()->opaque_set.buffers.indirect_count.info.pMappedData;
     ImGui::Text("indirect count: %i", *cnt);
     
   ImGui::End();
@@ -145,13 +145,6 @@ void Engine::init()
   
   loadedScenes["structure"]->queue_draw(glm::mat4{1.0f}, mainDrawContext); // set_draws
 
-
-  
-  mainDrawContext.indirectCount = create_buffer(sizeof(uint32_t) * 2 /*number of global sets?*/, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-  *(uint64_t*) mainDrawContext.indirectCount.info.pMappedData = 0;
-
-  vklog::label_buffer(device,mainDrawContext.indirectCount.buffer, "indirect count buffer");
- 
   mainDrawContext.sceneBuffers = upload_scene(
     mainDrawContext.positions,
     mainDrawContext.vertices,
@@ -175,8 +168,6 @@ void Engine::init()
     destroy_buffer(mainDrawContext.sceneBuffers.materialBuffer);
     destroy_buffer(mainDrawContext.sceneBuffers.positionBuffer);
     destroy_buffer(mainDrawContext.sceneBuffers.boundsBuffer);
-
-    destroy_buffer(mainDrawContext.indirectCount);
   });
 
   // prepare gfx effects
@@ -558,7 +549,7 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
     cmd,
     opaque_set.buffers.indirect_draws.buffer,
     0,
-    mainDrawContext.indirectCount.buffer,
+    opaque_set.buffers.indirect_count.buffer,
     0,
     opaque_set.draw_datas.size(),
     sizeof(IndirectDraw)
@@ -569,7 +560,6 @@ void Engine::draw_shadow_pass(VkCommandBuffer cmd)
 
 void Engine::draw_depth_prepass(VkCommandBuffer cmd)
 {
-
   if (opaque_set.draw_datas.size() == 0)
     return;
   
@@ -591,8 +581,6 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
   *sceneUniformData = sceneData;
   
-  // FIXME: dont create a new uniform buffer every time :sob:
-
   VkDescriptorSet depth = get_current_frame().frameDescriptors.allocate(device, zpassDescriptorLayout);
   DescriptorWriter writer;
   writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // FIXME: .buffer .buffer :sob:
@@ -613,7 +601,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     cmd,
     opaque_set.buffers.indirect_draws.buffer,
     0,
-    mainDrawContext.indirectCount.buffer,
+    opaque_set.buffers.indirect_count.buffer,
     0,
     opaque_set.draw_datas.size(),
     sizeof(IndirectDraw)
@@ -629,51 +617,13 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   stats.drawcall_count = 0;
   stats.triangle_count = 0;
 
-
-  
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
   depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
   VkRenderingInfo renderInfo = vkinit::rendering_info(m_DrawExtent, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
-  
-  // descriptor set for scene data created every frame! temporal per frame data - skinned mesh? (UBO)
-  
-  // AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  // get_current_frame().deletionQueue.push_function([=, this] {
-  //   destroy_buffer(gpuSceneDataBuffer);
-  // });
-
-  AllocatedBuffer shadowSettings = create_buffer(sizeof(ShadowFragmentSettings), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  get_current_frame().deletionQueue.push_function([=, this] {
-    destroy_buffer(shadowSettings);
-  });
-
-  // GPUSceneData* sceneUniformData = (GPUSceneData*) gpuSceneDataBuffer.allocation->GetMappedData();
-  // *sceneUniformData = sceneData;
-
-  ShadowFragmentSettings* settings = (ShadowFragmentSettings*) shadowSettings.allocation->GetMappedData();
-  settings->lightViewProj = pcss_settings.lightViewProj;
-  settings->near = 0.1;
-  settings->far = 20.0;
-  settings->light_size = 0.1;
-  settings->enabled = shadowEnabled.get();
-  settings->softness = shadowSoftness.get();
-  settings->texture_idx = m_ShadowDepthImage.texture_idx; // how to give it a specific sampler
-
-  
-  AllocatedBuffer sceneDataBuf = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  get_current_frame().deletionQueue.push_function([=, this](){
-     destroy_buffer(sceneDataBuf);
-  });
-
-  GPUSceneData* sceneUniformData = (GPUSceneData*) sceneDataBuf.allocation->GetMappedData();
-  *sceneUniformData = sceneData;
-
-
-  // writer.update_set(device, globalDescriptor);
-  
+    
   VkViewport viewport = vkinit::dynamic_viewport(m_DrawExtent);
   vkCmdSetViewport(cmd, 0, 1, &viewport);
 
@@ -693,82 +643,16 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
   // vkCmdBindIndexBuffer(cmd, mainDrawContext.OpaqueSurfaces[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
   // FIXME: if u remove many then u get gaps?? burh this is hella complex dont support unloading meshes... only streaming!
 
-  if (opaque_set.draw_datas.size() != 0)
-  {
-
-    VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
-    DescriptorWriter writer;
-    writer.write_buffer(0, sceneDataBuf.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  
-    // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
-  
-    writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  
-    writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    writer.write_buffer(4, opaque_set.buffers.draw_data.buffer, opaque_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    writer.update_set(device, globalDescriptor);
-
-
-    
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
-
-    vkCmdDrawIndexedIndirectCount(
-      cmd,
-      opaque_set.buffers.indirect_draws.buffer,
-      0,
-      mainDrawContext.indirectCount.buffer,
-      0,
-      opaque_set.draw_datas.size(),
-      sizeof(IndirectDraw)
-    );
-  }
 
 
   // draw transparent
   // bind transparent pipeline!
 
 
+  render_draw_set(cmd, opaque_set);
+  render_draw_set(cmd, transparent_set);
   
-  
 
-  if (transparent_set.draw_datas.size() != 0)
-  {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, transparent_set.pipeline);
-    
-    VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
-    DescriptorWriter writer;
-    writer.write_buffer(0, sceneDataBuf.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-    // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
-
-    writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-    writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    
-    writer.write_buffer(4, transparent_set.buffers.draw_data.buffer, transparent_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-    writer.update_set(device, globalDescriptor);
-
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
-    vkCmdDrawIndexedIndirectCount(
-      cmd,
-      transparent_set.buffers.indirect_draws.buffer,
-      0,
-      mainDrawContext.indirectCount.buffer,
-      4,
-      transparent_set.draw_datas.size(),
-      sizeof(IndirectDraw)
-    );
-  }
 
   // vkCmdDrawIndexed(cmd, 36, 1, 0, 0, 0);
 
@@ -927,18 +811,6 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   CVarSystem::get()->draw_editor();
   FrameGraph::render_graph();
 
-    // graphics programming stats menu
-  ImGui::Begin("better stats");
-    float framesPerSecond = 1.0f / (stats.frametime * 0.001f);
-    ImGui::Text("afps: %.0f rad/s", glm::two_pi<float>() * framesPerSecond);
-    ImGui::Text("dfps: %.0f °/s", glm::degrees(glm::two_pi<float>() * framesPerSecond));
-    ImGui::Text("rfps: %.0f", framesPerSecond);
-    ImGui::Text("rpms: %.0f", framesPerSecond * 60.0f);
-    ImGui::Text("  ft: %.2f ms", stats.frametime);
-    ImGui::Text("   f: %lu", frameNumber);
-  ImGui::End();
-
-
   ImGui::Begin("Texture Picker");
     static int32_t texture_idx = 0;
     ImGui::Text("Bindless Texture Picker");
@@ -961,8 +833,8 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui::Begin("Debug Overlay", nullptr, flags);
     VkExtent2D extent = Window::get_extent();
     ImGui::Text("lucerna-dev (pre-alpha)");
-    ImGui::Text("[instance version %s]", instanceVersion.c_str());
-    ImGui::Text("gpu: %s", gpuName.c_str());
+    ImGui::Text("[instance version %s]", stats.instanceVersion.c_str());
+    ImGui::Text("gpu: %s", stats.gpuName.c_str());
     ImGui::Text("resolution: %dx%d", extent.width, extent.height);
     ImGui::Text("present mode: %s", vkutil::stringify_present_mode(m_Swapchain.presentMode).c_str());
     ImGui::Text("frame: %zu", frameNumber);
@@ -984,9 +856,7 @@ void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& functio
   VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   
   VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
   function(cmd);
-
   VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
   VkCommandBufferSubmitInfo cmdInfo = vkinit::command_buffer_submit_info(cmd);
@@ -1293,7 +1163,7 @@ void Engine::validate_instance_supported()
   vkEnumerateInstanceVersion(&version);
   LA_LOG_ASSERT(version > VK_API_VERSION_1_3, "This Application requires Vulkan 1.3, which has not been found!");
   LA_LOG_INFO("Using Vulkan Instance [version {}.{}.{}]", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
-  instanceVersion = std::format("{}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
+  stats.instanceVersion = std::format("{}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
   
   // validate validation layer support
   if (m_UseValidationLayers)
@@ -1420,7 +1290,7 @@ void Engine::create_device()
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(m_Device.physical, &properties);
   LA_LOG_INFO("Using {}", properties.deviceName);
-  gpuName = properties.deviceName;
+  stats.gpuName = properties.deviceName;
     
   device = m_Device.logical;
   physicalDevice = m_Device.physical;
@@ -2148,9 +2018,8 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
 	pcs.ids = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo);
 
 
-  VkBufferDeviceAddressInfo indirectCountBuffer{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = mainDrawContext.indirectCount.buffer };
+  VkBufferDeviceAddressInfo indirectCountBuffer{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.indirect_count.buffer };
   pcs.indirect_count = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectCountBuffer);
-  pcs.indirect_count += draw_set.indirect_count_offset;
 
   VkBufferDeviceAddressInfo partialBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.partialSums.buffer };
   pcs.partial = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &partialBuff);
@@ -2296,15 +2165,14 @@ void Engine::init_draw_sets()
 {
   // make pipeline for opaque, transparent, etc...
   // layout and descriptor is the same for all of them, except the pipeline config changes for blend and double sided...
-  upload_draw_set(opaque_set);
-  upload_draw_set(transparent_set);
-
-
 
 
   
-  opaque_set.indirect_count_offset = 0;
-  transparent_set.indirect_count_offset = sizeof(uint32_t);
+  upload_draw_set(opaque_set);
+  upload_draw_set(transparent_set);
+
+  opaque_set.buffers.indirect_count = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+  transparent_set.buffers.indirect_count = create_buffer(sizeof(uint32_t), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
   m_DeletionQueue.push_function([=, this](){
     // destroy all draw_sets
@@ -2312,13 +2180,76 @@ void Engine::init_draw_sets()
     destroy_buffer(opaque_set.buffers.indirect_draws);
     destroy_buffer(opaque_set.buffers.outputCompact);
     destroy_buffer(opaque_set.buffers.partialSums);
+    destroy_buffer(opaque_set.buffers.indirect_count);
 
     destroy_buffer(transparent_set.buffers.draw_data);
     destroy_buffer(transparent_set.buffers.indirect_draws);
     destroy_buffer(transparent_set.buffers.outputCompact);
     destroy_buffer(transparent_set.buffers.partialSums);
+    destroy_buffer(transparent_set.buffers.indirect_count);
   });
 }
 
+
+void Engine::render_draw_set(VkCommandBuffer cmd, DrawSet& draw_set)
+{
+  AllocatedBuffer shadowSettings = create_buffer(sizeof(ShadowFragmentSettings), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  get_current_frame().deletionQueue.push_function([=, this] {
+    destroy_buffer(shadowSettings);
+  });
+
+  ShadowFragmentSettings* settings = (ShadowFragmentSettings*) shadowSettings.allocation->GetMappedData();
+  settings->lightViewProj = pcss_settings.lightViewProj;
+  settings->near = 0.1;
+  settings->far = 20.0;
+  settings->light_size = 0.1;
+  settings->enabled = shadowEnabled.get();
+  settings->softness = shadowSoftness.get();
+  settings->texture_idx = m_ShadowDepthImage.texture_idx; // how to give it a specific sampler
+
+  
+  AllocatedBuffer sceneDataBuf = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  get_current_frame().deletionQueue.push_function([=, this](){
+     destroy_buffer(sceneDataBuf);
+  });
+
+  GPUSceneData* sceneUniformData = (GPUSceneData*) sceneDataBuf.allocation->GetMappedData();
+  *sceneUniformData = sceneData;
+
+  
+  if (draw_set.draw_datas.size() != 0)
+  {
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_set.pipeline);
+    
+    VkDescriptorSet globalDescriptor = get_current_frame().frameDescriptors.allocate(device, m_SceneDescriptorLayout);
+    DescriptorWriter writer;
+    writer.write_buffer(0, sceneDataBuf.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.write_image(1, m_ShadowDepthImage.imageView, m_ShadowSampler, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    writer.write_buffer(2, shadowSettings.buffer, sizeof(ShadowFragmentSettings), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.write_image(3, ssao::outputBlurred.imageView, m_DefaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+    // write draw data in a more frequently updated set..? or have it be a global buffer and have an offset..?
+
+    writer.write_buffer(5, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.write_buffer(6, mainDrawContext.sceneBuffers.materialBuffer.buffer, mainDrawContext.standard_materials.size() * sizeof(StandardMaterial), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+    writer.write_buffer(7, mainDrawContext.sceneBuffers.positionBuffer.buffer, mainDrawContext.positions.size() * sizeof(glm::vec3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.write_buffer(8, mainDrawContext.sceneBuffers.vertexBuffer.buffer, mainDrawContext.vertices.size() * sizeof(Vertex), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    
+    writer.write_buffer(4, draw_set.buffers.draw_data.buffer, draw_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    writer.update_set(device, globalDescriptor);
+
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &globalDescriptor, 0, nullptr);
+    vkCmdDrawIndexedIndirectCount(
+      cmd,
+      draw_set.buffers.indirect_draws.buffer,
+      0,
+      draw_set.buffers.indirect_count.buffer,
+      0,
+      draw_set.draw_datas.size(),
+      sizeof(IndirectDraw)
+    );
+  }
+}
 
 } // namespace Lucerna
