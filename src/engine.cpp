@@ -359,8 +359,18 @@ void Engine::draw()
   // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 1, 1, &bindless_descriptor_set, 0, nullptr);
   // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &global_descriptor_set, 0, nullptr);
 
+  vklog::start_debug_label(cmd, "Compute Culling", MARKER_RED);
+
+  vklog::start_debug_label(cmd, "Opaque Draw Set", MARKER_GREEN);
   do_culling(cmd, opaque_set);
+  vklog::end_debug_label(cmd);
+
+  
+  vklog::start_debug_label(cmd, "Opaque Draw Set", MARKER_GREEN);
   do_culling(cmd, transparent_set);
+  vklog::end_debug_label(cmd);
+
+  vklog::end_debug_label(cmd);
   
 
 
@@ -455,20 +465,23 @@ void Engine::draw()
 
 void Engine::draw_background(VkCommandBuffer cmd)
 {
-  vklog::start_debug_marker(cmd, "background", MARKER_RED);
+  vklog::start_debug_label(cmd, "background", MARKER_RED);
   
-  ComputeEffect effect = m_BackgroundEffects[m_BackgroundEffectIndex]; 
+  // ComputeEffect effect = m_BackgroundEffects[m_BackgroundEffectIndex]; 
 
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &m_DrawDescriptors, 0, nullptr);
+  // vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
+  // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.layout, 0, 1, &m_DrawDescriptors, 0, nullptr);
   
-  ComputePushConstants pc;
-  vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
+  // ComputePushConstants pc;
+  // vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 
-  vkCmdDispatch(cmd, std::ceil(internalExtent.width / 16.0), std::ceil(internalExtent.height / 16.0), 1);
+  // vkCmdDispatch(cmd, std::ceil(internalExtent.width / 16.0), std::ceil(internalExtent.height / 16.0), 1);
 
-
-  vklog::end_debug_marker(cmd);
+  VkClearColorValue clearValue{{0.1, 0.2, 0.25, 1.0}};
+  VkImageSubresourceRange range = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+  vkCmdClearColorImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &range);
+    
+  vklog::end_debug_label(cmd);
 }
 
 void Engine::draw_shadow_pass(VkCommandBuffer cmd)
@@ -569,7 +582,7 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     return;
   
 
-  vklog::start_debug_marker(cmd, "depth prepass", MARKER_GREEN);
+  vklog::start_debug_label(cmd, "depth prepass", MARKER_GREEN);
   
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
@@ -619,12 +632,12 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   vkCmdEndRendering(cmd);
 
 
-  vklog::end_debug_marker(cmd);
+  vklog::end_debug_label(cmd);
 }
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
-  vklog::start_debug_marker(cmd, "opaque geometry", MARKER_BLUE);
+  vklog::start_debug_label(cmd, "opaque geometry", MARKER_BLUE);
   
   auto start = std::chrono::system_clock::now();
   stats.drawcall_count = 0;
@@ -664,12 +677,12 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
   render_draw_set(cmd, opaque_set);
 
-  vklog::end_debug_marker(cmd);
-  vklog::start_debug_marker(cmd, "transparent geometry", MARKER_RED);
+  vklog::end_debug_label(cmd);
+  vklog::start_debug_label(cmd, "transparent geometry", MARKER_RED);
   
   render_draw_set(cmd, transparent_set);
 
-  vklog::end_debug_marker(cmd);
+  vklog::end_debug_label(cmd);
   
 
 
@@ -823,7 +836,7 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
 
 void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 {
-  vklog::start_debug_marker(cmd, "imgui", MARKER_GREEN);
+  vklog::start_debug_label(cmd, "imgui", MARKER_GREEN);
   
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
@@ -867,7 +880,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui::Render();
   VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
 
-  vklog::end_debug_marker(cmd);
+  vklog::end_debug_label(cmd);
 }
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
@@ -1604,8 +1617,6 @@ void Engine::update_descriptors()
 //FIXME: this whole function is wack i should divide it up .. or move to init_descriptors or smth
 void Engine::init_pipelines()
 {
-  init_background_pipelines(); // compute backgrounds
-
   init_bindless_pipeline_layout();
   init_depth_prepass_pipeline();
   init_shadow_map_pipeline();
@@ -1705,67 +1716,6 @@ void Engine::init_pipelines()
 
 }
 
-void Engine::init_background_pipelines()
-{
-  VkPipelineLayoutCreateInfo computeLayout = vkinit::pipeline_layout_create_info();
-  computeLayout.pSetLayouts = &m_DrawDescriptorLayout;
-  computeLayout.setLayoutCount = 1;
-  
-  VkPushConstantRange pcs{};
-  pcs.offset = 0;
-  pcs.size = sizeof(ComputePushConstants);
-  pcs.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-  
-  computeLayout.pPushConstantRanges = &pcs;
-  computeLayout.pushConstantRangeCount = 1;
-  
-  VkPipelineLayout layout{};
-
-  VK_CHECK_RESULT(vkCreatePipelineLayout(device, &computeLayout, nullptr, &layout));
-
-  VkShaderModule gradientShader;
-  LA_LOG_ASSERT(
-    vkutil::load_shader_module("shaders/push_gradient.comp.spv", device, &gradientShader),
-    "Error loading Gradient Compute Effect Shader"
-  );  
-
-  VkPipelineShaderStageCreateInfo stageInfo = vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader);
-
-  VkComputePipelineCreateInfo computePipelineCreateInfo{};
-  computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-  computePipelineCreateInfo.pNext = nullptr;
-  computePipelineCreateInfo.layout = layout;
-  computePipelineCreateInfo.stage = stageInfo;
-    
-  ComputeEffect gradient;
-  gradient.layout = layout;
-  gradient.name = "gradient";
-  gradient.data = {};
-
-  gradient.data.data1[0] = 0.1;
-  gradient.data.data1[1] = 0.2;
-  gradient.data.data1[2] = 0.25;
-  gradient.data.data1[3] = 1;
-
-  gradient.data.data2[0] = 0;
-  gradient.data.data2[1] = 0;
-  gradient.data.data2[2] = 1;
-  gradient.data.data2[3] = 1;
-
-  VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
-
-  m_BackgroundEffects.push_back(gradient);
-
-  vkDestroyShaderModule(device, gradientShader, nullptr);
-
-  m_DeletionQueue.push_function([&, layout]() {
-    vkDestroyPipelineLayout(device, layout, nullptr);
-    for (const auto& bgEffect : m_BackgroundEffects)
-    {
-      vkDestroyPipeline(device, bgEffect.pipeline, nullptr);
-    }
-  });
-}
 
 void Engine::init_depth_prepass_pipeline()
 {
@@ -2025,8 +1975,6 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
   if (draw_set.draw_datas.size() == 0)
     return;
 
-  vklog::start_debug_marker(cmd, "draw set culling", MARKER_GREEN);
-  
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
 
   // this should be part of the mainDrawContext - not allocated every frame etc... its literally only updated once and then can just bind it when u change pipeline
@@ -2136,9 +2084,7 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
   }
 
 
-  vklog::end_debug_marker(cmd);
-
-  
+ 
 }
 
 void Engine::upload_draw_set(DrawSet& set)

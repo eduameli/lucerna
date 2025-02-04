@@ -117,20 +117,6 @@ namespace Lucerna {
       // draw set - many diff buckets (alpha cutoff, transparent, ??)
 
       
-      struct ComputePushConstants
-      {
-        float data1[4];
-        float data2[4];
-        float data3[4];
-        float data4[4];
-      };
-      struct ComputeEffect
-      {
-        const char* name;
-        VkPipeline pipeline;
-        VkPipelineLayout layout;
-        ComputePushConstants data;
-      };
     
       DeviceContext m_Device;
       SwapchainContext m_Swapchain;
@@ -192,7 +178,6 @@ namespace Lucerna {
       void init_pipelines();
       void init_depth_prepass_pipeline();
       void init_shadow_map_pipeline();
-      void init_background_pipelines();
       void init_mesh_pipeline();
       void init_imgui();
       void init_default_data();
@@ -269,8 +254,6 @@ namespace Lucerna {
       VkInstance m_Instance;
       VkDebugUtilsMessengerEXT m_DebugMessenger; //NOTE move to Logger?
       VkSurfaceKHR m_Surface;
-      int m_BackgroundEffectIndex{ 0 };
-      std::vector<ComputeEffect> m_BackgroundEffects;
       std::vector<const char*> m_InstanceExtensions = {};
       std::vector<const char*> m_DeviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
