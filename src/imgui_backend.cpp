@@ -1,6 +1,7 @@
 #include "imgui_backend.h"
 #include "la_asserts.h"
 #include "input_structures.glsl"
+#include "logger.h"
 #include "vk_descriptors.h"
 #include "vk_initialisers.h"
 #include "vk_pipelines.h"
@@ -10,8 +11,8 @@
 
 namespace Lucerna {
 
-static const uint32_t MAX_IDX_COUNT = 100000000;
-static const uint32_t MAX_VTX_COUNT = 100000000;
+static const uint32_t MAX_IDX_COUNT = 1000000;
+static const uint32_t MAX_VTX_COUNT = 1000000;
 
 
 static_assert(
@@ -30,7 +31,7 @@ uint32_t to_bindless_idx(ImTextureID id)
 void VulkanImGuiBackend::init(Engine* engine)
 {
   // create index buffer
-  indexBuffer = engine->create_buffer(sizeof(ImDrawIdx) * MAX_IDX_COUNT, VK_BUFFER_USAGE_2_INDEX_BUFFER_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  indexBuffer = engine->create_buffer(sizeof(ImDrawIdx) * MAX_IDX_COUNT, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
   // create vertex buffer
   vertexBuffer = engine->create_buffer(sizeof(ImVertexFormat) * MAX_VTX_COUNT, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
@@ -114,6 +115,7 @@ void VulkanImGuiBackend::draw(
 )
 {
   Engine* engine = Engine::get();
+
   const ImDrawData* drawData = ImGui::GetDrawData();
 
   LA_ASSERT(drawData != nullptr);

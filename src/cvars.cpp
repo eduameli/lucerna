@@ -101,17 +101,6 @@ public:
   template<typename T>
   CVarArray<T>* get_cvar_array();
 
-  template<>
-  CVarArray<int32_t>* get_cvar_array()
-  {
-    return &intCVars2;
-  }
-
-  template<>
-  CVarArray<float>* get_cvar_array()
-  {
-    return &floatCVars;
-  }
 
 
   CVarParameter* get_cvar(StringUtils::StringHash hash) override final;
@@ -157,6 +146,20 @@ private:
   std::unordered_map<uint32_t, CVarParameter> savedCVars;
   std::vector<CVarParameter*> searchResults;
 };
+
+
+
+template<>
+CVarArray<int32_t>* CVarSystemImpl::get_cvar_array()
+{
+  return &intCVars2;
+}
+
+template<>
+CVarArray<float>* CVarSystemImpl::get_cvar_array()
+{
+  return &floatCVars;
+}
 
 CVarParameter* CVarSystemImpl::init_cvar(const char* name, const char* description)
 {

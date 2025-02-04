@@ -19,7 +19,6 @@ project "lucerna"
     targetdir ("build/bin/%{cfg.buildcfg}")
     objdir ("build/obj/%{cfg.buildcfg}")
     
-    buildoptions {"-Wnullability-completeness"}
 
     defines 
     {

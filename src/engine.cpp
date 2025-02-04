@@ -455,6 +455,8 @@ void Engine::draw()
 
 void Engine::draw_background(VkCommandBuffer cmd)
 {
+  vklog::start_debug_marker(cmd, "background", MARKER_RED);
+  
   ComputeEffect effect = m_BackgroundEffects[m_BackgroundEffectIndex]; 
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
@@ -464,6 +466,9 @@ void Engine::draw_background(VkCommandBuffer cmd)
   vkCmdPushConstants(cmd, effect.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 
   vkCmdDispatch(cmd, std::ceil(internalExtent.width / 16.0), std::ceil(internalExtent.height / 16.0), 1);
+
+
+  vklog::end_debug_marker(cmd);
 }
 
 void Engine::draw_shadow_pass(VkCommandBuffer cmd)
@@ -563,6 +568,9 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   if (opaque_set.draw_datas.size() == 0)
     return;
   
+
+  vklog::start_debug_marker(cmd, "depth prepass", MARKER_GREEN);
+  
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
   vkCmdBeginRendering(cmd, &depthPrepassInfo);
@@ -609,10 +617,15 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   
   
   vkCmdEndRendering(cmd);
+
+
+  vklog::end_debug_marker(cmd);
 }
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
+  vklog::start_debug_marker(cmd, "opaque geometry", MARKER_BLUE);
+  
   auto start = std::chrono::system_clock::now();
   stats.drawcall_count = 0;
   stats.triangle_count = 0;
@@ -650,7 +663,13 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
 
   render_draw_set(cmd, opaque_set);
+
+  vklog::end_debug_marker(cmd);
+  vklog::start_debug_marker(cmd, "transparent geometry", MARKER_RED);
+  
   render_draw_set(cmd, transparent_set);
+
+  vklog::end_debug_marker(cmd);
   
 
 
@@ -804,6 +823,8 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
 
 void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 {
+  vklog::start_debug_marker(cmd, "imgui", MARKER_GREEN);
+  
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
@@ -845,6 +866,8 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui::EndFrame();
   ImGui::Render();
   VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
+
+  vklog::end_debug_marker(cmd);
 }
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
@@ -1520,6 +1543,8 @@ void Engine::init_bindless_pipeline_layout()
 void Engine::update_descriptors()
 {
   if (upload_storage.size() + upload_sampled.size() == 0) return;
+
+  LA_LOG_DEBUG("Updating Bindless Descriptors");
   
   std::vector<VkWriteDescriptorSet> writes;
   std::vector<VkDescriptorImageInfo> infos;
@@ -2000,6 +2025,8 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
   if (draw_set.draw_datas.size() == 0)
     return;
 
+  vklog::start_debug_marker(cmd, "draw set culling", MARKER_GREEN);
+  
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
 
   // this should be part of the mainDrawContext - not allocated every frame etc... its literally only updated once and then can just bind it when u change pipeline
@@ -2107,6 +2134,9 @@ void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
 
     vkCmdPipelineBarrier2(cmd, &info);
   }
+
+
+  vklog::end_debug_marker(cmd);
 
   
 }

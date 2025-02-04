@@ -92,6 +92,28 @@ namespace vklog {
 #endif
   }
 
+
+  #define MARKER_RED glm::vec4(0.5, 0.0, 0.0, 1.0)
+  #define MARKER_GREEN glm::vec4(0.0, 0.5, 0.0, 1.0)
+  #define MARKER_BLUE glm::vec4(0.0, 0.0, 0.5, 1.0)
+  
+  inline void start_debug_marker(VkCommandBuffer cmd, const char* name, glm::vec4 colour)
+  {
+   const VkDebugUtilsLabelEXT cmdLabel = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+        .pLabelName = name,
+        .color = {colour.x, colour.y, colour.z, colour.w},
+    };
+
+    
+    vkCmdBeginDebugUtilsLabelEXT(cmd, &cmdLabel);
+  }
+
+  inline void end_debug_marker(VkCommandBuffer cmd)
+  {
+    vkCmdEndDebugUtilsLabelEXT(cmd);
+  }
+
   VkBool32 validation_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,

@@ -6,6 +6,7 @@
 #include "la_asserts.h"
 #include "vk_images.h"
 #include "vk_pipelines.h"
+#include "logger.h"
 #include <vulkan/vulkan_core.h>
 
 namespace Lucerna {
@@ -129,7 +130,8 @@ void bloom::run(VkCommandBuffer cmd, VkImageView targetImage)
   // run compute downsample
   // run compute upsample
   // mix with target img
-
+  vklog::start_debug_marker(cmd, "bloom", MARKER_BLUE);
+  
   Engine* engine = Engine::get();
   VkExtent3D size = {engine->internalExtent.width, engine->internalExtent.height, 1};
 
@@ -271,6 +273,8 @@ void bloom::run(VkCommandBuffer cmd, VkImageView targetImage)
 
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
+
+  vklog::end_debug_marker(cmd);
   // FIXME: do i need a barrier here?
 }
 
@@ -453,6 +457,8 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   bind pipeline
   write descriptor set -- depth binding 0 output binding 1
   */
+
+  vklog::start_debug_marker(cmd, "ssao", MARKER_RED);
   
   Engine* engine = Engine::get();
   VkExtent3D size = engine->internalExtent;
@@ -534,6 +540,9 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
 
   vkCmdPipelineBarrier2(cmd, &depInfo);
   // FIXME: do i need a barrier here??
+  //
+  //
+  vklog::end_debug_marker(cmd);
 }
 
 } // namespace Lucerna
