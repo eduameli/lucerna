@@ -11,6 +11,7 @@
 [submodule "vendor/imgui"]
 	path = vendor/imgui
 	url = git@github.com:ocornut/imgui.git
+	ignore = dirty
 	branch = docking
 	
 [submodule "vendor/glm"]
