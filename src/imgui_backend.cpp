@@ -25,7 +25,7 @@ static_assert(
 
 uint32_t to_bindless_idx(ImTextureID id)
 {
-  return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(id));
+  return static_cast<uint32_t>(id);
 }
 
 void VulkanImGuiBackend::init(Engine* engine)

@@ -73,7 +73,7 @@ void FrameGraph::render_graph()
   std::string str = std::format("avg ms:  {}", avg);
   
   ImGui::Begin("Frame Graph", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::PlotLines("", [](void *data, int idx) -> float {
+    ImGui::PlotLines("##", [](void *data, int idx) -> float {
                     auto ft = static_cast<std::deque<float> *>(data);
                     return idx < ft->size() ? ft->at(idx) : 0.0f;
                 }, &frametimes, frametimes.size(), 0, nullptr, avg - 8*sd, avg + 8*sd, ImVec2{190, 100});
