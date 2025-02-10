@@ -130,6 +130,7 @@ void VulkanImGuiBackend::draw(
   "Custom ImGuiBackend surpassed hardcoded upper limit for indices/vertices, buffer resize is not implemented yet!");
   
   copy_buffers(cmd, device);
+  
   VkRenderingAttachmentInfo colourAttachemnt = vkinit::attachment_info(swapchainImageView, nullptr);
   VkRenderingInfo renderInfo = vkinit::rendering_info(swapchainExtent, &colourAttachemnt, nullptr);
 
@@ -307,14 +308,14 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
 
   for (int i = 0; i < drawData->CmdListsCount; i++)
   {
-    const auto& cmdList = *drawData->CmdLists[i];
+    ImDrawList* cmdList = drawData->CmdLists[i];
 
     
-    AllocatedBuffer staging = engine->create_buffer(cmdList.IdxBuffer.size_in_bytes() + cmdList.VtxBuffer.size_in_bytes(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    AllocatedBuffer staging = engine->create_buffer(cmdList->IdxBuffer.size_in_bytes() + cmdList->VtxBuffer.size_in_bytes(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
     void* data = staging.info.pMappedData;
 
-    memcpy(data, cmdList.VtxBuffer.Data, cmdList.VtxBuffer.size_in_bytes());
-    memcpy((uint8_t*) data + cmdList.VtxBuffer.size_in_bytes(), cmdList.IdxBuffer.Data, cmdList.IdxBuffer.size_in_bytes());
+    memcpy(data, cmdList->VtxBuffer.begin(), cmdList->VtxBuffer.size_in_bytes());
+    memcpy(((uint8_t*) data) + cmdList->VtxBuffer.size_in_bytes(), cmdList->IdxBuffer.begin() , cmdList->IdxBuffer.size_in_bytes());
     
     engine->immediate_submit([=](VkCommandBuffer cmd){
       VkBufferCopy2 idxRegion, vtxRegion;
@@ -324,7 +325,7 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
         .sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2,
         .srcOffset = 0,
         .dstOffset = currentVertexoffset * sizeof(ImVertexFormat),
-        .size = (VkDeviceSize) cmdList.VtxBuffer.size_in_bytes(),
+        .size = (VkDeviceSize) cmdList->VtxBuffer.size_in_bytes(),
       };
 
       vtxCopy = {
@@ -340,9 +341,9 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
 
       idxRegion = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2,
-        .srcOffset = (VkDeviceSize) cmdList.VtxBuffer.size_in_bytes(),
+        .srcOffset = (VkDeviceSize) cmdList->VtxBuffer.size_in_bytes(),
         .dstOffset = currentIndexOffset * sizeof(ImDrawIdx),
-        .size = (VkDeviceSize) cmdList.IdxBuffer.size_in_bytes()
+        .size = (VkDeviceSize) cmdList->IdxBuffer.size_in_bytes()
       };
 
       idxCopy = {
@@ -355,14 +356,14 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
       };
 
       vkCmdCopyBuffer2(cmd, &idxCopy);
-      
-                   
     });
 
-    currentIndexOffset += cmdList.IdxBuffer.Size;
-    currentVertexoffset += cmdList.VtxBuffer.Size;
+
+    currentIndexOffset += cmdList->IdxBuffer.size();
+    currentVertexoffset += cmdList->VtxBuffer.size();
     
     engine->destroy_buffer(staging);
+
   }
 
 
@@ -397,9 +398,8 @@ void VulkanImGuiBackend::copy_buffers(VkCommandBuffer cmd, VkDevice device)
     };
 
     vkCmdPipelineBarrier2(cmd, &info);
-  }
 
-  
+  }
 }
 
 void VulkanImGuiBackend::cleanup(Engine* engine)

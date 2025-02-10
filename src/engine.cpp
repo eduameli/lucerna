@@ -841,7 +841,7 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-    
+  // /* remove for now to use docking
   CVarSystem::get()->draw_editor();
   FrameGraph::render_graph();
 
@@ -875,7 +875,9 @@ void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
 
     ImGui::Text("opaque %zu | transparent %zu", opaque_set.draw_datas.size(), transparent_set.draw_datas.size());
   ImGui::End();
+  // */
   
+ 
   ImGui::EndFrame();
   ImGui::Render();
   VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
@@ -1883,6 +1885,7 @@ void Engine::init_imgui()
     colour.w = colour.w;
   }
 
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
   m_DeletionQueue.push_function([=, this]() {
     VulkanImGuiBackend::cleanup(this);
