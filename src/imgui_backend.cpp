@@ -413,7 +413,7 @@ void VulkanImGuiBackend::cleanup(Engine* engine)
 }
 
 
-void VulkanImGuiBackend::render_ui(VkCommandBuffer cmd, VkImageView target)
+void VulkanImGuiBackend::render_editor(VkCommandBuffer cmd, VkImageView target)
 {
 
   vklog::start_debug_label(cmd, "imgui", MARKER_GREEN);

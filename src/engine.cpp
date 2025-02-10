@@ -372,7 +372,7 @@ void Engine::draw()
   
   // draw ui directly on swapchain image
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  VulkanImGuiBackend::render_ui(cmd, m_Swapchain.views[swapchainImageIndex]);
+  VulkanImGuiBackend::render_editor(cmd, m_Swapchain.views[swapchainImageIndex]);
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 
