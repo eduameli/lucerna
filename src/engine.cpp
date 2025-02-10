@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "application.h"
+#include "cvars.h"
 #include "lucerna_pch.h"
 #include "la_asserts.h"
 #include "glm/ext/matrix_transform.hpp"
@@ -49,45 +50,8 @@ AutoCVar_Int ssaoDisplayTexture("ssao.display_texture", "", 0, CVarFlags::EditCh
 AutoCVar_Float ssaoKernelRadius("ssao.kernel_radius", "", 0.0, CVarFlags::None);
 AutoCVar_Int ssaoEnabled("ssao.enabled", "", 1, CVarFlags::EditCheckbox);
 
-void FrameGraph::add_sample(float sample)
-{
-  frametimes.push_back(sample);
-  if (frametimes.size() == 120) frametimes.pop_front();
-}
-
-void FrameGraph::render_graph()
-{
-
-  float avg = std::accumulate(frametimes.begin(), frametimes.end(), 0.0f) / frametimes.size();
-  float min = *std::min_element(frametimes.begin(), frametimes.end());
-  float max = *std::max_element(frametimes.begin(), frametimes.end());
-  
-  double variance = 0.0;
-  std::for_each(frametimes.begin(), frametimes.end(), [&](const float& val) {
-      variance += std::pow(val - avg, 2);
-  });
-
-  variance /= frametimes.size();
-  float sd = glm::sqrt(variance);
-    
-  std::string str = std::format("avg ms:  {}", avg);
-  
-  ImGui::Begin("Frame Graph", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::PlotLines("##", [](void *data, int idx) -> float {
-                    auto ft = static_cast<std::deque<float> *>(data);
-                    return idx < ft->size() ? ft->at(idx) : 0.0f;
-                }, &frametimes, frametimes.size(), 0, nullptr, avg - 8*sd, avg + 8*sd, ImVec2{190, 100});
-
-    ImGui::Text("avg: %.3f", avg);
-    ImGui::Text(" sd: %.3f\t cv: %.3f", sd, sd/avg);
-    ImGui::Text("min: %.3f\tmax: %.3f", min, max);
 
 
-    uint32_t* cnt = (uint32_t*) Engine::get()->opaque_set.buffers.indirect_count.info.pMappedData;
-    ImGui::Text("indirect count: %i", *cnt);
-    
-  ImGui::End();
-}
 
 static Engine* s_Instance = nullptr;
 Engine* Engine::get()
@@ -405,22 +369,10 @@ void Engine::draw()
   bloom::run(cmd, m_DrawImage.imageView);
   vkutil::transition_image(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   
-  vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   
-  if (ssaoDisplayTexture.get() == true)
-  {
-    vkutil::transition_image(cmd, ssao::outputAmbient.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    vkutil::copy_image_to_image(cmd, ssao::outputAmbient.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
-    vkutil::transition_image(cmd, ssao::outputAmbient.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-
-  }
-  else
-  {
-    vkutil::copy_image_to_image(cmd, m_DrawImage.image, m_Swapchain.images[swapchainImageIndex], m_DrawExtent, m_Swapchain.extent2d);
-  }
-  
-  vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  draw_imgui(cmd, m_Swapchain.views[swapchainImageIndex]);
+  // draw ui directly on swapchain image
+  vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VulkanImGuiBackend::draw_ui(cmd, m_Swapchain.views[swapchainImageIndex]);
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 
@@ -834,56 +786,6 @@ void Engine::draw_debug_lines(VkCommandBuffer cmd)
   // });
 }
 
-void Engine::draw_imgui(VkCommandBuffer cmd, VkImageView target)
-{
-  vklog::start_debug_label(cmd, "imgui", MARKER_GREEN);
-  
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
-
-  // /* remove for now to use docking
-  CVarSystem::get()->draw_editor();
-  FrameGraph::render_graph();
-
-  ImGui::Begin("Texture Picker");
-    static int32_t texture_idx = 0;
-    ImGui::Text("Bindless Texture Picker");
-    ImGui::InputInt("texture idx", &texture_idx);
-    ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{250, 250});
-  ImGui::End();
-
-
-  // debug overlay!
-  ImGuiWindowFlags flags =
-    ImGuiWindowFlags_NoMove |
-    ImGuiWindowFlags_NoBackground |
-    ImGuiWindowFlags_NoCollapse |
-    ImGuiWindowFlags_NoResize |
-    ImGuiWindowFlags_NoTitleBar |
-    ImGuiWindowFlags_NoSavedSettings |
-    ImGuiWindowFlags_NoScrollbar;
-
-  ImGui::SetNextWindowPos({1, 1});
-  ImGui::Begin("Debug Overlay", nullptr, flags);
-    VkExtent2D extent = Window::get_extent();
-    ImGui::Text("lucerna-dev (pre-alpha)");
-    ImGui::Text("[instance version %s]", stats.instanceVersion.c_str());
-    ImGui::Text("gpu: %s", stats.gpuName.c_str());
-    ImGui::Text("resolution: %dx%d", extent.width, extent.height);
-    ImGui::Text("present mode: %s", vkutil::stringify_present_mode(m_Swapchain.presentMode).c_str());
-    ImGui::Text("frame: %zu", frameNumber);
-
-    ImGui::Text("opaque %zu | transparent %zu", opaque_set.draw_datas.size(), transparent_set.draw_datas.size());
-  ImGui::End();
-  // */
-  
- 
-  ImGui::EndFrame();
-  ImGui::Render();
-  VulkanImGuiBackend::draw(cmd, device, target, m_Swapchain.extent2d);
-
-  vklog::end_debug_label(cmd);
-}
 
 void Engine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
 {
@@ -1322,7 +1224,7 @@ void Engine::create_device()
   m_Device = builder
     .set_minimum_version(1, 3)
     .set_required_extensions(m_DeviceExtensions)
-    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    .set_preferred_gpu_type(VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
     .build();
 
   VkPhysicalDeviceProperties properties{};
@@ -1346,7 +1248,7 @@ void Engine::init_swapchain()
   m_Swapchain = builder
     .set_preferred_format(VkFormat::VK_FORMAT_B8G8R8A8_SRGB)
     .set_preferred_colorspace(VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR)
+    .set_preferred_present(VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR)
     .build();
     
   LA_LOG_INFO("Using {}", vkutil::stringify_present_mode(m_Swapchain.presentMode));

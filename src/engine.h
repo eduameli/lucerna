@@ -58,13 +58,6 @@ namespace Lucerna {
   };
 
   
-  struct FrameGraph
-  {
-    static void add_sample(float sample);
-    static void render_graph();
-    static inline std::deque<float> frametimes{};
-    static inline float average = 0;
-  };
 
 
   // FIXME: some stuff is public that could be private!
@@ -246,7 +239,6 @@ namespace Lucerna {
       void draw_geometry(VkCommandBuffer cmd);
       void draw_shadow_pass(VkCommandBuffer cmd);
       void draw_debug_lines(VkCommandBuffer cmd);
-      void draw_imgui(VkCommandBuffer cmd, VkImageView target);
       
       void render_draw_set(VkCommandBuffer cmd, DrawSet& draw_set);
       
@@ -268,8 +260,10 @@ namespace Lucerna {
       VkDescriptorSetLayout m_DrawDescriptorLayout{};
 
       VkExtent2D m_WindowExtent{};
+    public:
       float m_RenderScale = 1.0f;
-
+    private:
+    
       #ifdef LA_DEBUG 
       constexpr static bool m_UseValidationLayers = true;
       #else

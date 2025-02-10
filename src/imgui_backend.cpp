@@ -7,7 +7,8 @@
 #include "vk_pipelines.h"
 #include "vk_types.h"
 #include <imgui.h>
-#include <vulkan/vulkan_core.h>
+
+#include <backends/imgui_impl_glfw.h>
 
 namespace Lucerna {
 
@@ -411,4 +412,170 @@ void VulkanImGuiBackend::cleanup(Engine* engine)
   engine->destroy_image(fontImage);
 }
 
+
+void VulkanImGuiBackend::draw_ui(VkCommandBuffer cmd, VkImageView target)
+{
+
+  vklog::start_debug_label(cmd, "imgui", MARKER_GREEN);
+  
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+
+  // ImGui::Begin("Texture Picker");
+  //   static int32_t texture_idx = 0;
+  //   ImGui::Text("Bindless Texture Picker");
+  //   ImGui::InputInt("texture idx", &texture_idx);
+  //   ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{250, 250});
+  // ImGui::End();
+
+  // debug overlay!
+  // ImGuiWindowFlags flags =
+  //   ImGuiWindowFlags_NoMove |
+  //   ImGuiWindowFlags_NoBackground |
+  //   ImGuiWindowFlags_NoCollapse |
+  //   ImGuiWindowFlags_NoResize |
+  //   ImGuiWindowFlags_NoTitleBar |
+  //   ImGuiWindowFlags_NoSavedSettings |
+  //   ImGuiWindowFlags_NoScrollbar;
+
+  // ImGui::SetNextWindowPos({1, 1});
+  // ImGui::Begin("Debug Overlay", nullptr, flags);
+  //   VkExtent2D extent = Window::get_extent();
+  //   ImGui::Text("lucerna-dev (pre-alpha)");
+  //   ImGui::Text("[instance version %s]", stats.instanceVersion.c_str());
+  //   ImGui::Text("gpu: %s", stats.gpuName.c_str());
+  //   ImGui::Text("resolution: %dx%d", extent.width, extent.height);
+  //   ImGui::Text("present mode: %s", vkutil::stringify_present_mode(m_Swapchain.presentMode).c_str());
+  //   ImGui::Text("frame: %zu", frameNumber);
+
+  //   ImGui::Text("opaque %zu | transparent %zu", opaque_set.draw_datas.size(), transparent_set.draw_datas.size());
+  // ImGui::End();
+
+  static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+  ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+
+  const ImGuiViewport* viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(viewport->WorkPos);
+  ImGui::SetNextWindowSize(viewport->WorkSize);
+  ImGui::SetNextWindowViewport(viewport->ID);
+
+  window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0.0f, 0.0f});
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+  ImGui::Begin("Lucerna Engine", nullptr, window_flags);
+
+  
+  ImGui::DockSpace(ImGui::GetID("Lucerna Engine"), ImVec2{0.0f, 0.0f},  dockspace_flags);
+
+
+
+  ImGui::Begin("Viewport");
+    ImGui::Image((ImTextureID) (uint64_t) Engine::get()->m_DrawImage.image_idx, ImGui::GetContentRegionAvail());
+  ImGui::End();
+  
+  ImGui::PopStyleVar(3);
+
+  
+  static bool opt_padding = true;
+  if (ImGui::BeginMenuBar())
+  {
+    if (ImGui::BeginMenu("Settings"))
+    {
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+
+      ImGui::MenuItem("Padding", NULL, &opt_padding);
+
+      ImGui::EndMenu();
+    }
+
+
+    
+    if (ImGui::BeginMenu("Debug"))
+    {
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+      ImGui::Text("my options");
+
+      ImGui::MenuItem("Padding", NULL, &opt_padding);
+
+      ImGui::EndMenu();
+    }
+    ImGui::EndMenuBar();
+  }
+  ImGui::End();
+
+
+
+
+
+
+
+  // FIXME:  resizing is based on the glfw window not the Viewport - this needs to be fixed
+
+  
+  FrameGraph::render_graph();
+  CVarSystem::get()->draw_editor();
+  
+  ImGui::EndFrame();
+  ImGui::Render();
+
+  draw(cmd, Engine::get()->device, target, Engine::get()->m_Swapchain.extent2d);
+
+  vklog::end_debug_label(cmd);
+}
+
+
+
+void FrameGraph::render_graph()
+{
+
+  float avg = std::accumulate(frametimes.begin(), frametimes.end(), 0.0f) / frametimes.size();
+  float min = *std::min_element(frametimes.begin(), frametimes.end());
+  float max = *std::max_element(frametimes.begin(), frametimes.end());
+  
+  double variance = 0.0;
+  std::for_each(frametimes.begin(), frametimes.end(), [&](const float& val) {
+      variance += std::pow(val - avg, 2);
+  });
+
+  variance /= frametimes.size();
+  float sd = glm::sqrt(variance);
+    
+  std::string str = std::format("avg ms:  {}", avg);
+  
+  ImGui::Begin("Frame Graph", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::PlotLines("##", [](void *data, int idx) -> float {
+                    auto ft = static_cast<std::deque<float> *>(data);
+                    return idx < ft->size() ? ft->at(idx) : 0.0f;
+                }, &frametimes, frametimes.size(), 0, nullptr, avg - 8*sd, avg + 8*sd, ImVec2{190, 100});
+
+    ImGui::Text("avg: %.3f", avg);
+    ImGui::Text(" sd: %.3f\t cv: %.3f", sd, sd/avg);
+    ImGui::Text("min: %.3f\tmax: %.3f", min, max);
+
+    uint32_t* cnt = (uint32_t*) Engine::get()->opaque_set.buffers.indirect_count.info.pMappedData;
+    ImGui::Text("indirect count: %i", *cnt);
+    
+  ImGui::End();
+}
+
+
+
+void FrameGraph::add_sample(float sample)
+{
+  frametimes.push_back(sample);
+  if (frametimes.size() == 120) frametimes.pop_front();
+}
 } // namespace Lucerna
