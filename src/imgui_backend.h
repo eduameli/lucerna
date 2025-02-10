@@ -9,7 +9,7 @@ namespace Lucerna {
   {
     public:
       static void init(Engine* engine);
-      static void draw_ui(VkCommandBuffer cmd, VkImageView target);
+      static void render_ui(VkCommandBuffer cmd, VkImageView target);
       static void cleanup(Engine* engine);
     public:
     private:
