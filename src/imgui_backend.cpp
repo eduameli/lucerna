@@ -1,11 +1,15 @@
 #include "imgui_backend.h"
+#include "imgui_internal.h"
 #include "la_asserts.h"
 #include "input_structures.glsl"
 #include "logger.h"
 #include "vk_descriptors.h"
 #include "vk_initialisers.h"
 #include "vk_pipelines.h"
+#include "vk_swapchain.h"
 #include "vk_types.h"
+#include "window.h"
+
 #include <imgui.h>
 
 #include <backends/imgui_impl_glfw.h>
@@ -415,41 +419,16 @@ void VulkanImGuiBackend::cleanup(Engine* engine)
 
 void VulkanImGuiBackend::render_editor(VkCommandBuffer cmd, VkImageView target)
 {
-
+  static Engine* engine = Engine::get();
+  
   vklog::start_debug_label(cmd, "imgui", MARKER_GREEN);
   
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-  // ImGui::Begin("Texture Picker");
-  //   static int32_t texture_idx = 0;
-  //   ImGui::Text("Bindless Texture Picker");
-  //   ImGui::InputInt("texture idx", &texture_idx);
-  //   ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{250, 250});
-  // ImGui::End();
 
+  static bool show_overdraw{ false }, show_ssao{ false }, show_collision{ false }, show_debug_lines{ false }, show_overlay{ true };
   // debug overlay!
-  // ImGuiWindowFlags flags =
-  //   ImGuiWindowFlags_NoMove |
-  //   ImGuiWindowFlags_NoBackground |
-  //   ImGuiWindowFlags_NoCollapse |
-  //   ImGuiWindowFlags_NoResize |
-  //   ImGuiWindowFlags_NoTitleBar |
-  //   ImGuiWindowFlags_NoSavedSettings |
-  //   ImGuiWindowFlags_NoScrollbar;
-
-  // ImGui::SetNextWindowPos({1, 1});
-  // ImGui::Begin("Debug Overlay", nullptr, flags);
-  //   VkExtent2D extent = Window::get_extent();
-  //   ImGui::Text("lucerna-dev (pre-alpha)");
-  //   ImGui::Text("[instance version %s]", stats.instanceVersion.c_str());
-  //   ImGui::Text("gpu: %s", stats.gpuName.c_str());
-  //   ImGui::Text("resolution: %dx%d", extent.width, extent.height);
-  //   ImGui::Text("present mode: %s", vkutil::stringify_present_mode(m_Swapchain.presentMode).c_str());
-  //   ImGui::Text("frame: %zu", frameNumber);
-
-  //   ImGui::Text("opaque %zu | transparent %zu", opaque_set.draw_datas.size(), transparent_set.draw_datas.size());
-  // ImGui::End();
 
   static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
   ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
@@ -473,8 +452,31 @@ void VulkanImGuiBackend::render_editor(VkCommandBuffer cmd, VkImageView target)
 
 
 
-  ImGui::Begin("Viewport", NULL, ImGuiWindowFlags_NoNavFocus);
+  ImGui::Begin("Viewport", NULL);
     ImGui::Image((ImTextureID) (uint64_t) Engine::get()->m_DrawImage.image_idx, ImGui::GetContentRegionAvail());
+
+    if (show_overlay)
+    {
+      const uint32_t lwidth = 15;
+      ImVec2 origin = ImGui::GetWindowPos();
+      origin.y += ImGui::GetWindowHeight();
+      origin.y -= lwidth*7;
+
+      origin.x += 5;
+      origin.y -= 5;
+    
+      ImDrawList* list = ImGui::GetForegroundDrawList();
+      ImVec2 extent = ImGui::GetWindowSize();
+
+      list->AddRectFilled({origin.x -5, origin.y -5}, {origin.x + 5 + lwidth*19, origin.y + lwidth*7 + 5}, IM_COL32(5, 45, 5, 135));
+      list->AddText(origin, IM_COL32(255, 255, 255, 255), "lucerna-dev (pre-alpha)");
+      list->AddText({origin.x, origin.y + lwidth*1}, IM_COL32(255, 255, 255, 255), std::format("[instance ver. {}]", engine->stats.instanceVersion).c_str());
+      list->AddText({origin.x, origin.y + lwidth*2}, IM_COL32(255, 255, 255, 255), std::format("gpu: {}", engine->stats.gpuName).c_str());
+      list->AddText({origin.x, origin.y + lwidth*3}, IM_COL32(255, 255, 255, 255), std::format("resolution: {}x{}", extent.x, extent.y).c_str());
+      list->AddText({origin.x, origin.y + lwidth*4}, IM_COL32(255, 255, 255, 255), std::format("present mode: {}", vkutil::stringify_present_mode(engine->m_Swapchain.presentMode)).c_str());
+      list->AddText({origin.x, origin.y + lwidth*5}, IM_COL32(255, 255, 255, 255), std::format("frame: {}", engine->frameNumber).c_str());
+      list->AddText({origin.x, origin.y + lwidth*6}, IM_COL32(255, 255, 255, 255), std::format("opaque {} | transparent {}", engine->opaque_set.draw_datas.size(), engine->transparent_set.draw_datas.size()).c_str());
+    }
   ImGui::End();
   
   ImGui::PopStyleVar(3);
@@ -498,9 +500,9 @@ void VulkanImGuiBackend::render_editor(VkCommandBuffer cmd, VkImageView target)
     
     if (ImGui::BeginMenu("Debug"))
     {
-      static bool show_overdraw{ false }, show_ssao{ false }, show_collision{ false }, show_debug_lines{ false };
       ImGui::MenuItem("Display Overdraw", NULL, &show_overdraw);
       ImGui::MenuItem("Display SSAO", NULL, &show_ssao);
+      ImGui::MenuItem("Show Overlay", NULL, &show_overlay);
       ImGui::MenuItem("Show Debug Lines", NULL, &show_debug_lines);
       ImGui::MenuItem("Show Collision Shapes", NULL, &show_collision);
       ImGui::EndMenu();
@@ -539,6 +541,15 @@ void VulkanImGuiBackend::render_editor(VkCommandBuffer cmd, VkImageView target)
   
   FrameGraph::render_graph();
   CVarSystem::get()->draw_editor();
+
+  ImGui::Begin("Texture Picker");
+    static int32_t texture_idx = 0;
+    ImGui::Text("Bindless Texture Picker");
+    ImGui::InputInt("texture idx", &texture_idx);
+
+    float min = glm::min(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y);
+    ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{min, min});
+  ImGui::End();
   
   ImGui::EndFrame();
   ImGui::Render();
