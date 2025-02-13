@@ -473,49 +473,61 @@ void VulkanImGuiBackend::render_editor(VkCommandBuffer cmd, VkImageView target)
 
 
 
-  ImGui::Begin("Viewport");
+  ImGui::Begin("Viewport", NULL, ImGuiWindowFlags_NoNavFocus);
     ImGui::Image((ImTextureID) (uint64_t) Engine::get()->m_DrawImage.image_idx, ImGui::GetContentRegionAvail());
   ImGui::End();
   
   ImGui::PopStyleVar(3);
 
-  
-  static bool opt_padding = true;
+
+  // FIXME: options dont do anything yet, just to get an idea of what functionality can be here.
+ 
   if (ImGui::BeginMenuBar())
   {
+    ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+    
     if (ImGui::BeginMenu("Settings"))
     {
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-
-      ImGui::MenuItem("Padding", NULL, &opt_padding);
+      ImGui::Text("Reload Scene");
+      ImGui::Text("Reload Renderer");
+      ImGui::Text("Restore Default Settings");
+      ImGui::Text("Open Config");
 
       ImGui::EndMenu();
     }
-
-
     
     if (ImGui::BeginMenu("Debug"))
     {
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-      ImGui::Text("my options");
-
-      ImGui::MenuItem("Padding", NULL, &opt_padding);
-
+      static bool show_overdraw{ false }, show_ssao{ false }, show_collision{ false }, show_debug_lines{ false };
+      ImGui::MenuItem("Display Overdraw", NULL, &show_overdraw);
+      ImGui::MenuItem("Display SSAO", NULL, &show_ssao);
+      ImGui::MenuItem("Show Debug Lines", NULL, &show_debug_lines);
+      ImGui::MenuItem("Show Collision Shapes", NULL, &show_collision);
       ImGui::EndMenu();
     }
+    
+    if (ImGui::BeginMenu("Scene"))
+    {
+      ImGui::Text("Reload Scene");
+      ImGui::Text("Load Scene");
+      ImGui::Text("Load GLTF");
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("About"))
+    {
+      ImGui::Text("lucerna v0.1.0");
+      ImGui::Text("by eduameli");
+      ImGui::SameLine();
+      ImGui::TextLinkOpenURL("(repo)", "https://gitlab.com/eduameli/lucerna");
+      
+      ImGui::EndMenu();
+    }
+    
     ImGui::EndMenuBar();
+    ImGui::PopItemFlag();
   }
   ImGui::End();
-
 
 
 
