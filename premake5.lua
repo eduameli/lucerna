@@ -52,6 +52,7 @@ project "lucerna"
         "vendor/fastgltf/include",
         "vendor/volk",
         "vendor/tomlplusplus/include",
+        "vendor/spirv-headers/include",
 
         "shaders/include",
         "shaders/",
