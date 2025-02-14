@@ -161,6 +161,16 @@ namespace Lucerna {
   };
 
 
+  // DrawSet 1..n - n..m CompactDrawSet where 0 < n < m
+  struct CompactDrawSet
+  {
+    AllocatedBuffer indirect_draws;
+    AllocatedBuffer indirect_count;
+    AllocatedBuffer partialSums;
+    AllocatedBuffer outputCompact;
+  };
+
+
 
 
 

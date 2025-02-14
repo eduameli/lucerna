@@ -2,12 +2,8 @@
 #include "lucerna_pch.h"
 #include <volk.h>
 #include <vulkan/vulkan_core.h>
-namespace vkutil
-{
-// NOTE: std::filesystem::path and optional that retuns "placeholder" shader pipeline if it fails.
-bool load_shader_module(const char* filepath, VkDevice device, VkShaderModule* outShaderModule);
 
-} // namespace vkutil
+namespace Lucerna {
 
 class PipelineBuilder
 {
@@ -43,3 +39,15 @@ class PipelineBuilder
     void clear();
 };
 
+
+namespace vkutil
+{
+// NOTE: std::filesystem::path and optional that retuns "placeholder" shader pipeline if it fails.
+bool load_shader_module(const char* filepath, VkDevice device, VkShaderModule* outShaderModule);
+
+// SPIR-V REFLECTION
+VkPipelineLayout get_pipeline_layout_from_spv();
+
+} // namespace vkutil
+
+}

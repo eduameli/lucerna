@@ -51,13 +51,13 @@ namespace Lucerna {
 
   void Window::glfw_error_callback(int error, const char* description)
   {
-    // AR_CORE_ERROR("GLFW Error ({}): {}", error, description);
+    LA_LOG_ERROR("GLFW Error ({}): {}", error,description);
   }
 
   void Window::iconify_callback(GLFWwindow* window, int iconify)
   {
     Engine::get()->stopRendering = iconify == 0 ? false : true;
-    // AR_CORE_WARN("{} Rendering", iconify == 0 ? "Resumed" : "Suspended");
+    LA_LOG_INFO("{} Rendering", iconify == 0 ? "Resumed" : "Suspended");
   }
 
   void Window::resize_callback(GLFWwindow* window, int width, int height)

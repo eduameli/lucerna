@@ -158,7 +158,7 @@ VkExtent2D SwapchainContextBuilder::choose_extent(VkSurfaceCapabilitiesKHR capab
   }
 }
 
-} // namespace Lucerna
+
 
 std::string vkutil::stringify_present_mode(VkPresentModeKHR presentMode)
 {
@@ -181,3 +181,6 @@ std::string vkutil::stringify_present_mode(VkPresentModeKHR presentMode)
         return "UNKNOWN_PRESENT_MODE";
   }
 }
+
+} // namespace Lucerna
+

@@ -43,9 +43,13 @@ namespace Lucerna {
       VkColorSpaceKHR m_ColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
       VkPresentModeKHR m_PresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
   };
-} // namespace Lucerna
+
 
 namespace vkutil
 {
   std::string stringify_present_mode(VkPresentModeKHR presentMode);
 }
+
+  
+} // namespace Lucerna
+

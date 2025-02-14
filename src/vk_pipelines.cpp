@@ -5,6 +5,8 @@
 #include "la_asserts.h"
 #include "logger.h"
 
+namespace Lucerna {
+
 bool vkutil::load_shader_module(const char *filepath, VkDevice device, VkShaderModule* outShaderModule)
 {
   std::ifstream file(filepath, std::ios::ate | std::ios::binary);
@@ -215,4 +217,6 @@ void PipelineBuilder::enable_depthtest(bool depthWriteEnable, VkCompareOp op)
   m_DepthStencil.back = {};
   m_DepthStencil.minDepthBounds = 0.0f;
   m_DepthStencil.maxDepthBounds = 1.0f;
+}
+
 }

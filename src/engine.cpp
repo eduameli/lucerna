@@ -1790,6 +1790,7 @@ void Engine::init_imgui()
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
   ImGui::GetStyle().Colors[ImGuiCol_PopupBg] = ImVec4{0.0, 0.0, 0.0, 1.0};
+  ImGui::GetStyle().WindowMenuButtonPosition = ImGuiDir_None;
 
   m_DeletionQueue.push_function([=, this]() {
     VulkanImGuiBackend::cleanup(this);
