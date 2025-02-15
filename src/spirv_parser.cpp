@@ -61,10 +61,33 @@ void parse_binary(uint32_t* data, size_t size, std::string_view name_buffer, Par
         
         break;    
       }
+      
       case (SpvOpTypeVector):
       {
-        // LEFT HERE pg110 mastering gp with vk
+        uint32_t id_index = data[word_idx + 1];
+        Id& id = parse_result->ids.at(id_index);
+        id.op = op;
+        id.type_index = data[word_idx + 2];
+        id.count = data[word_idx + 3];
         break;    
+      }
+
+      case (SpvOpTypeSampler):
+      {
+        uint32_t id_index = data[word_idx];
+        Id& id = parse_result->ids.at(id_index);
+        id.op = op;
+        break;
+      }
+
+      case (SpvOpVariable):
+      {
+        uint32_t id_index = data[word_idx + 2];
+        Id& id = parse_result->ids.at(id_index);
+        id.op = op;
+        id.type_index = data[word_idx + 1];
+        id.storage_class = (SpvStorageClass) data[word_idx + 3];
+        break;
       }
       default:
       {
