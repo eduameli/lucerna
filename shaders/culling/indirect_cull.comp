@@ -39,7 +39,7 @@ layout( push_constant, scalar ) uniform constants
 
 bool is_visible(vec4 bounds)
 {
-    return true;
+    // return true;
 
     vec3 centre = bounds.xyz;
     float radius = bounds.w;

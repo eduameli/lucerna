@@ -40,6 +40,9 @@ void VulkanImGuiBackend::init(Engine* engine)
 
   // create vertex buffer
   vertexBuffer = engine->create_buffer(sizeof(ImVertexFormat) * MAX_VTX_COUNT, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+  vklog::label_buffer(engine->device, vertexBuffer.buffer, "ImGui Vertex Buffer");
+  vklog::label_buffer(engine->device, indexBuffer.buffer, "ImGui Index Buffer");
   
   // upload imgui font
   auto& io = ImGui::GetIO();
@@ -415,151 +418,6 @@ void VulkanImGuiBackend::cleanup(Engine* engine)
   engine->destroy_buffer(vertexBuffer);
   engine->destroy_image(fontImage);
 }
-
-
-void VulkanImGuiBackend::render_editor(VkCommandBuffer cmd, VkImageView target)
-{
-  static Engine* engine = Engine::get();
-  
-  vklog::start_debug_label(cmd, "imgui", MARKER_GREEN);
-  
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
-
-
-  static bool show_overdraw{ false }, show_ssao{ false }, show_collision{ false }, show_debug_lines{ false }, show_overlay{ true };
-  // debug overlay!
-
-  static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
-  ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-
-  const ImGuiViewport* viewport = ImGui::GetMainViewport();
-  ImGui::SetNextWindowPos(viewport->WorkPos);
-  ImGui::SetNextWindowSize(viewport->WorkSize);
-  ImGui::SetNextWindowViewport(viewport->ID);
-
-  window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0.0f, 0.0f});
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-  ImGui::Begin("Lucerna Engine", nullptr, window_flags);
-
-  
-  ImGui::DockSpace(ImGui::GetID("Lucerna Engine"), ImVec2{0.0f, 0.0f},  dockspace_flags);
-
-
-
-  ImGui::Begin("Viewport", NULL);
-    ImGui::Image((ImTextureID) (uint64_t) Engine::get()->m_DrawImage.image_idx, ImGui::GetContentRegionAvail());
-
-    if (show_overlay)
-    {
-      const uint32_t lwidth = 15;
-      ImVec2 origin = ImGui::GetWindowPos();
-      origin.y += ImGui::GetWindowHeight();
-      origin.y -= lwidth*7;
-
-      origin.x += 5;
-      origin.y -= 5;
-    
-      ImDrawList* list = ImGui::GetForegroundDrawList();
-      ImVec2 extent = ImGui::GetWindowSize();
-
-      list->AddRectFilled({origin.x -5, origin.y -5}, {origin.x + 5 + lwidth*19, origin.y + lwidth*7 + 5}, IM_COL32(5, 45, 5, 135));
-      list->AddText(origin, IM_COL32(255, 255, 255, 255), "lucerna-dev (pre-alpha)");
-      list->AddText({origin.x, origin.y + lwidth*1}, IM_COL32(255, 255, 255, 255), std::format("[instance ver. {}]", engine->stats.instanceVersion).c_str());
-      list->AddText({origin.x, origin.y + lwidth*2}, IM_COL32(255, 255, 255, 255), std::format("gpu: {}", engine->stats.gpuName).c_str());
-      list->AddText({origin.x, origin.y + lwidth*3}, IM_COL32(255, 255, 255, 255), std::format("resolution: {}x{}", extent.x, extent.y).c_str());
-      list->AddText({origin.x, origin.y + lwidth*4}, IM_COL32(255, 255, 255, 255), std::format("present mode: {}", vkutil::stringify_present_mode(engine->m_Swapchain.presentMode)).c_str());
-      list->AddText({origin.x, origin.y + lwidth*5}, IM_COL32(255, 255, 255, 255), std::format("frame: {}", engine->frameNumber).c_str());
-      list->AddText({origin.x, origin.y + lwidth*6}, IM_COL32(255, 255, 255, 255), std::format("opaque {} | transparent {}", engine->opaque_set.draw_datas.size(), engine->transparent_set.draw_datas.size()).c_str());
-    }
-  ImGui::End();
-  
-  ImGui::PopStyleVar(3);
-
-
-  // FIXME: options dont do anything yet, just to get an idea of what functionality can be here.
- 
-  if (ImGui::BeginMenuBar())
-  {
-    ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
-    
-    if (ImGui::BeginMenu("Settings"))
-    {
-      ImGui::Text("Reload Scene");
-      ImGui::Text("Reload Renderer");
-      ImGui::Text("Restore Default Settings");
-      ImGui::Text("Open Config");
-
-      ImGui::EndMenu();
-    }
-    
-    if (ImGui::BeginMenu("Debug"))
-    {
-      ImGui::MenuItem("Display Overdraw", NULL, &show_overdraw);
-      ImGui::MenuItem("Display SSAO", NULL, &show_ssao);
-      ImGui::MenuItem("Show Overlay", NULL, &show_overlay);
-      ImGui::MenuItem("Show Debug Lines", NULL, &show_debug_lines);
-      ImGui::MenuItem("Show Collision Shapes", NULL, &show_collision);
-      ImGui::EndMenu();
-    }
-    
-    if (ImGui::BeginMenu("Scene"))
-    {
-      ImGui::Text("Reload Scene");
-      ImGui::Text("Load Scene");
-      ImGui::Text("Load GLTF");
-      ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("About"))
-    {
-      ImGui::Text("lucerna v0.1.0");
-      ImGui::Text("by eduameli");
-      ImGui::SameLine();
-      ImGui::TextLinkOpenURL("(repo)", "https://gitlab.com/eduameli/lucerna");
-      
-      ImGui::EndMenu();
-    }
-    
-    ImGui::EndMenuBar();
-    ImGui::PopItemFlag();
-  }
-  ImGui::End();
-
-
-
-
-
-
-  // FIXME:  resizing is based on the glfw window not the Viewport - this needs to be fixed
-
-  
-  FrameGraph::render_graph();
-  CVarSystem::get()->draw_editor();
-
-  ImGui::Begin("Texture Picker");
-    static int32_t texture_idx = 0;
-    ImGui::Text("Bindless Texture Picker");
-    ImGui::InputInt("texture idx", &texture_idx);
-
-    float min = glm::min(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y);
-    ImGui::Image((ImTextureID) (uint64_t) texture_idx, ImVec2{min, min});
-  ImGui::End();
-  
-  ImGui::EndFrame();
-  ImGui::Render();
-
-  draw(cmd, Engine::get()->device, target, Engine::get()->m_Swapchain.extent2d);
-
-  vklog::end_debug_label(cmd);
-}
-
-
 
 void FrameGraph::render_graph()
 {

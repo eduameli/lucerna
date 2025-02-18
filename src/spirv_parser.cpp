@@ -22,9 +22,6 @@ void parse_binary(uint32_t* data, size_t size, std::string_view name_buffer, Par
     SpvOp op = (SpvOp) (data[word_idx] & 0xFF);
     uint16_t word_count = (uint16_t) (data [word_idx] >> 16);
 
-
-
-
     switch (op)
     {
       case (SpvOpEntryPoint):
@@ -96,6 +93,27 @@ void parse_binary(uint32_t* data, size_t size, std::string_view name_buffer, Par
         
     }
 
+
+    for (uint32_t id_index = 0; id_index < parse_result->ids.size(); id_index++)
+    {
+      Id& id = parse_result->ids.at(id_index);
+      if (id.op == SpvOpVariable)
+      {
+        switch (id.storage_class)
+        {
+          case (SpvStorageClassUniform):
+          case (SpvStorageClassUniformConstant):
+          {
+            Id& uniform_type = parse_result->ids.at(parse_result->ids.at(id.type_index).type_index);    
+            
+          }
+          default:
+          {
+            
+          }
+        }
+      }
+    }
 
     
     word_idx += word_count;

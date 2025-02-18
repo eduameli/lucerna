@@ -11,7 +11,7 @@
 
 namespace Lucerna {
 
-AutoCVar_Int bloomEnabled{"bloom.enabled", "", 1, CVarFlags::EditCheckbox};
+AutoCVar_Int bloomEnabled{"bloom.enabled", "", 0, CVarFlags::EditCheckbox};
 
 void bloom::prepare()
 {
@@ -130,7 +130,6 @@ void bloom::run(VkCommandBuffer cmd, VkImageView targetImage)
   // run compute downsample
   // run compute upsample
   // mix with target img
-  vklog::start_debug_label(cmd, "bloom", MARKER_BLUE);
   
   Engine* engine = Engine::get();
   VkExtent3D size = {engine->internalExtent.width, engine->internalExtent.height, 1};
@@ -274,7 +273,6 @@ void bloom::run(VkCommandBuffer cmd, VkImageView targetImage)
   vkCmdDispatch(cmd, std::ceil(size.width / 16.0), std::ceil(size.height / 16.0), 1);
 
 
-  vklog::end_debug_label(cmd);
   // FIXME: do i need a barrier here?
 }
 
@@ -458,7 +456,6 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   write descriptor set -- depth binding 0 output binding 1
   */
 
-  vklog::start_debug_label(cmd, "ssao", MARKER_RED);
   
   Engine* engine = Engine::get();
   VkExtent3D size = engine->internalExtent;
@@ -542,7 +539,6 @@ void ssao::run(VkCommandBuffer cmd, VkImageView depth)
   // FIXME: do i need a barrier here??
   //
   //
-  vklog::end_debug_label(cmd);
 }
 
 } // namespace Lucerna

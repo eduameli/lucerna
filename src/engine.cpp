@@ -22,6 +22,7 @@
 #include <vulkan/vulkan_core.h>
 #include "vk_types.h"
 #include "imgui_backend.h"
+#include "renderer.h"
 
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
@@ -202,9 +203,6 @@ void Engine::run()
       continue;
     }
 
-    // FIXME: this is a bit off - fix as right now i do atomicAdd
-    // *(uint32_t*) mainDrawContext.indirectCount.info.pMappedData = 0;
-    
     update_scene();
     draw();
     
@@ -213,11 +211,6 @@ void Engine::run()
     stats.frametime = elapsed.count() / 1000.0f;
 
     FrameGraph::add_sample(stats.frametime);
-
-
-    upload_sampled.clear();
-    upload_storage.clear();
-    
   }
 }
 
@@ -324,16 +317,8 @@ void Engine::draw()
   // vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, bindless_pipeline_layout, 0, 1, &global_descriptor_set, 0, nullptr);
 
   vklog::start_debug_label(cmd, "Compute Culling", MARKER_RED);
-
-  vklog::start_debug_label(cmd, "Opaque Draw Set", MARKER_GREEN);
-  do_culling(cmd, opaque_set);
-  vklog::end_debug_label(cmd);
-
-  
-  vklog::start_debug_label(cmd, "Opaque Draw Set", MARKER_GREEN);
-  do_culling(cmd, transparent_set);
-  vklog::end_debug_label(cmd);
-
+  Renderer::cull_draw_set(cmd, opaque_set);
+  Renderer::cull_draw_set(cmd, transparent_set);
   vklog::end_debug_label(cmd);
   
 
@@ -372,11 +357,10 @@ void Engine::draw()
   
   // draw ui directly on swapchain image
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  VulkanImGuiBackend::render_editor(cmd, m_Swapchain.views[swapchainImageIndex]);
+  Renderer::draw_editor(cmd, m_Swapchain.views[swapchainImageIndex]);
   vkutil::transition_image(cmd, m_Swapchain.images[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 
-  // update descriptor sets?
   update_descriptors();
 
 
@@ -417,7 +401,6 @@ void Engine::draw()
 
 void Engine::draw_background(VkCommandBuffer cmd)
 {
-  vklog::start_debug_label(cmd, "background", MARKER_RED);
   
   // ComputeEffect effect = m_BackgroundEffects[m_BackgroundEffectIndex]; 
 
@@ -433,7 +416,6 @@ void Engine::draw_background(VkCommandBuffer cmd)
   VkImageSubresourceRange range = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
   vkCmdClearColorImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &range);
     
-  vklog::end_debug_label(cmd);
 }
 
 void Engine::draw_shadow_pass(VkCommandBuffer cmd)
@@ -534,7 +516,6 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
     return;
   
 
-  vklog::start_debug_label(cmd, "depth prepass", MARKER_GREEN);
   
   VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
   VkRenderingInfo depthPrepassInfo = vkinit::rendering_info(m_DrawExtent, nullptr, &depthAttachment);
@@ -582,14 +563,10 @@ void Engine::draw_depth_prepass(VkCommandBuffer cmd)
   
   
   vkCmdEndRendering(cmd);
-
-
-  vklog::end_debug_label(cmd);
 }
 
 void Engine::draw_geometry(VkCommandBuffer cmd)
 {
-  vklog::start_debug_label(cmd, "opaque geometry", MARKER_BLUE);
   
   auto start = std::chrono::system_clock::now();
   stats.drawcall_count = 0;
@@ -628,13 +605,8 @@ void Engine::draw_geometry(VkCommandBuffer cmd)
 
 
   render_draw_set(cmd, opaque_set);
-
-  vklog::end_debug_label(cmd);
-  vklog::start_debug_label(cmd, "transparent geometry", MARKER_RED);
-  
   render_draw_set(cmd, transparent_set);
 
-  vklog::end_debug_label(cmd);
   
 
 
@@ -1516,6 +1488,9 @@ void Engine::update_descriptors()
   }
   
   vkUpdateDescriptorSets(device, writes.size() , writes.data(), 0, nullptr);
+
+  upload_storage.clear();
+  upload_sampled.clear();
 }
 
 //FIXME: this whole function is wack i should divide it up .. or move to init_descriptors or smth
@@ -1874,125 +1849,6 @@ void Engine::init_indirect_cull_pipeline()
     vkDestroyDescriptorSetLayout(device, compact_descriptor_layout, nullptr);
   });
 
-}
-
-
-void Engine::do_culling(VkCommandBuffer cmd, DrawSet& draw_set)
-{
-
-  if (draw_set.draw_datas.size() == 0)
-    return;
-
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline);
-
-  // this should be part of the mainDrawContext - not allocated every frame etc... its literally only updated once and then can just bind it when u change pipeline
-
-  VkDescriptorSet cullDescriptor = get_current_frame().frameDescriptors.allocate(device, compact_descriptor_layout);
-  DescriptorWriter writer;
-  writer.write_buffer(0, draw_set.buffers.draw_data.buffer, draw_set.draw_datas.size() * sizeof(DrawData), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER); // FIXME: .buffer .buffer :sob:
-  writer.write_buffer(1, mainDrawContext.sceneBuffers.transformBuffer.buffer, mainDrawContext.transforms.size() * sizeof(glm::mat4x3), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.write_buffer(2, mainDrawContext.sceneBuffers.boundsBuffer.buffer, mainDrawContext.sphere_bounds.size() * sizeof(glm::vec4) , 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  writer.update_set(device, cullDescriptor);
-  
-  indirect_cull_pcs pcs;
-  pcs.draw_count = draw_set.draw_datas.size();
-
-	VkBufferDeviceAddressInfo deviceAdressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.indirect_draws.buffer };
-	pcs.ids = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &deviceAdressInfo);
-
-
-  VkBufferDeviceAddressInfo indirectCountBuffer{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.indirect_count.buffer };
-  pcs.indirect_count = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &indirectCountBuffer);
-
-  VkBufferDeviceAddressInfo partialBuff{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.partialSums.buffer };
-  pcs.partial = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &partialBuff);
-
-  VkBufferDeviceAddressInfo outCull{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = draw_set.buffers.outputCompact.buffer };
-  pcs.outb = (VkDeviceAddress) vkGetBufferDeviceAddress(device, &outCull);
-  
-  pcs.view = sceneData.view;
-
-
-  // dont understand code just do it??
-  glm::mat4 projT = glm::transpose(sceneData.proj);
-
-
-  auto normalise = [](glm::vec4 p){ return p / glm::length(glm::vec3(p)); };
-  
-  glm::vec4 frustumX = normalise(projT[3] + projT[0]);
-  glm::vec4 frustumY = normalise(projT[3] + projT[1]);
-
-  pcs.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
-  // end
-
-
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipelineLayout, 0, 1, &cullDescriptor, 0, nullptr);
-	
-  vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(draw_set.draw_datas.size() / 1024.0), 1, 1);
-
-
-  VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-  mbar.buffer = draw_set.buffers.partialSums.buffer;
-  mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-  mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-  mbar.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-  mbar.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-  mbar.size = VK_WHOLE_SIZE;
-  
-  VkDependencyInfo info{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};
-  info.bufferMemoryBarrierCount = 1;
-  info.pBufferMemoryBarriers = &mbar;
-
-  vkCmdPipelineBarrier2(cmd, &info);
-
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, compactPipeline);
-  
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipelineLayout, 0, 1, &cullDescriptor, 0, nullptr);
-  vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(draw_set.draw_datas.size() / 1024.0), 1, 1);
-
-  {
-    VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-    mbar.buffer = draw_set.buffers.outputCompact.buffer;
-    mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    mbar.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-    mbar.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    mbar.size = VK_WHOLE_SIZE;
-  
-    VkDependencyInfo info{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};
-    info.bufferMemoryBarrierCount = 1;
-    info.pBufferMemoryBarriers = &mbar;
-
-    vkCmdPipelineBarrier2(cmd, &info);
-  }
-
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, writeIndirectPipeline);
-
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipelineLayout, 0, 1, &cullDescriptor, 0, nullptr);
-  vkCmdPushConstants(cmd, cullPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pcs), &pcs);
-  vkCmdDispatch(cmd, std::ceil(draw_set.draw_datas.size() / 1024.0), 1, 1);
-
-  
-  {
-    VkBufferMemoryBarrier2 mbar{.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2, .pNext = nullptr};
-    mbar.buffer = draw_set.buffers.indirect_draws.buffer;
-    mbar.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    mbar.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    mbar.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-    mbar.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
-    mbar.size = VK_WHOLE_SIZE;
-  
-    VkDependencyInfo info{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr};
-    info.bufferMemoryBarrierCount = 1;
-    info.pBufferMemoryBarriers = &mbar;
-
-    vkCmdPipelineBarrier2(cmd, &info);
-  }
-
-
- 
 }
 
 void Engine::upload_draw_set(DrawSet& set)

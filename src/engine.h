@@ -203,6 +203,7 @@ namespace Lucerna {
 
       // indirect culling - FIXME: should use draw_sets one for the different geometry "buckets"
       // FIXME: scuffed now culls WHOLE DRAWING EVEN FOR SHADOWS
+    public:
       VkPipeline cullPipeline{};
       VkPipeline compactPipeline{};
       VkPipeline writeIndirectPipeline{};
@@ -211,7 +212,6 @@ namespace Lucerna {
       VkDescriptorSetLayout compact_descriptor_layout{};
       
       void init_indirect_cull_pipeline();
-      void do_culling(VkCommandBuffer cmd, DrawSet& set); // 
       
     private:
       
