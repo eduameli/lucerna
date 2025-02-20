@@ -1,6 +1,7 @@
 #include "spirv_parser.h"
 #include "la_asserts.h"
 #include "spirv/1.2/spirv.h"
+#include "vulkan/vulkan_core.h"
 #include <sys/types.h>
 
 namespace Lucerna { namespace spirv {
@@ -15,8 +16,7 @@ void parse_binary(uint32_t* data, size_t size, std::string_view name_buffer, Par
 
   parse_result->ids.resize(id_bound);
 
-  // parsed information
-
+  // parse information
   for (int word_idx = 5; word_idx < id_bound;)
   {
     SpvOp op = (SpvOp) (data[word_idx] & 0xFF);
@@ -105,6 +105,32 @@ void parse_binary(uint32_t* data, size_t size, std::string_view name_buffer, Par
           case (SpvStorageClassUniformConstant):
           {
             Id& uniform_type = parse_result->ids.at(parse_result->ids.at(id.type_index).type_index);    
+            DescriptorSetInfo& setLayout = parse_result->sets.at(id.set);
+            Binding binding;
+            binding.start = id.binding;
+            binding.count = 1;
+
+            switch (uniform_type.op)
+            {
+              case (SpvOpTypeStruct):
+              {
+                binding.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                binding.name = uniform_type.name;
+                break;
+              }
+              case (SpvOpTypeSampledImage):
+              {
+                binding.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                binding.name = id.name;
+                break;
+              }
+              default:
+              {
+                
+              }
+            }
+
+            setLayout.add_binding_at_index(binding, id.binding);
             
           }
           default:

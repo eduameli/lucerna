@@ -1433,8 +1433,6 @@ void Engine::update_descriptors()
 {
   if (upload_storage.size() + upload_sampled.size() == 0) return;
 
-  LA_LOG_DEBUG("Uploading Bindless Image/Texture Descriptors");
-  
   std::vector<VkWriteDescriptorSet> writes;
   std::vector<VkDescriptorImageInfo> infos;
   writes.reserve(upload_sampled.size() + upload_storage.size());
@@ -1488,7 +1486,8 @@ void Engine::update_descriptors()
   }
   
   vkUpdateDescriptorSets(device, writes.size() , writes.data(), 0, nullptr);
-
+  LA_LOG_DEBUG("Uploading Bindless Descriptors ({} Storage, {} Sampled)", upload_storage.size(), upload_sampled.size());
+  
   upload_storage.clear();
   upload_sampled.clear();
 }

@@ -73,6 +73,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(Engine* engine, std::filesy
   fastgltf::Asset& asset = asset_exp.get();
   
 
+  // storage and sampled images are uploaded in bulk but samplers are done one by one? then uint32_t where 8 bytes indexes into the bindless sampler descriptor array
+  // and the other bits sampler into the textures
   for (fastgltf::Sampler& sampler : asset.samplers)
   {
     VkSamplerCreateInfo sampl{};

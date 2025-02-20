@@ -1,5 +1,6 @@
 #pragma once
 #include "lucerna_pch.h"
+#include "vulkan/vulkan_core.h"
 
 #include <spirv/1.2/spirv.h>
 #include <volk.h>
@@ -33,11 +34,30 @@ struct Id
   std::vector<StructMember> members;
 };
 
+
+struct Binding
+{
+  uint32_t start, count;
+  VkDescriptorType type;
+  std::string_view name;
+};
+
+struct DescriptorSetInfo
+{
+  uint32_t index;
+  void add_binding_at_index(Binding binding, uint32_t index)
+  {
+    
+  }
+};
+
 struct ParseResult
 {
   uint32_t set_count{ 0 };
   VkShaderStageFlags stage;
   std::vector<Id> ids;
+
+  std::vector<DescriptorSetInfo> sets;
 };
 
 

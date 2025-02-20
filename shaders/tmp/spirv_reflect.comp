@@ -1,0 +1,32 @@
+#version 460
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout(rgba16f,set = 0, binding = 0) uniform image2D image;
+
+//push constants block
+layout( push_constant ) uniform constants
+{
+ vec4 data1;
+ vec4 data2;
+ vec4 data3;
+ vec4 data4;
+} PushConstants;
+
+void main() 
+{
+  imageStore(image, ivec2(gl_GlobalInvocationID.xy), PushConstants.data1);
+}
+
+/*
+spirv reflect must support
+
+bindless sampled
+bindless storage
+
+uniforms for random ahh settings
+
+storage buffers
+
+push constants
+*/
