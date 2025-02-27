@@ -1,8 +1,7 @@
 #include "spirv_parser.h"
 #include "la_asserts.h"
 #include "spirv/1.2/spirv.h"
-#include "vulkan/vulkan_core.h"
-#include <sys/types.h>
+#include <volk.h>
 
 namespace Lucerna { namespace spirv {
 

@@ -1,7 +1,5 @@
 #pragma once
 #include "lucerna_pch.h"
-#include "vulkan/vulkan_core.h"
-
 #include <spirv/1.2/spirv.h>
 #include <volk.h>
 
