@@ -1,5 +1,5 @@
 # Lucerna (renderer)
-## warning: *very* wip, dont use this code as reference.
+## warning: **very** wip, dont use this code as reference.
 
 my goals for this project is to make a cool renderer (not a game engine)
 to keep it simple i have some constraints
