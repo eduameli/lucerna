@@ -1,6 +1,6 @@
 # Lucerna (renderer)
 ## warning: **very** wip, dont use this code as reference.
-## gitlab https://gitlab.com/eduameli/lucerna  
+## active-repo: https://gitlab.com/eduameli/lucerna  
 
 my goals for this project is to make a cool renderer (not a game engine)
 to keep it simple i have some constraints
