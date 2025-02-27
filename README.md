@@ -19,5 +19,6 @@ oit, forward clustered, csm, baked lighting, anti aliasing, hiz culling, skinned
 demos to tweak the settings and see the effects in action! -> README.md screenshots
 
 # Features
-wip
+lucerna is still **very** wip, dont use this code as reference.
+
 
